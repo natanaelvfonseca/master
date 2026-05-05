@@ -42,10 +42,10 @@ export function Topbar() {
         <Button variant="ghost" size="icon"><Settings className="h-5 w-5" /></Button>
         <div className="ml-1 flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1">
           <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">RA</AvatarFallback>
+            <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">JC</AvatarFallback>
           </Avatar>
           <div className="hidden text-right leading-tight md:block">
-            <div className="text-xs font-semibold">Ricardo Alves</div>
+            <div className="text-xs font-semibold">Junior Cunha</div>
             <div className="text-[10px] text-muted-foreground">Diretor · Planarius</div>
           </div>
         </div>

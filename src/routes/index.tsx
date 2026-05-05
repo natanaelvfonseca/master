@@ -35,7 +35,7 @@ function Dashboard() {
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-gold">
               <Sparkles className="h-3 w-3" /> Visão executiva · Junho 2026
             </div>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">Bom dia, Ricardo. Sua escola está <span className="text-gradient-gold">crescendo 18.4%</span> este mês.</h1>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">Bom dia, Junior. Sua escola está <span className="text-gradient-gold">crescendo 18.4%</span> este mês.</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/70">
               R$ 1.41M faturados · 218 matrículas · IA recuperou 132 alunos em risco. Confira oportunidades abaixo.
             </p>
