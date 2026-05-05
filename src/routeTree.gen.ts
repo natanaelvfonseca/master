@@ -9,38 +9,228 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
+import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as IntegracoesRouteImport } from './routes/integracoes'
+import { Route as EstrategiaRouteImport } from './routes/estrategia'
+import { Route as CrmRouteImport } from './routes/crm'
+import { Route as ConversasRouteImport } from './routes/conversas'
+import { Route as BrandingRouteImport } from './routes/branding'
+import { Route as BiRouteImport } from './routes/bi'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LeadsIndexRouteImport } from './routes/leads.index'
+import { Route as LeadsIdRouteImport } from './routes/leads.$id'
 
+const RecuperacaoRoute = RecuperacaoRouteImport.update({
+  id: '/recuperacao',
+  path: '/recuperacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RankingRoute = RankingRouteImport.update({
+  id: '/ranking',
+  path: '/ranking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegracoesRoute = IntegracoesRouteImport.update({
+  id: '/integracoes',
+  path: '/integracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EstrategiaRoute = EstrategiaRouteImport.update({
+  id: '/estrategia',
+  path: '/estrategia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConversasRoute = ConversasRouteImport.update({
+  id: '/conversas',
+  path: '/conversas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandingRoute = BrandingRouteImport.update({
+  id: '/branding',
+  path: '/branding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BiRoute = BiRouteImport.update({
+  id: '/bi',
+  path: '/bi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeadsIndexRoute = LeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsIdRoute = LeadsIdRouteImport.update({
+  id: '/leads/$id',
+  path: '/leads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
+  '/branding': typeof BrandingRoute
+  '/conversas': typeof ConversasRoute
+  '/crm': typeof CrmRoute
+  '/estrategia': typeof EstrategiaRoute
+  '/integracoes': typeof IntegracoesRoute
+  '/ranking': typeof RankingRoute
+  '/recuperacao': typeof RecuperacaoRoute
+  '/leads/$id': typeof LeadsIdRoute
+  '/leads/': typeof LeadsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
+  '/branding': typeof BrandingRoute
+  '/conversas': typeof ConversasRoute
+  '/crm': typeof CrmRoute
+  '/estrategia': typeof EstrategiaRoute
+  '/integracoes': typeof IntegracoesRoute
+  '/ranking': typeof RankingRoute
+  '/recuperacao': typeof RecuperacaoRoute
+  '/leads/$id': typeof LeadsIdRoute
+  '/leads': typeof LeadsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bi': typeof BiRoute
+  '/branding': typeof BrandingRoute
+  '/conversas': typeof ConversasRoute
+  '/crm': typeof CrmRoute
+  '/estrategia': typeof EstrategiaRoute
+  '/integracoes': typeof IntegracoesRoute
+  '/ranking': typeof RankingRoute
+  '/recuperacao': typeof RecuperacaoRoute
+  '/leads/$id': typeof LeadsIdRoute
+  '/leads/': typeof LeadsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/bi'
+    | '/branding'
+    | '/conversas'
+    | '/crm'
+    | '/estrategia'
+    | '/integracoes'
+    | '/ranking'
+    | '/recuperacao'
+    | '/leads/$id'
+    | '/leads/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/bi'
+    | '/branding'
+    | '/conversas'
+    | '/crm'
+    | '/estrategia'
+    | '/integracoes'
+    | '/ranking'
+    | '/recuperacao'
+    | '/leads/$id'
+    | '/leads'
+  id:
+    | '__root__'
+    | '/'
+    | '/bi'
+    | '/branding'
+    | '/conversas'
+    | '/crm'
+    | '/estrategia'
+    | '/integracoes'
+    | '/ranking'
+    | '/recuperacao'
+    | '/leads/$id'
+    | '/leads/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BiRoute: typeof BiRoute
+  BrandingRoute: typeof BrandingRoute
+  ConversasRoute: typeof ConversasRoute
+  CrmRoute: typeof CrmRoute
+  EstrategiaRoute: typeof EstrategiaRoute
+  IntegracoesRoute: typeof IntegracoesRoute
+  RankingRoute: typeof RankingRoute
+  RecuperacaoRoute: typeof RecuperacaoRoute
+  LeadsIdRoute: typeof LeadsIdRoute
+  LeadsIndexRoute: typeof LeadsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/recuperacao': {
+      id: '/recuperacao'
+      path: '/recuperacao'
+      fullPath: '/recuperacao'
+      preLoaderRoute: typeof RecuperacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ranking': {
+      id: '/ranking'
+      path: '/ranking'
+      fullPath: '/ranking'
+      preLoaderRoute: typeof RankingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integracoes': {
+      id: '/integracoes'
+      path: '/integracoes'
+      fullPath: '/integracoes'
+      preLoaderRoute: typeof IntegracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/estrategia': {
+      id: '/estrategia'
+      path: '/estrategia'
+      fullPath: '/estrategia'
+      preLoaderRoute: typeof EstrategiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conversas': {
+      id: '/conversas'
+      path: '/conversas'
+      fullPath: '/conversas'
+      preLoaderRoute: typeof ConversasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/branding': {
+      id: '/branding'
+      path: '/branding'
+      fullPath: '/branding'
+      preLoaderRoute: typeof BrandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bi': {
+      id: '/bi'
+      path: '/bi'
+      fullPath: '/bi'
+      preLoaderRoute: typeof BiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +238,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leads/': {
+      id: '/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof LeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/$id': {
+      id: '/leads/$id'
+      path: '/leads/$id'
+      fullPath: '/leads/$id'
+      preLoaderRoute: typeof LeadsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BiRoute: BiRoute,
+  BrandingRoute: BrandingRoute,
+  ConversasRoute: ConversasRoute,
+  CrmRoute: CrmRoute,
+  EstrategiaRoute: EstrategiaRoute,
+  IntegracoesRoute: IntegracoesRoute,
+  RankingRoute: RankingRoute,
+  RecuperacaoRoute: RecuperacaoRoute,
+  LeadsIdRoute: LeadsIdRoute,
+  LeadsIndexRoute: LeadsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

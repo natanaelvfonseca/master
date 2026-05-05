@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { leads } from "@/lib/mock";
 
-export const Route = createFileRoute("/leads")({
+export const Route = createFileRoute("/leads/")({
   head: () => ({ meta: [{ title: "Leads e Alunos · Planarius" }] }),
   component: LeadsList,
 });
