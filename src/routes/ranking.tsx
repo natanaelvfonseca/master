@@ -57,8 +57,8 @@ function Ranking() {
                     <div className="text-sm font-bold text-primary">{brl(p.revenue)}</div>
                   </div>
                   <div className="rounded-md bg-accent/40 p-2">
-                    <div className="text-[10px] uppercase text-muted-foreground">Score</div>
-                    <div className={cn("text-sm font-bold", isFirst ? "text-gold" : "text-primary")}>{p.score}</div>
+                    <div className="text-[10px] uppercase text-muted-foreground">Vendas</div>
+                    <div className={cn("text-sm font-bold", isFirst ? "text-gold" : "text-primary")}>{p.sales}</div>
                   </div>
                 </div>
               </CardContent>
