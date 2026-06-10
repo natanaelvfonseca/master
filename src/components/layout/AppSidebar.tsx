@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, KanbanSquare, Users, Trophy, Bot, ShieldCheck,
   BarChart3, Megaphone, Plug, Sparkles, GraduationCap,
+  Wand2, Images, Palette, History,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -33,6 +34,15 @@ const groups = [
       { title: "BI Comercial", url: "/bi", icon: BarChart3 },
       { title: "Branding", url: "/branding", icon: Megaphone },
       { title: "Integrações", url: "/integracoes", icon: Plug },
+    ],
+  },
+  {
+    label: "Brand Plen",
+    items: [
+      { title: "Nova Criação", url: "/brand-plen/nova", icon: Wand2 },
+      { title: "Biblioteca", url: "/brand-plen/biblioteca", icon: Images },
+      { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette },
+      { title: "Histórico", url: "/brand-plen/historico", icon: History },
     ],
   },
 ];
