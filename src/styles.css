@@ -152,6 +152,31 @@
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+  [data-sidebar="content"] {
+    scrollbar-color: oklch(0.42 0.07 268) transparent;
+    scrollbar-width: thin;
+  }
+
+  [data-sidebar="content"]::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  [data-sidebar="content"]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  [data-sidebar="content"]::-webkit-scrollbar-thumb {
+    background: oklch(0.42 0.07 268);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  [data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0.09 268);
+    background-clip: padding-box;
+  }
 }
 
 @layer utilities {
