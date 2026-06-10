@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { brandColors, promptRules, generatedImages } from "@/lib/brand";
+import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 
 export const Route = createFileRoute("/brand-plen/kit")({
   head: () => ({ meta: [{ title: "Brand Kit · Brand Plen" }] }),
@@ -34,7 +35,11 @@ function BrandKit() {
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex h-32 items-center justify-center rounded-lg border bg-[#FCFBFF]">
-                <span className="text-xl font-bold text-[#011039]">Plenarius</span>
+                <img
+                  src={plenariusLogo}
+                  alt="Plenarius"
+                  className="h-20 max-w-[86%] object-contain brightness-0"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Logo principal</span>
@@ -43,7 +48,11 @@ function BrandKit() {
             </div>
             <div className="space-y-2">
               <div className="flex h-32 items-center justify-center rounded-lg border bg-[#011039]">
-                <span className="text-xl font-bold text-white">Plenarius</span>
+                <img
+                  src={plenariusLogo}
+                  alt="Plenarius em branco"
+                  className="h-20 max-w-[86%] object-contain"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Logo branca</span>

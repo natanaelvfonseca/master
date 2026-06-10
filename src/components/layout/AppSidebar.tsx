@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, KanbanSquare, Users, Trophy, Bot, ShieldCheck,
-  BarChart3, Megaphone, Plug, Sparkles, GraduationCap,
+  BarChart3, Megaphone, Plug, Sparkles,
   Wand2, Images, Palette, History,
 } from "lucide-react";
 import {
@@ -9,6 +9,8 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import { cn } from "@/lib/utils";
 
 const groups = [
   {
@@ -56,14 +58,22 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-gold shadow-elegant">
-            <GraduationCap className="h-5 w-5 text-gold-foreground" />
+        <div className="px-2 py-3">
+          <div
+            className={cn(
+              "flex items-center justify-center overflow-hidden rounded-lg bg-[#011039] shadow-elegant ring-1 ring-white/10",
+              collapsed ? "h-10 w-10 p-1.5" : "h-16 w-full px-3 py-2",
+            )}
+          >
+            <img
+              src={plenariusLogo}
+              alt="Plenarius"
+              className="h-full w-full object-contain"
+            />
           </div>
           {!collapsed && (
-            <div className="leading-tight">
-              <div className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">Planarius</div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-gold">Growth Hub</div>
+            <div className="sr-only">
+              Planarius Growth Hub
             </div>
           )}
         </div>
