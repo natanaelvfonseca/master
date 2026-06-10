@@ -20,6 +20,10 @@ import { Route as BiRouteImport } from './routes/bi'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
+import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
+import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
+import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
+import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 
 const RecuperacaoRoute = RecuperacaoRouteImport.update({
   id: '/recuperacao',
@@ -76,6 +80,26 @@ const LeadsIdRoute = LeadsIdRouteImport.update({
   path: '/leads/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BrandPlenNovaRoute = BrandPlenNovaRouteImport.update({
+  id: '/brand-plen/nova',
+  path: '/brand-plen/nova',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandPlenKitRoute = BrandPlenKitRouteImport.update({
+  id: '/brand-plen/kit',
+  path: '/brand-plen/kit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandPlenHistoricoRoute = BrandPlenHistoricoRouteImport.update({
+  id: '/brand-plen/historico',
+  path: '/brand-plen/historico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
+  id: '/brand-plen/biblioteca',
+  path: '/brand-plen/biblioteca',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +111,10 @@ export interface FileRoutesByFullPath {
   '/integracoes': typeof IntegracoesRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
+  '/brand-plen/historico': typeof BrandPlenHistoricoRoute
+  '/brand-plen/kit': typeof BrandPlenKitRoute
+  '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
 }
@@ -100,6 +128,10 @@ export interface FileRoutesByTo {
   '/integracoes': typeof IntegracoesRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
+  '/brand-plen/historico': typeof BrandPlenHistoricoRoute
+  '/brand-plen/kit': typeof BrandPlenKitRoute
+  '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads': typeof LeadsIndexRoute
 }
@@ -114,6 +146,10 @@ export interface FileRoutesById {
   '/integracoes': typeof IntegracoesRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
+  '/brand-plen/historico': typeof BrandPlenHistoricoRoute
+  '/brand-plen/kit': typeof BrandPlenKitRoute
+  '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
 }
@@ -129,6 +165,10 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/ranking'
     | '/recuperacao'
+    | '/brand-plen/biblioteca'
+    | '/brand-plen/historico'
+    | '/brand-plen/kit'
+    | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads/'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +182,10 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/ranking'
     | '/recuperacao'
+    | '/brand-plen/biblioteca'
+    | '/brand-plen/historico'
+    | '/brand-plen/kit'
+    | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads'
   id:
@@ -155,6 +199,10 @@ export interface FileRouteTypes {
     | '/integracoes'
     | '/ranking'
     | '/recuperacao'
+    | '/brand-plen/biblioteca'
+    | '/brand-plen/historico'
+    | '/brand-plen/kit'
+    | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads/'
   fileRoutesById: FileRoutesById
@@ -169,6 +217,10 @@ export interface RootRouteChildren {
   IntegracoesRoute: typeof IntegracoesRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
+  BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
+  BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
+  BrandPlenKitRoute: typeof BrandPlenKitRoute
+  BrandPlenNovaRoute: typeof BrandPlenNovaRoute
   LeadsIdRoute: typeof LeadsIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
 }
@@ -252,6 +304,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/brand-plen/nova': {
+      id: '/brand-plen/nova'
+      path: '/brand-plen/nova'
+      fullPath: '/brand-plen/nova'
+      preLoaderRoute: typeof BrandPlenNovaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand-plen/kit': {
+      id: '/brand-plen/kit'
+      path: '/brand-plen/kit'
+      fullPath: '/brand-plen/kit'
+      preLoaderRoute: typeof BrandPlenKitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand-plen/historico': {
+      id: '/brand-plen/historico'
+      path: '/brand-plen/historico'
+      fullPath: '/brand-plen/historico'
+      preLoaderRoute: typeof BrandPlenHistoricoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand-plen/biblioteca': {
+      id: '/brand-plen/biblioteca'
+      path: '/brand-plen/biblioteca'
+      fullPath: '/brand-plen/biblioteca'
+      preLoaderRoute: typeof BrandPlenBibliotecaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -265,18 +345,13 @@ const rootRouteChildren: RootRouteChildren = {
   IntegracoesRoute: IntegracoesRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
+  BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
+  BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
+  BrandPlenKitRoute: BrandPlenKitRoute,
+  BrandPlenNovaRoute: BrandPlenNovaRoute,
   LeadsIdRoute: LeadsIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
