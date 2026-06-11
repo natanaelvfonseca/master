@@ -34,7 +34,7 @@ function BrandKit() {
           <CardHeader><CardTitle className="text-base">Logos oficiais</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="flex h-32 items-center justify-center rounded-lg border bg-[#FCFBFF]">
+              <div className="flex h-32 items-center justify-center rounded-lg border bg-background">
                 <img
                   src={plenariusLogo}
                   alt="Plenarius"
@@ -47,7 +47,7 @@ function BrandKit() {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex h-32 items-center justify-center rounded-lg border bg-[#011039]">
+              <div className="flex h-32 items-center justify-center rounded-lg border bg-gradient-to-br from-primary via-primary to-[#0B2A6F]">
                 <img
                   src={plenariusLogo}
                   alt="Plenarius em branco"

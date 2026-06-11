@@ -1,7 +1,10 @@
 export const brandColors = [
-  { hex: "#011039", name: "Azul Plenarius" },
-  { hex: "#0238A4", name: "Azul Royal" },
-  { hex: "#FCFBFF", name: "Off White" },
+  { hex: "#0B2A6F", name: "Azul Profundo" },
+  { hex: "#1746B8", name: "Azul Royal" },
+  { hex: "#3F73D8", name: "Azul Médio Frio" },
+  { hex: "#DCE8FF", name: "Azul Claro Suave" },
+  { hex: "#FFFFFF", name: "Branco" },
+  { hex: "#E3AA2B", name: "Dourado / Mostarda" },
 ];
 
 export const pieceTypes = [
@@ -54,16 +57,16 @@ export const generatedImages = Array.from({ length: 18 }).map((_, i) => ({
 export const promptRules = {
   obrigatorias: [
     "Sempre exibir o logo da Plenarius com proteção mínima",
-    "Usar paleta oficial (azul-marinho, azul royal e off-white)",
+    "Usar paleta oficial vibrante (azul profundo, azul royal, azul médio frio, azul claro suave, branco e dourado)",
     "Pessoas reais com aparência profissional e diversa",
-    "Iluminação clean e profissional",
+    "Iluminação clean, premium e tecnológica",
   ],
   proibidas: [
     "Tipografia serifada decorativa",
-    "Fundo roxo, gradiente neon ou cores fora da paleta",
+    "Fundo roxo, azul desbotado ou cores fora da paleta",
     "Imagens com baixa resolução ou ruído",
     "Elementos genéricos de banco de imagens 2010",
   ],
-  tom: "Profissional, acolhedor, inspirador e orientado a crescimento.",
-  estilo: "Editorial moderno com tipografia sans-serif geométrica, fotografia premium e composição limpa.",
+  tom: "Profissional, vibrante, premium e orientado a crescimento.",
+  estilo: "Tech premium com azul forte, contrastes limpos, brilho controlado e composição editorial sofisticada.",
 };
