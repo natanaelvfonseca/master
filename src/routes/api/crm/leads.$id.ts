@@ -9,6 +9,17 @@ type LeadUnitRow = QueryResultRow & {
   unit_id: string;
 };
 
+type LeadEditableRow = QueryResultRow & {
+  unit_id: string;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  course_id: string | null;
+  acquisition_channel_id: string | null;
+  observations: string | null;
+  stage: LeadStage;
+};
+
 const allowedStages: Array<LeadStage> = [
   "Novo lead",
   "Em contato",
@@ -23,6 +34,29 @@ const allowedStages: Array<LeadStage> = [
 function parseStage(body: unknown) {
   const data = body as { stage?: unknown };
   return typeof data?.stage === "string" ? data.stage.trim() : "";
+}
+
+function parseLeadUpdate(body: unknown) {
+  const data = body as {
+    fullName?: unknown;
+    phone?: unknown;
+    email?: unknown;
+    courseId?: unknown;
+    acquisitionChannelId?: unknown;
+    observations?: unknown;
+    stage?: unknown;
+  };
+
+  return {
+    fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
+    phone: typeof data?.phone === "string" ? data.phone.trim() : "",
+    email: typeof data?.email === "string" ? data.email.trim() : "",
+    courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
+    acquisitionChannelId:
+      typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
+    observations: typeof data?.observations === "string" ? data.observations.trim() : "",
+    stage: typeof data?.stage === "string" ? data.stage.trim() : "",
+  };
 }
 
 export const Route = createFileRoute("/api/crm/leads/$id")({
@@ -40,17 +74,22 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         }
 
         const body = await request.json().catch(() => null);
-        const nextStage = parseStage(body);
-
-        if (!allowedStages.includes(nextStage as LeadStage)) {
-          return Response.json({ ok: false, error: "Estágio inválido." }, { status: 400 });
-        }
+        const payload = parseLeadUpdate(body);
+        const nextStage = payload.stage || parseStage(body);
 
         await ensureCommercialSchema();
 
-        const leadResult = await queryDb<LeadUnitRow>(
+        const leadResult = await queryDb<LeadEditableRow>(
           `
-            select unit_id
+            select
+              unit_id,
+              full_name,
+              phone,
+              email,
+              course_id,
+              acquisition_channel_id,
+              observations,
+              stage
             from app_leads
             where id = $1
             limit 1
@@ -66,6 +105,84 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         if (!session.units.some((unit) => unit.id === lead.unit_id)) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        if (!payload.fullName || !payload.phone) {
+          if (!nextStage || !allowedStages.includes(nextStage as LeadStage)) {
+            return Response.json(
+              { ok: false, error: "Nome completo e telefone são obrigatórios." },
+              { status: 400 },
+            );
+          }
+        }
+
+        const hasLeadFields =
+          payload.fullName ||
+          payload.phone ||
+          payload.email !== "" ||
+          payload.courseId !== "" ||
+          payload.acquisitionChannelId !== "" ||
+          payload.observations !== "";
+
+        if (!hasLeadFields && (!nextStage || !allowedStages.includes(nextStage as LeadStage))) {
+          return Response.json({ ok: false, error: "Dados insuficientes." }, { status: 400 });
+        }
+
+        if (payload.fullName && payload.phone) {
+          const courseResult = await getCourseSnapshot(payload.courseId, lead.unit_id);
+
+          if (courseResult.error) {
+            return Response.json(
+              { ok: false, error: courseResult.error },
+              { status: courseResult.status },
+            );
+          }
+
+          const channelResult = await getChannelSnapshot(payload.acquisitionChannelId, lead.unit_id);
+
+          if (channelResult.error) {
+            return Response.json(
+              { ok: false, error: channelResult.error },
+              { status: channelResult.status },
+            );
+          }
+
+          await queryDb(
+            `
+              update app_leads
+              set
+                full_name = $2,
+                phone = $3,
+                email = nullif($4, ''),
+                course_id = $5,
+                course_name_snapshot = $6,
+                course_value_snapshot = $7,
+                acquisition_channel_id = $8,
+                acquisition_channel_name_snapshot = $9,
+                observations = nullif($10, ''),
+                stage = coalesce($11, stage)
+              where id = $1
+            `,
+            [
+              params.id,
+              payload.fullName,
+              payload.phone,
+              payload.email,
+              courseResult.course?.id ?? null,
+              courseResult.course?.name ?? null,
+              courseResult.course ? Number(courseResult.course.value) : null,
+              channelResult.channel?.id ?? null,
+              channelResult.channel?.name ?? null,
+              payload.observations,
+              nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage,
+            ],
+          );
+
+          return Response.json({ ok: true, stage: nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage });
+        }
+
+        if (!nextStage || !allowedStages.includes(nextStage as LeadStage)) {
+          return Response.json({ ok: false, error: "Estágio inválido." }, { status: 400 });
         }
 
         await queryDb(

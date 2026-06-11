@@ -2,14 +2,11 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpenCheck,
-  Building2,
   Filter,
   KanbanSquare,
   Mail,
   Phone,
   Plus,
-  RadioTower,
-  Sparkles,
   Trash2,
   UserPlus,
 } from "lucide-react";
@@ -53,7 +50,10 @@ type LeadFormState = {
   acquisitionChannelId: string;
   unitId: string;
   observations: string;
+  stage: LeadStage;
 };
+
+type LeadDialogMode = "create" | "edit";
 
 type LeadsResponse = {
   leads: Array<LeadRecord>;
@@ -107,6 +107,20 @@ function emptyLeadForm(unitId = ""): LeadFormState {
     acquisitionChannelId: "",
     unitId,
     observations: "",
+    stage: "Novo lead",
+  };
+}
+
+function leadFormFromLead(lead: LeadRecord): LeadFormState {
+  return {
+    fullName: lead.fullName,
+    phone: lead.phone,
+    email: lead.email ?? "",
+    courseId: lead.courseId ?? "",
+    acquisitionChannelId: lead.acquisitionChannelId ?? "",
+    unitId: lead.unitId,
+    observations: lead.observations ?? "",
+    stage: lead.stage,
   };
 }
 
@@ -136,6 +150,8 @@ function CRM() {
   const [courses, setCourses] = React.useState<Array<CourseRecord>>([]);
   const [channels, setChannels] = React.useState<Array<AcquisitionChannelRecord>>([]);
   const [leadDialogOpen, setLeadDialogOpen] = React.useState(false);
+  const [leadDialogMode, setLeadDialogMode] = React.useState<LeadDialogMode>("create");
+  const [editingLead, setEditingLead] = React.useState<LeadRecord | null>(null);
   const [form, setForm] = React.useState<LeadFormState>(() => emptyLeadForm(activeUnitId));
   const [loadingLeads, setLoadingLeads] = React.useState(true);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
@@ -273,11 +289,20 @@ function CRM() {
   function openLeadDialog() {
     const unitId = activeUnitId || session?.units[0]?.id || "";
 
+    setLeadDialogMode("create");
+    setEditingLead(null);
     setForm(emptyLeadForm(unitId));
     setLeadDialogOpen(true);
   }
 
-  async function handleCreateLead(event: React.FormEvent<HTMLFormElement>) {
+  function openEditLeadDialog(lead: LeadRecord) {
+    setLeadDialogMode("edit");
+    setEditingLead(lead);
+    setForm(leadFormFromLead(lead));
+    setLeadDialogOpen(true);
+  }
+
+  async function handleSubmitLead(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!form.fullName.trim() || !form.phone.trim()) {
@@ -294,27 +319,69 @@ function CRM() {
         acquisitionChannelId:
           form.acquisitionChannelId === NO_SELECTION ? "" : form.acquisitionChannelId,
       };
-      const data = await readJson<{ lead: LeadRecord }>(
-        await fetch("/api/crm/leads", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }),
-      );
+      if (leadDialogMode === "create") {
+        const data = await readJson<{ lead: LeadRecord }>(
+          await fetch("/api/crm/leads", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          }),
+        );
 
-      toast.success("Lead criado.");
-      setLeadDialogOpen(false);
-      setForm(emptyLeadForm(activeUnitId));
+        toast.success("Lead criado.");
+        setLeadDialogOpen(false);
+        setForm(emptyLeadForm(activeUnitId));
 
-      if (data.lead.unitId === activeUnitId) {
-        setLeads((current) => [data.lead, ...current]);
+        if (data.lead.unitId === activeUnitId) {
+          setLeads((current) => [data.lead, ...current]);
+        }
+      } else if (editingLead) {
+        await readJson<{ ok: true; stage: LeadStage }>(
+          await fetch(`/api/crm/leads/${editingLead.id}`, {
+            method: "PATCH",
+            credentials: "same-origin",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...payload, stage: form.stage }),
+          }),
+        );
+
+        const course = courses.find((item) => item.id === (payload.courseId || ""));
+        const channel = channels.find((item) => item.id === (payload.acquisitionChannelId || ""));
+
+        setLeads((current) =>
+          current.map((item) =>
+            item.id === editingLead.id
+              ? {
+                  ...item,
+                  fullName: payload.fullName,
+                  phone: payload.phone,
+                  email: payload.email || null,
+                  courseId: payload.courseId || null,
+                  courseName: course?.name ?? null,
+                  courseValue: course?.value ?? null,
+                  acquisitionChannelId: payload.acquisitionChannelId || null,
+                  acquisitionChannelName: channel?.name ?? null,
+                  observations: payload.observations || null,
+                  stage: form.stage,
+                }
+              : item,
+          ),
+        );
+
+        toast.success("Lead atualizado.");
+        setLeadDialogOpen(false);
+        setEditingLead(null);
+        setForm(emptyLeadForm(activeUnitId));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao criar lead.");
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar lead.");
     } finally {
       setSavingLead(false);
     }
@@ -493,6 +560,7 @@ function CRM() {
                         dragging={draggingLeadId === lead.id}
                         syncing={syncingLeadId === lead.id}
                         onRemove={() => void handleRemoveLead(lead)}
+                        onEdit={() => openEditLeadDialog(lead)}
                         onDragStart={(event) => handleDragStart(event, lead)}
                         onDragEnd={handleDragEnd}
                       />
@@ -513,6 +581,7 @@ function CRM() {
 
       <CreateLeadDialog
         open={leadDialogOpen}
+        mode={leadDialogMode}
         form={form}
         courses={courses}
         channels={channels}
@@ -520,9 +589,20 @@ function CRM() {
         selectedCourse={selectedCourse}
         loadingOptions={loadingOptions}
         saving={savingLead}
-        onOpenChange={setLeadDialogOpen}
+        onOpenChange={(open) => {
+          setLeadDialogOpen(open);
+          if (!open) {
+            setEditingLead(null);
+            setLeadDialogMode("create");
+          }
+        }}
         onFormChange={setForm}
-        onSubmit={handleCreateLead}
+        onSubmit={handleSubmitLead}
+        onResetNewLead={() => {
+          setEditingLead(null);
+          setLeadDialogMode("create");
+          setForm(emptyLeadForm(activeUnitId));
+        }}
       />
     </div>
   );
@@ -534,6 +614,7 @@ function LeadPipelineCard({
   dragging,
   syncing,
   onRemove,
+  onEdit,
   onDragStart,
   onDragEnd,
 }: {
@@ -542,6 +623,7 @@ function LeadPipelineCard({
   dragging: boolean;
   syncing: boolean;
   onRemove: () => void;
+  onEdit: () => void;
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }) {
@@ -556,7 +638,13 @@ function LeadPipelineCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{lead.fullName}</div>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="truncate text-left text-sm font-semibold transition hover:text-primary"
+          >
+            {lead.fullName}
+          </button>
           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Phone className="h-3.5 w-3.5" />
             <span className="truncate">{lead.phone}</span>
@@ -597,16 +685,13 @@ function LeadPipelineCard({
           {currencyFormatter.format(lead.courseValue)}
         </div>
       ) : null}
-      <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-        <span>Arraste para mover</span>
-        <span>{lead.stage}</span>
-      </div>
     </Card>
   );
 }
 
 function CreateLeadDialog({
   open,
+  mode,
   form,
   courses,
   channels,
@@ -617,8 +702,10 @@ function CreateLeadDialog({
   onOpenChange,
   onFormChange,
   onSubmit,
+  onResetNewLead,
 }: {
   open: boolean;
+  mode: LeadDialogMode;
   form: LeadFormState;
   courses: Array<CourseRecord>;
   channels: Array<AcquisitionChannelRecord>;
@@ -629,7 +716,10 @@ function CreateLeadDialog({
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<LeadFormState>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onResetNewLead: () => void;
 }) {
+  const isEditMode = mode === "edit";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(11,42,111,0.85),0_0_34px_rgba(63,115,216,0.22)] sm:max-w-3xl">
@@ -640,9 +730,13 @@ function CreateLeadDialog({
                 <UserPlus className="h-5 w-5" />
               </div>
               <DialogHeader className="space-y-2 text-left">
-                <DialogTitle className="text-xl text-white">Criar Lead</DialogTitle>
+                <DialogTitle className="text-xl text-white">
+                  {isEditMode ? "Editar Lead" : "Criar Lead"}
+                </DialogTitle>
                 <DialogDescription className="text-white/70">
-                  Cadastro comercial vinculado à unidade, curso e canal de aquisição.
+                  {isEditMode
+                    ? "Atualize os dados comerciais e o estágio do lead."
+                    : "Cadastro comercial vinculado ao curso e canal de aquisição."}
                 </DialogDescription>
               </DialogHeader>
             </div>
@@ -744,31 +838,33 @@ function CreateLeadDialog({
               </Select>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Unidade</Label>
-              <Select
-                value={form.unitId}
-                onValueChange={(value) =>
-                  onFormChange((current) => ({
-                    ...current,
-                    unitId: value,
-                    courseId: "",
-                    acquisitionChannelId: "",
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isEditMode ? (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={form.unitId}
+                  onValueChange={(value) =>
+                    onFormChange((current) => ({
+                      ...current,
+                      unitId: value,
+                      courseId: "",
+                      acquisitionChannelId: "",
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="lead-observations">Observações</Label>
@@ -783,47 +879,47 @@ function CreateLeadDialog({
               />
             </div>
 
-            <div className="grid gap-3 rounded-xl border border-primary/10 bg-secondary/30 p-4 md:col-span-2 md:grid-cols-3">
-              <LeadContextItem icon={Building2} label="Unidade" value="Sincronizada" />
-              <LeadContextItem icon={RadioTower} label="Origem" value="Rastreável" />
-              <LeadContextItem icon={Sparkles} label="Relatórios" value="Valor preservado" />
-            </div>
+            {isEditMode ? (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Status do lead</Label>
+                <Select
+                  value={form.stage}
+                  onValueChange={(value) =>
+                    onFormChange((current) => ({ ...current, stage: value as LeadStage }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((stage) => (
+                      <SelectItem key={stage} value={stage}>
+                        {stage}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="border-t border-border/70 bg-muted/30 px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onResetNewLead();
+                onOpenChange(false);
+              }}
+            >
               Cancelar
             </Button>
             <Button type="submit" className="bg-gradient-primary" disabled={saving || !form.unitId}>
-              {saving ? "Criando..." : "Criar Lead"}
+              {saving ? (isEditMode ? "Salvando..." : "Criando...") : isEditMode ? "Salvar alterações" : "Criar Lead"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function LeadContextItem({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {label}
-        </div>
-        <div className="text-xs font-semibold">{value}</div>
-      </div>
-    </div>
   );
 }
