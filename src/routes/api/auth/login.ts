@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
 import type { UserRole } from "@/lib/auth-types";
 import {
+  checkLoginRateLimit,
   createSessionCookie,
   createSessionForUser,
+  recordLoginAttempt,
   sanitizeEmail,
   verifyPassword,
 } from "@/lib/server/auth";
@@ -18,6 +20,9 @@ type LoginUserRow = QueryResultRow & {
   password_hash: string;
 };
 
+const DUMMY_PASSWORD_HASH =
+  "scrypt$16384$8$1$dummy-login-salt-v1$0V-rw-sbACKEr8MRybXv9g9hf7us9-LPk9c9SqoZsSxSG66ACUbUZvXtT126M06FYxn8KWCXf7BDyMJrnEndUg";
+
 export const Route = createFileRoute("/api/auth/login")({
   server: {
     handlers: {
@@ -30,6 +35,23 @@ export const Route = createFileRoute("/api/auth/login")({
           return Response.json({ ok: false, error: "Informe email e senha." }, { status: 400 });
         }
 
+        const rateLimit = await checkLoginRateLimit(email, request);
+
+        if (!rateLimit.allowed) {
+          return Response.json(
+            {
+              ok: false,
+              error: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
+            },
+            {
+              status: 429,
+              headers: {
+                "Retry-After": String(rateLimit.retryAfterSeconds),
+              },
+            },
+          );
+        }
+
         const result = await queryDb<LoginUserRow>(
           `
             select id, email, name, role, primary_unit_id, password_hash
@@ -40,10 +62,16 @@ export const Route = createFileRoute("/api/auth/login")({
           [email],
         );
         const user = result.rows[0];
+        const passwordHash = user?.password_hash ?? DUMMY_PASSWORD_HASH;
+        const validPassword = await verifyPassword(password, passwordHash);
 
-        if (!user || !(await verifyPassword(password, user.password_hash))) {
+        if (!user || !validPassword) {
+          await recordLoginAttempt(rateLimit, false);
+
           return Response.json({ ok: false, error: "Credenciais invalidas." }, { status: 401 });
         }
+
+        await recordLoginAttempt(rateLimit, true);
 
         const { token, expiresAt } = await createSessionForUser(
           user.id,

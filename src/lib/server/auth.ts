@@ -21,6 +21,11 @@ const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE_NAME = "plenarius_session";
 const SESSION_TTL_DAYS = 7;
 const SESSION_TTL_SECONDS = SESSION_TTL_DAYS * 24 * 60 * 60;
+const LOGIN_LIMIT_WINDOW_MINUTES = 15;
+const LOGIN_BLOCK_MINUTES = 15;
+const LOGIN_PAIR_FAILURE_LIMIT = 5;
+const LOGIN_EMAIL_FAILURE_LIMIT = 10;
+const LOGIN_IP_FAILURE_LIMIT = 30;
 
 type SessionRow = QueryResultRow & {
   session_id: string;
@@ -32,6 +37,22 @@ type SessionRow = QueryResultRow & {
 };
 
 type UserUnitRow = QueryResultRow & UnitSummary;
+
+type LoginRateLimitRow = QueryResultRow & {
+  pair_failures: string;
+  email_failures: string;
+  ip_failures: string;
+  retry_at: string | null;
+};
+
+type LoginIdentifiers = {
+  emailHash: string;
+  ipHash: string;
+};
+
+type LoginRateLimitResult =
+  | ({ allowed: true } & LoginIdentifiers)
+  | ({ allowed: false; retryAfterSeconds: number } & LoginIdentifiers);
 
 export function isValidRole(role: string): role is UserRole {
   return ["MASTER", "CEO", "DIRETOR", "GERENTE", "CONSULTOR"].includes(role);
@@ -73,6 +94,117 @@ export function createSessionToken() {
 
 export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("base64url");
+}
+
+function hashLoginIdentifier(value: string) {
+  return createHash("sha256").update(value).digest("base64url");
+}
+
+export function getClientIp(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const forwardedIp = forwardedFor?.split(",")[0]?.trim();
+
+  return (
+    forwardedIp ||
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    "unknown"
+  );
+}
+
+export function getLoginIdentifiers(email: string, request: Request): LoginIdentifiers {
+  const ip = getClientIp(request);
+
+  return {
+    emailHash: hashLoginIdentifier(`email:${sanitizeEmail(email)}`),
+    ipHash: hashLoginIdentifier(`ip:${ip}`),
+  };
+}
+
+function toRetryAfterSeconds(retryAt: string | null) {
+  if (!retryAt) {
+    return LOGIN_BLOCK_MINUTES * 60;
+  }
+
+  const retryAtMs = new Date(retryAt).getTime();
+  const seconds = Math.ceil((retryAtMs - Date.now()) / 1000);
+
+  return Math.max(60, seconds);
+}
+
+export async function checkLoginRateLimit(
+  email: string,
+  request: Request,
+): Promise<LoginRateLimitResult> {
+  const identifiers = getLoginIdentifiers(email, request);
+  const result = await queryDb<LoginRateLimitRow>(
+    `
+      select
+        count(*) filter (where email_hash = $1 and ip_hash = $2)::text as pair_failures,
+        count(*) filter (where email_hash = $1)::text as email_failures,
+        count(*) filter (where ip_hash = $2)::text as ip_failures,
+        (
+          max(attempted_at) filter (
+            where (email_hash = $1 and ip_hash = $2)
+              or email_hash = $1
+              or ip_hash = $2
+          ) + make_interval(mins => $4::int)
+        )::text as retry_at
+      from app_login_attempts
+      where successful = false
+        and attempted_at > now() - make_interval(mins => $3::int)
+        and (email_hash = $1 or ip_hash = $2)
+    `,
+    [identifiers.emailHash, identifiers.ipHash, LOGIN_LIMIT_WINDOW_MINUTES, LOGIN_BLOCK_MINUTES],
+  );
+  const row = result.rows[0];
+  const pairFailures = Number(row?.pair_failures ?? 0);
+  const emailFailures = Number(row?.email_failures ?? 0);
+  const ipFailures = Number(row?.ip_failures ?? 0);
+  const limited =
+    pairFailures >= LOGIN_PAIR_FAILURE_LIMIT ||
+    emailFailures >= LOGIN_EMAIL_FAILURE_LIMIT ||
+    ipFailures >= LOGIN_IP_FAILURE_LIMIT;
+
+  if (!limited) {
+    return { allowed: true, ...identifiers };
+  }
+
+  return {
+    allowed: false,
+    retryAfterSeconds: toRetryAfterSeconds(row?.retry_at ?? null),
+    ...identifiers,
+  };
+}
+
+export async function recordLoginAttempt(
+  identifiers: LoginIdentifiers,
+  successful: boolean,
+) {
+  await queryDb(
+    `
+      insert into app_login_attempts (email_hash, ip_hash, successful)
+      values ($1, $2, $3)
+    `,
+    [identifiers.emailHash, identifiers.ipHash, successful],
+  );
+
+  if (successful) {
+    await queryDb(
+      `
+        delete from app_login_attempts
+        where successful = false and email_hash = $1
+      `,
+      [identifiers.emailHash],
+    );
+  }
+
+  await queryDb(
+    `
+      delete from app_login_attempts
+      where attempted_at < now() - interval '24 hours'
+    `,
+  );
 }
 
 export function getCookie(request: Request, name: string) {
