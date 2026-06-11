@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IntegracoesRouteImport } from './routes/integracoes'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -25,7 +27,17 @@ import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
+import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
+import { Route as ApiAdminUnitsRouteImport } from './routes/api/admin/units'
 
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecuperacaoRoute = RecuperacaoRouteImport.update({
   id: '/recuperacao',
   path: '/recuperacao',
@@ -34,6 +46,11 @@ const RecuperacaoRoute = RecuperacaoRouteImport.update({
 const RankingRoute = RankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IntegracoesRoute = IntegracoesRouteImport.update({
@@ -106,6 +123,31 @@ const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   path: '/api/health/db',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUnitsRoute = ApiAdminUnitsRouteImport.update({
+  id: '/api/admin/units',
+  path: '/api/admin/units',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,14 +157,21 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
+  '/login': typeof LoginRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/usuarios': typeof UsuariosRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
+  '/api/admin/units': typeof ApiAdminUnitsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/health/db': typeof ApiHealthDbRoute
 }
 export interface FileRoutesByTo {
@@ -133,14 +182,21 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
+  '/login': typeof LoginRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/usuarios': typeof UsuariosRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads': typeof LeadsIndexRoute
+  '/api/admin/units': typeof ApiAdminUnitsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/health/db': typeof ApiHealthDbRoute
 }
 export interface FileRoutesById {
@@ -152,14 +208,21 @@ export interface FileRoutesById {
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
+  '/login': typeof LoginRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/usuarios': typeof UsuariosRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
+  '/api/admin/units': typeof ApiAdminUnitsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/health/db': typeof ApiHealthDbRoute
 }
 export interface FileRouteTypes {
@@ -172,14 +235,21 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/integracoes'
+    | '/login'
     | '/ranking'
     | '/recuperacao'
+    | '/usuarios'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads/'
+    | '/api/admin/units'
+    | '/api/admin/users'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
     | '/api/health/db'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -190,14 +260,21 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/integracoes'
+    | '/login'
     | '/ranking'
     | '/recuperacao'
+    | '/usuarios'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads'
+    | '/api/admin/units'
+    | '/api/admin/users'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
     | '/api/health/db'
   id:
     | '__root__'
@@ -208,14 +285,21 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/integracoes'
+    | '/login'
     | '/ranking'
     | '/recuperacao'
+    | '/usuarios'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
     | '/leads/$id'
     | '/leads/'
+    | '/api/admin/units'
+    | '/api/admin/users'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/session'
     | '/api/health/db'
   fileRoutesById: FileRoutesById
 }
@@ -227,19 +311,33 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRoute
   EstrategiaRoute: typeof EstrategiaRoute
   IntegracoesRoute: typeof IntegracoesRoute
+  LoginRoute: typeof LoginRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
+  UsuariosRoute: typeof UsuariosRoute
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
   BrandPlenNovaRoute: typeof BrandPlenNovaRoute
   LeadsIdRoute: typeof LeadsIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
+  ApiAdminUnitsRoute: typeof ApiAdminUnitsRoute
+  ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiHealthDbRoute: typeof ApiHealthDbRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recuperacao': {
       id: '/recuperacao'
       path: '/recuperacao'
@@ -252,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/ranking'
       fullPath: '/ranking'
       preLoaderRoute: typeof RankingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/integracoes': {
@@ -352,6 +457,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthDbRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/units': {
+      id: '/api/admin/units'
+      path: '/api/admin/units'
+      fullPath: '/api/admin/units'
+      preLoaderRoute: typeof ApiAdminUnitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -363,14 +503,21 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRoute,
   EstrategiaRoute: EstrategiaRoute,
   IntegracoesRoute: IntegracoesRoute,
+  LoginRoute: LoginRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
+  UsuariosRoute: UsuariosRoute,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,
   BrandPlenNovaRoute: BrandPlenNovaRoute,
   LeadsIdRoute: LeadsIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,
+  ApiAdminUnitsRoute: ApiAdminUnitsRoute,
+  ApiAdminUsersRoute: ApiAdminUsersRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiHealthDbRoute: ApiHealthDbRoute,
 }
 export const routeTree = rootRouteImport

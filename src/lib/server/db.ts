@@ -1,5 +1,5 @@
 import { createServerOnlyFn } from "@tanstack/react-start";
-import type { Pool, QueryResult, QueryResultRow } from "pg";
+import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 declare global {
   var __plenariusDbPool: Pool | undefined;
@@ -39,4 +39,21 @@ export async function queryDb<TRow extends QueryResultRow = QueryResultRow>(
   const pool = await getDbPool();
 
   return pool.query<TRow>(text, [...values]);
+}
+
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const pool = await getDbPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("begin");
+    const result = await fn(client);
+    await client.query("commit");
+    return result;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

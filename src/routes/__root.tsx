@@ -1,9 +1,11 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import * as React from "react";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -60,6 +62,45 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const path = useRouterState({ select: (r) => r.location.pathname });
+
+  if (path === "/login") {
+    return (
+      <>
+        <Outlet />
+        <Toaster />
+      </>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <AuthenticatedShell />
+    </AuthProvider>
+  );
+}
+
+function AuthenticatedShell() {
+  const { loading, session } = useAuth();
+
+  React.useEffect(() => {
+    if (!loading && !session) {
+      window.location.replace("/login");
+    }
+  }, [loading, session]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">

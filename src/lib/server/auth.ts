@@ -1,0 +1,271 @@
+import {
+  createHash,
+  randomBytes,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from "node:crypto";
+import { promisify } from "node:util";
+import type { QueryResultRow } from "pg";
+import {
+  canCreateUnits,
+  canRegisterUsers,
+  getAssignableRoles,
+  type AuthSession,
+  type UnitSummary,
+  type UserRole,
+} from "@/lib/auth-types";
+import { queryDb } from "@/lib/server/db";
+
+const scrypt = promisify(scryptCallback);
+
+export const SESSION_COOKIE_NAME = "plenarius_session";
+const SESSION_TTL_DAYS = 7;
+const SESSION_TTL_SECONDS = SESSION_TTL_DAYS * 24 * 60 * 60;
+
+type SessionRow = QueryResultRow & {
+  session_id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  active_unit_id: string | null;
+};
+
+type UserUnitRow = QueryResultRow & UnitSummary;
+
+export function isValidRole(role: string): role is UserRole {
+  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "CONSULTOR"].includes(role);
+}
+
+export async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("base64url");
+  const key = (await scrypt(password, salt, 64, {
+    N: 16_384,
+    r: 8,
+    p: 1,
+    maxmem: 32 * 1024 * 1024,
+  })) as Buffer;
+
+  return `scrypt$16384$8$1$${salt}$${key.toString("base64url")}`;
+}
+
+export async function verifyPassword(password: string, storedHash: string) {
+  const [algorithm, nRaw, rRaw, pRaw, salt, keyRaw] = storedHash.split("$");
+
+  if (algorithm !== "scrypt" || !nRaw || !rRaw || !pRaw || !salt || !keyRaw) {
+    return false;
+  }
+
+  const expected = Buffer.from(keyRaw, "base64url");
+  const actual = (await scrypt(password, salt, expected.length, {
+    N: Number(nRaw),
+    r: Number(rRaw),
+    p: Number(pRaw),
+    maxmem: 32 * 1024 * 1024,
+  })) as Buffer;
+
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+export function createSessionToken() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("base64url");
+}
+
+export function getCookie(request: Request, name: string) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
+  const prefix = `${name}=`;
+  const match = cookies.find((cookie) => cookie.startsWith(prefix));
+
+  if (!match) {
+    return null;
+  }
+
+  return decodeURIComponent(match.slice(prefix.length));
+}
+
+export function createSessionCookie(token: string, expiresAt: Date) {
+  const parts = [
+    `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${SESSION_TTL_SECONDS}`,
+    `Expires=${expiresAt.toUTCString()}`,
+  ];
+
+  if (process.env.NODE_ENV === "production") {
+    parts.push("Secure");
+  }
+
+  return parts.join("; ");
+}
+
+export function clearSessionCookie() {
+  return [
+    `${SESSION_COOKIE_NAME}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    process.env.NODE_ENV === "production" ? "Secure" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+export async function getAccessibleUnits(userId: string, role: UserRole) {
+  if (role === "MASTER" || role === "CEO") {
+    const result = await queryDb<UserUnitRow>(
+      `
+        select id, name, slug
+        from app_units
+        where status = 'active'
+        order by name asc
+      `,
+    );
+
+    return result.rows;
+  }
+
+  const result = await queryDb<UserUnitRow>(
+    `
+      select u.id, u.name, u.slug
+      from app_units u
+      inner join app_user_units uu on uu.unit_id = u.id
+      where uu.user_id = $1 and u.status = 'active'
+      order by u.name asc
+    `,
+    [userId],
+  );
+
+  return result.rows;
+}
+
+function buildSession(row: SessionRow, units: Array<UnitSummary>, activeUnit: UnitSummary | null): AuthSession {
+  return {
+    user: {
+      id: row.user_id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+    },
+    units,
+    activeUnit,
+    canRegisterUsers: canRegisterUsers(row.role),
+    canCreateUnits: canCreateUnits(row.role),
+  };
+}
+
+export async function getSessionFromRequest(request: Request): Promise<AuthSession | null> {
+  const token = getCookie(request, SESSION_COOKIE_NAME);
+
+  if (!token) {
+    return null;
+  }
+
+  const tokenHash = hashSessionToken(token);
+  const result = await queryDb<SessionRow>(
+    `
+      select
+        s.id as session_id,
+        u.id as user_id,
+        u.email,
+        u.name,
+        u.role,
+        s.active_unit_id
+      from app_sessions s
+      inner join app_users u on u.id = s.user_id
+      where s.token_hash = $1
+        and s.revoked_at is null
+        and s.expires_at > now()
+        and u.status = 'active'
+      limit 1
+    `,
+    [tokenHash],
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  const units = await getAccessibleUnits(row.user_id, row.role);
+  const activeUnit = units.find((unit) => unit.id === row.active_unit_id) ?? units[0] ?? null;
+
+  await queryDb(
+    `
+      update app_sessions
+      set last_seen_at = now(), active_unit_id = $2
+      where id = $1
+    `,
+    [row.session_id, activeUnit?.id ?? null],
+  );
+
+  return buildSession(row, units, activeUnit);
+}
+
+export async function createSessionForUser(userId: string, role: UserRole, preferredUnitId: string) {
+  const units = await getAccessibleUnits(userId, role);
+  const activeUnit = units.find((unit) => unit.id === preferredUnitId) ?? units[0] ?? null;
+
+  if (!activeUnit) {
+    throw new Error("User has no active unit access");
+  }
+
+  const token = createSessionToken();
+  const tokenHash = hashSessionToken(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+
+  await queryDb(
+    `
+      insert into app_sessions (user_id, token_hash, active_unit_id, expires_at)
+      values ($1, $2, $3, $4)
+    `,
+    [userId, tokenHash, activeUnit.id, expiresAt],
+  );
+
+  return { token, expiresAt };
+}
+
+export async function revokeSessionFromRequest(request: Request) {
+  const token = getCookie(request, SESSION_COOKIE_NAME);
+
+  if (!token) {
+    return;
+  }
+
+  await queryDb(
+    `
+      update app_sessions
+      set revoked_at = now()
+      where token_hash = $1 and revoked_at is null
+    `,
+    [hashSessionToken(token)],
+  );
+}
+
+export function canAssignRole(actorRole: UserRole, requestedRole: UserRole) {
+  return getAssignableRoles(actorRole).includes(requestedRole);
+}
+
+export function sanitizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+export function slugifyUnitName(name: string) {
+  const slug = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || `unidade-${randomBytes(3).toString("hex")}`;
+}

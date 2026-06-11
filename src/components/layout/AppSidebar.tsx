@@ -1,19 +1,22 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  KanbanSquare,
-  Users,
-  Trophy,
-  Bot,
-  ShieldCheck,
   BarChart3,
-  Megaphone,
-  Plug,
-  Sparkles,
-  Wand2,
-  Images,
-  Palette,
+  Bot,
+  Building2,
   History,
+  Images,
+  KanbanSquare,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Palette,
+  Plug,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  UserCog,
+  Users,
+  Wand2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,14 +32,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const groups = [
   {
-    label: "Visão geral",
+    label: "Visao geral",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
-      { title: "Visão estratégica", url: "/estrategia", icon: Sparkles },
+      { title: "Visao estrategica", url: "/estrategia", icon: Sparkles },
     ],
   },
   {
@@ -51,28 +55,38 @@ const groups = [
   {
     label: "Crescimento",
     items: [
-      { title: "Recuperação", url: "/recuperacao", icon: ShieldCheck },
+      { title: "Recuperacao", url: "/recuperacao", icon: ShieldCheck },
       { title: "BI Comercial", url: "/bi", icon: BarChart3 },
       { title: "Branding", url: "/branding", icon: Megaphone },
-      { title: "Integrações", url: "/integracoes", icon: Plug },
+      { title: "Integracoes", url: "/integracoes", icon: Plug },
     ],
   },
   {
     label: "Brand Plen",
     items: [
-      { title: "Nova Criação", url: "/brand-plen/nova", icon: Wand2 },
+      { title: "Nova Criacao", url: "/brand-plen/nova", icon: Wand2 },
       { title: "Biblioteca", url: "/brand-plen/biblioteca", icon: Images },
       { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette },
-      { title: "Histórico", url: "/brand-plen/historico", icon: History },
+      { title: "Historico", url: "/brand-plen/historico", icon: History },
     ],
   },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const { logout, session } = useAuth();
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
+  const navGroups = session?.canRegisterUsers
+    ? [
+        ...groups,
+        {
+          label: "Administracao",
+          items: [{ title: "Usuarios e unidades", url: "/usuarios", icon: UserCog }],
+        },
+      ]
+    : groups;
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -90,17 +104,18 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-1">
-        {groups.map((g) => (
-          <SidebarGroup key={g.label}>
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label}>
             {!collapsed && (
               <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/50">
-                {g.label}
+                {group.label}
               </SidebarGroupLabel>
             )}
             <SidebarGroupContent>
               <SidebarMenu>
-                {g.items.map((item) => {
+                {group.items.map((item) => {
                   const active = isActive(item.url);
+
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
@@ -124,14 +139,35 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border">
         {!collapsed ? (
-          <div className="m-2 rounded-lg bg-sidebar-accent/60 p-3">
-            <div className="text-[11px] uppercase tracking-wider text-gold">Plano Enterprise</div>
-            <div className="mt-1 text-xs text-sidebar-foreground/80">
-              IA + Automações ativas em todas as unidades.
+          <div className="m-2 space-y-2">
+            <div className="rounded-lg bg-sidebar-accent/60 p-3">
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-gold">
+                <Building2 className="h-3.5 w-3.5" />
+                Plano Enterprise
+              </div>
+              <div className="mt-1 text-xs text-sidebar-foreground/80">
+                IA + automacoes ativas em todas as unidades.
+              </div>
             </div>
+            <LogoutMenuItem onLogout={logout} />
           </div>
-        ) : null}
+        ) : (
+          <LogoutMenuItem onLogout={logout} />
+        )}
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function LogoutMenuItem({ onLogout }: { onLogout: () => Promise<void> }) {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton onClick={() => void onLogout()} className="text-sidebar-foreground/80">
+          <LogOut className="h-4 w-4" />
+          <span>Sair</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
