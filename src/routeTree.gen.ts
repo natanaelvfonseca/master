@@ -22,6 +22,7 @@ import { Route as BiRouteImport } from './routes/bi'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
+import { Route as GestaoCadastroRouteImport } from './routes/gestao.cadastro'
 import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
@@ -98,6 +99,11 @@ const LeadsIdRoute = LeadsIdRouteImport.update({
   path: '/leads/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GestaoCadastroRoute = GestaoCadastroRouteImport.update({
+  id: '/gestao/cadastro',
+  path: '/gestao/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrandPlenNovaRoute = BrandPlenNovaRouteImport.update({
   id: '/brand-plen/nova',
   path: '/brand-plen/nova',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads/'
     | '/api/admin/units'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads'
     | '/api/admin/units'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads/'
     | '/api/admin/units'
@@ -319,6 +331,7 @@ export interface RootRouteChildren {
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
   BrandPlenNovaRoute: typeof BrandPlenNovaRoute
+  GestaoCadastroRoute: typeof GestaoCadastroRoute
   LeadsIdRoute: typeof LeadsIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   ApiAdminUnitsRoute: typeof ApiAdminUnitsRoute
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gestao/cadastro': {
+      id: '/gestao/cadastro'
+      path: '/gestao/cadastro'
+      fullPath: '/gestao/cadastro'
+      preLoaderRoute: typeof GestaoCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/brand-plen/nova': {
       id: '/brand-plen/nova'
       path: '/brand-plen/nova'
@@ -511,6 +531,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,
   BrandPlenNovaRoute: BrandPlenNovaRoute,
+  GestaoCadastroRoute: GestaoCadastroRoute,
   LeadsIdRoute: LeadsIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   ApiAdminUnitsRoute: ApiAdminUnitsRoute,

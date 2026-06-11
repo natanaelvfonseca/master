@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bot,
   Building2,
+  ClipboardList,
   History,
   Images,
   KanbanSquare,
@@ -37,9 +38,7 @@ import { cn } from "@/lib/utils";
 const groups = [
   {
     label: "Visao geral",
-    items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
-    ],
+    items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }],
   },
   {
     label: "Comercial",
@@ -67,6 +66,10 @@ const groups = [
       { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette },
       { title: "Historico", url: "/brand-plen/historico", icon: History },
     ],
+  },
+  {
+    label: "Gestão",
+    items: [{ title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList }],
   },
 ];
 
@@ -119,7 +122,7 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={active}
-                        className="relative data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold"
+                        className="relative transition-all duration-200 hover:translate-x-0.5 hover:shadow-[0_12px_28px_-22px_rgba(63,115,216,0.95)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_30px_-22px_rgba(63,115,216,1)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold [&>svg]:transition-transform [&>svg]:duration-200 hover:[&>svg]:scale-110"
                       >
                         <Link to={item.url}>
                           <item.icon className="h-4 w-4" />
