@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import anniversary30 from "@/assets/plenarius-30anos.svg";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,15 +71,22 @@ function LoginPage() {
           <div>
             <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
           </div>
-          <div className="max-w-xl pb-6">
+          <div className="max-w-xl pb-4 pt-8 md:pt-10">
+            <div className="relative -mb-3 w-[220px] max-w-full md:w-[280px]">
+              <img src={anniversary30} alt="30 anos Plenarius" className="w-full drop-shadow-[0_14px_24px_rgba(0,0,0,0.28)]" />
+            </div>
             <div className="mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
               Growth Hub
             </div>
-            <h1 className="font-display text-3xl font-bold leading-tight md:text-5xl">
-              Operacao comercial em uma base segura por unidade.
+            <h1 className="max-w-lg font-display text-3xl font-bold leading-tight md:text-5xl">
+              A educacao profissional
+              <br />
+              que transforma vidas.
             </h1>
             <p className="mt-4 max-w-lg text-sm leading-6 text-white/70">
-              Acesse com seu usuario interno para trabalhar dados, usuarios e unidades da Plenarius.
+              Cada matricula e o inicio
+              <br />
+              de uma nova historia.
             </p>
           </div>
         </div>
