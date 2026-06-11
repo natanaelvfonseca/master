@@ -10,14 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  pieceTypes, objectives, courses, visualStyles, audiences,
-  brandColors, generatedImages, promptRules,
-} from "@/lib/brand";
+import { pieceTypes, objectives, courses, visualStyles, audiences, brandColors, generatedImages } from "@/lib/brand";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/brand-plen/nova")({
-  head: () => ({ meta: [{ title: "Nova Criação · Brand Plen" }] }),
+  head: () => ({ meta: [{ title: "Nova Criacao · Brand Plen" }] }),
   component: NovaCriacao,
 });
 
@@ -45,7 +42,7 @@ function NovaCriacao() {
     setTimeout(() => {
       setResults(generatedImages.slice(0, 4));
       setLoading(false);
-      toast.success("4 opções geradas seguindo o Brand Kit da Plenarius");
+      toast.success("4 opcoes geradas seguindo o Brand Kit da Plenarius");
     }, 1200);
   };
 
@@ -53,7 +50,7 @@ function NovaCriacao() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Brand Plen · Diretor de Arte com IA"
-        title="Nova criação"
+        title="Nova criacao"
         description="Crie imagens profissionais com IA alinhadas à identidade da marca Plenarius."
         actions={
           <Badge className="bg-gold/15 text-gold border-gold/30">
@@ -132,10 +129,28 @@ function NovaCriacao() {
           </Step>
 
           <Step n={3} title="Referências visuais (opcional)">
-            <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               {generatedImages.slice(0, 5).map((img) => (
-                <div key={img.id} className="aspect-square overflow-hidden rounded-lg border-2 border-transparent hover:border-primary cursor-pointer">
-                  <img src={img.url} alt="" className="h-full w-full object-cover" />
+                <div key={img.id} className="overflow-hidden rounded-lg border shadow-card">
+                  <div
+                    className="relative aspect-square"
+                    style={{
+                      background: `linear-gradient(135deg, ${img.palette[0]} 0%, ${img.palette[1]} 55%, ${img.palette[2]} 100%)`,
+                    }}
+                  >
+                    <div className="absolute inset-x-2 top-2 flex justify-between gap-1">
+                      <Badge className="bg-white/15 text-white backdrop-blur">{img.piece}</Badge>
+                      <Badge className="bg-white/15 text-white backdrop-blur">{img.credits} cr</Badge>
+                    </div>
+                    <div className="absolute inset-x-2 bottom-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                      {img.course}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 bg-card p-2">
+                    {img.palette.map((hex) => (
+                      <span key={hex} className="h-4 rounded-full border border-border" style={{ background: hex }} />
+                    ))}
+                  </div>
                 </div>
               ))}
               <button className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary">
@@ -158,8 +173,22 @@ function NovaCriacao() {
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 {results.map((r) => (
                   <div key={r.id} className="overflow-hidden rounded-lg border shadow-card">
-                    <div className="aspect-square overflow-hidden bg-muted">
-                      <img src={r.url} alt="" className="h-full w-full object-cover" />
+                    <div
+                      className="aspect-square overflow-hidden"
+                      style={{
+                        background: `linear-gradient(135deg, ${r.palette[0]} 0%, ${r.palette[1]} 55%, ${r.palette[2]} 100%)`,
+                      }}
+                    >
+                      <div className="flex h-full flex-col justify-between p-3 text-white">
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge className="bg-white/15 text-white backdrop-blur">{r.piece}</Badge>
+                          <div className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold backdrop-blur">{r.status}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs uppercase tracking-[0.18em] text-white/80">{r.course}</div>
+                          <div className="text-sm font-semibold leading-tight">{r.objective}</div>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 p-2">
                       <Button size="sm" variant="outline" className="flex-1 h-8 text-xs">
@@ -174,7 +203,6 @@ function NovaCriacao() {
           )}
         </div>
 
-        {/* Sidebar Brand Kit */}
         <aside className="space-y-4">
           <Card className="shadow-card">
             <CardHeader className="pb-2 flex-row items-center justify-between">
@@ -209,7 +237,7 @@ function NovaCriacao() {
                 <div className="text-xs">
                   <div className="font-semibold text-foreground">Prompt mestre da marca</div>
                   <p className="mt-1 text-muted-foreground">
-                    Todas as imagens são geradas seguindo as diretrizes da Plenarius — paleta, tipografia, estilo institucional e padrão de qualidade.
+                    Todas as imagens são geradas seguindo as diretrizes da Plenarius, com paleta, tipografia, estilo institucional e padrão de qualidade.
                   </p>
                 </div>
               </div>
@@ -225,8 +253,8 @@ function NovaCriacao() {
                   <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="alta">Alta</SelectItem>
-                    <SelectItem value="media">Média</SelectItem>
-                    <SelectItem value="rapida">Rápida</SelectItem>
+                    <SelectItem value="media">Media</SelectItem>
+                    <SelectItem value="rapida">Rapida</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,11 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Users, UserCheck, GraduationCap, TrendingUp, Timer, Phone,
-  DollarSign, Wallet, AlertTriangle, ShieldCheck, CalendarCheck, Sparkles,
+  Users,
+  UserCheck,
+  GraduationCap,
+  TrendingUp,
+  Timer,
+  Phone,
+  DollarSign,
+  Wallet,
+  AlertTriangle,
+  ShieldCheck,
+  CalendarCheck,
+  Sparkles,
 } from "lucide-react";
 import {
-  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  AreaChart,
+  Area,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/layout/StatCard";
@@ -13,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/lib/auth";
 import { kpis, revenueSeries, funnelData, cityData, sourceData, insights } from "@/lib/mock";
 
 export const Route = createFileRoute("/")({
@@ -23,33 +45,40 @@ export const Route = createFileRoute("/")({
 const PIE_COLORS = ["var(--color-primary)", "var(--color-primary-glow)", "var(--color-gold)", "var(--color-chart-4)", "var(--color-chart-5)"];
 
 function Dashboard() {
+  const { session } = useAuth();
   const fmt = (n: number) => n.toLocaleString("pt-BR");
   const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const userName = session?.user.name ?? "Plenarius";
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-hero p-6 text-primary-foreground shadow-elegant md:p-8">
         <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-gold">
               <Sparkles className="h-3 w-3" /> Visão executiva · Junho 2026
             </div>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">{greeting}, Junior. Sua escola está <span className="text-gradient-gold">crescendo 18.4%</span> este mês.</h1>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">
+              {greeting}, {userName}. Sua escola está{" "}
+              <span className="text-gradient-gold">crescendo 18.4%</span> este mês.
+            </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/70">
               R$ 1.41M faturados · 218 matrículas · IA recuperou 132 alunos em risco. Confira oportunidades abaixo.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild className="bg-gold text-gold-foreground hover:bg-gold/90"><Link to="/estrategia">Ver plano de ação</Link></Button>
-            <Button asChild variant="outline" className="border-white/30 bg-white/5 text-white hover:bg-white/10"><Link to="/crm">Abrir CRM</Link></Button>
+            <Button asChild className="bg-gold text-gold-foreground hover:bg-gold/90">
+              <Link to="/estrategia">Ver plano de ação</Link>
+            </Button>
+            <Button asChild variant="outline" className="border-white/30 bg-white/5 text-white hover:bg-white/10">
+              <Link to="/crm">Abrir CRM</Link>
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
         <StatCard label="Leads recebidos" value={fmt(kpis.leads)} delta={12} icon={Users} accent="primary" />
         <StatCard label="Qualificados" value={fmt(kpis.qualified)} delta={8} icon={UserCheck} accent="primary" />
@@ -65,7 +94,6 @@ function Dashboard() {
         <StatCard label="Comparecimento" value={`${kpis.attendance}%`} delta={6} icon={CalendarCheck} accent="success" />
       </div>
 
-      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-card">
           <CardHeader className="flex-row items-center justify-between">
@@ -150,17 +178,20 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Insights IA */}
       <Card className="shadow-card">
         <CardHeader className="flex-row items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-gold"><Sparkles className="h-4 w-4 text-gold-foreground" /></div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-gold">
+              <Sparkles className="h-4 w-4 text-gold-foreground" />
+            </div>
             <div>
               <CardTitle className="text-base">Insights da IA</CardTitle>
               <p className="text-xs text-muted-foreground">Recomendações priorizadas para sua escola</p>
             </div>
           </div>
-          <Button asChild variant="outline" size="sm"><Link to="/estrategia">Ver todos</Link></Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/estrategia">Ver todos</Link>
+          </Button>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {insights.slice(0, 3).map((i) => (

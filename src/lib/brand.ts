@@ -38,11 +38,18 @@ export const audiences = [
   "Empresas e RH", "Publico geral", "Ex-alunos",
 ];
 
-const seed = (i: number) => `https://picsum.photos/seed/brandplen-${i}/600/600`;
+const palettePairs = [
+  ["#0B2A6F", "#1746B8", "#3F73D8"],
+  ["#1746B8", "#3F73D8", "#DCE8FF"],
+  ["#0B2A6F", "#DCE8FF", "#E3AA2B"],
+  ["#1746B8", "#FFFFFF", "#E3AA2B"],
+  ["#0B2A6F", "#3F73D8", "#FFFFFF"],
+  ["#1746B8", "#DCE8FF", "#E3AA2B"],
+];
 
 export const generatedImages = Array.from({ length: 18 }).map((_, i) => ({
   id: `IMG-${2000 + i}`,
-  url: seed(i + 1),
+  palette: palettePairs[i % palettePairs.length],
   piece: pieceTypes[i % pieceTypes.length].label,
   objective: objectives[i % objectives.length],
   course: courses[i % courses.length],
