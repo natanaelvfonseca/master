@@ -12,7 +12,6 @@ import {
   Palette,
   Plug,
   ShieldCheck,
-  Sparkles,
   Trophy,
   UserCog,
   Users,
@@ -40,7 +39,6 @@ const groups = [
     label: "Visao geral",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
-      { title: "Visao estrategica", url: "/estrategia", icon: Sparkles },
     ],
   },
   {

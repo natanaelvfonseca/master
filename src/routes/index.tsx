@@ -69,9 +69,6 @@ function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild className="bg-gold text-gold-foreground hover:bg-gold/90">
-              <Link to="/estrategia">Ver plano de ação</Link>
-            </Button>
             <Button asChild variant="outline" className="border-white/30 bg-white/5 text-white hover:bg-white/10">
               <Link to="/crm">Abrir CRM</Link>
             </Button>
@@ -179,7 +176,7 @@ function Dashboard() {
       </div>
 
       <Card className="shadow-card">
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader>
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-gold">
               <Sparkles className="h-4 w-4 text-gold-foreground" />
@@ -189,9 +186,6 @@ function Dashboard() {
               <p className="text-xs text-muted-foreground">Recomendações priorizadas para sua escola</p>
             </div>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/estrategia">Ver todos</Link>
-          </Button>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {insights.slice(0, 3).map((i) => (
