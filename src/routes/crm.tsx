@@ -80,6 +80,19 @@ const stages: Array<LeadStage> = [
   "Matriculado",
 ];
 
+const stageLabels: Record<LeadStage, string> = {
+  "Novo lead": "Novo lead",
+  "Em contato": "Em contato",
+  "Qualificado": "Qualificado",
+  "Proposta": "Proposta",
+  "Pagamento pendente": "Pagamento pendente",
+  Confirmado: "Confirmado",
+  Recuperação: "Recuperação",
+  Matriculado: "Matriculado",
+};
+
+const pollingIntervalMs = 20000;
+
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -128,16 +141,22 @@ function CRM() {
   const [loadingOptions, setLoadingOptions] = React.useState(false);
   const [savingLead, setSavingLead] = React.useState(false);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
+  const [draggingLeadId, setDraggingLeadId] = React.useState<string | null>(null);
+  const [dropTargetStage, setDropTargetStage] = React.useState<LeadStage | null>(null);
+  const [syncingLeadId, setSyncingLeadId] = React.useState<string | null>(null);
   const formUnitId = form.unitId || activeUnitId;
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
+  const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
 
-  const loadLeads = React.useCallback(async () => {
+  const loadLeads = React.useCallback(async (options?: { silent?: boolean }) => {
     if (!activeUnitId) {
       setLoadingLeads(false);
       return;
     }
 
-    setLoadingLeads(true);
+    if (!options?.silent) {
+      setLoadingLeads(true);
+    }
 
     try {
       const data = await readJson<LeadsResponse>(
@@ -151,7 +170,9 @@ function CRM() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao carregar leads.");
     } finally {
-      setLoadingLeads(false);
+      if (!options?.silent) {
+        setLoadingLeads(false);
+      }
     }
   }, [activeUnitId]);
 
@@ -192,6 +213,52 @@ function CRM() {
   React.useEffect(() => {
     void loadLeads();
   }, [loadLeads]);
+
+  React.useEffect(() => {
+    if (!activeUnitId) {
+      return undefined;
+    }
+
+    const channel = "BroadcastChannel" in window ? new BroadcastChannel(`crm-pipeline-${activeUnitId}`) : null;
+    broadcastChannelRef.current = channel;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadLeads({ silent: true });
+      }
+    };
+
+    const handleFocus = () => {
+      void loadLeads({ silent: true });
+    };
+
+    if (channel) {
+      channel.onmessage = (event) => {
+        if (event.data?.type === "lead-stage-updated") {
+          void loadLeads({ silent: true });
+        }
+      };
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadLeads({ silent: true });
+      }
+    }, pollingIntervalMs);
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      channel?.close();
+      if (broadcastChannelRef.current === channel) {
+        broadcastChannelRef.current = null;
+      }
+    };
+  }, [activeUnitId, loadLeads]);
 
   React.useEffect(() => {
     if (activeUnitId) {
@@ -278,6 +345,76 @@ function CRM() {
     }
   }
 
+  async function updateLeadStage(lead: LeadRecord, nextStage: LeadStage) {
+    if (lead.stage === nextStage) {
+      return;
+    }
+
+    setSyncingLeadId(lead.id);
+    setLeads((current) =>
+      current.map((item) => (item.id === lead.id ? { ...item, stage: nextStage } : item)),
+    );
+
+    try {
+      await readJson<{ ok: true; stage: LeadStage }>(
+        await fetch(`/api/crm/leads/${lead.id}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ stage: nextStage }),
+        }),
+      );
+
+      broadcastChannelRef.current?.postMessage({
+        type: "lead-stage-updated",
+        leadId: lead.id,
+        stage: nextStage,
+      });
+
+      void loadLeads({ silent: true });
+
+      toast.success(`Lead movido para ${stageLabels[nextStage]}.`);
+    } catch (error) {
+      setLeads((current) =>
+        current.map((item) => (item.id === lead.id ? { ...item, stage: lead.stage } : item)),
+      );
+      toast.error(error instanceof Error ? error.message : "Falha ao mover lead.");
+    } finally {
+      setSyncingLeadId(null);
+      setDraggingLeadId(null);
+      setDropTargetStage(null);
+    }
+  }
+
+  function handleDragStart(event: React.DragEvent<HTMLDivElement>, lead: LeadRecord) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", lead.id);
+    setDraggingLeadId(lead.id);
+  }
+
+  function handleDragEnd() {
+    setDraggingLeadId(null);
+    setDropTargetStage(null);
+  }
+
+  function handleStageDrop(event: React.DragEvent<HTMLDivElement>, stage: LeadStage) {
+    event.preventDefault();
+    const leadId = event.dataTransfer.getData("text/plain");
+    const lead = leads.find((item) => item.id === leadId);
+
+    setDropTargetStage(null);
+
+    if (!lead) {
+      setDraggingLeadId(null);
+      return;
+    }
+
+    void updateLeadStage(lead, stage);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -306,6 +443,7 @@ function CRM() {
           {stages.map((stage) => {
             const stageLeads = leads.filter((lead) => lead.stage === stage);
             const stageValue = stageLeads.reduce((sum, lead) => sum + (lead.courseValue ?? 0), 0);
+            const isDropTarget = dropTargetStage === stage;
 
             return (
               <div key={stage} className="w-[280px] flex-shrink-0">
@@ -325,7 +463,21 @@ function CRM() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3 rounded-xl border bg-card/60 p-3 shadow-card">
+                <div
+                  className={`space-y-3 rounded-xl border bg-card/60 p-3 shadow-card transition-colors duration-200 ${
+                    isDropTarget ? "border-primary/50 bg-primary/5" : "border-border"
+                  }`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDropTargetStage(stage);
+                  }}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setDropTargetStage(stage);
+                  }}
+                  onDragLeave={() => setDropTargetStage((current) => (current === stage ? null : current))}
+                  onDrop={(event) => handleStageDrop(event, stage)}
+                >
                   {loadingLeads ? (
                     <EmptyState
                       icon={KanbanSquare}
@@ -338,7 +490,11 @@ function CRM() {
                         key={lead.id}
                         lead={lead}
                         removing={removingLeadId === lead.id}
+                        dragging={draggingLeadId === lead.id}
+                        syncing={syncingLeadId === lead.id}
                         onRemove={() => void handleRemoveLead(lead)}
+                        onDragStart={(event) => handleDragStart(event, lead)}
+                        onDragEnd={handleDragEnd}
                       />
                     ))
                   ) : (
@@ -375,14 +531,29 @@ function CRM() {
 function LeadPipelineCard({
   lead,
   removing,
+  dragging,
+  syncing,
   onRemove,
+  onDragStart,
+  onDragEnd,
 }: {
   lead: LeadRecord;
   removing: boolean;
+  dragging: boolean;
+  syncing: boolean;
   onRemove: () => void;
+  onDragStart: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
 }) {
   return (
-    <Card className="group border-primary/10 bg-white/90 p-3 shadow-card">
+    <Card
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`group cursor-grab border-primary/10 bg-white/90 p-3 shadow-card transition-all duration-200 ease-out active:cursor-grabbing ${
+        dragging ? "scale-[0.98] opacity-60 shadow-lg" : "hover:-translate-y-0.5 hover:shadow-elegant"
+      } ${syncing ? "ring-2 ring-primary/25" : ""}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{lead.fullName}</div>
@@ -426,6 +597,10 @@ function LeadPipelineCard({
           {currencyFormatter.format(lead.courseValue)}
         </div>
       ) : null}
+      <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        <span>Arraste para mover</span>
+        <span>{lead.stage}</span>
+      </div>
     </Card>
   );
 }
