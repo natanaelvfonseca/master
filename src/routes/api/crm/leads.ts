@@ -1,0 +1,282 @@
+import { createFileRoute } from "@tanstack/react-router";
+import type { QueryResultRow } from "pg";
+import type { LeadRecord, LeadStage } from "@/lib/commercial-types";
+import {
+  ensureCommercialSchema,
+  getUnitFromBody,
+  getUnitFromRequest,
+  isUuid,
+} from "@/lib/server/commercial-schema";
+import { getSessionFromRequest } from "@/lib/server/auth";
+import { queryDb } from "@/lib/server/db";
+
+type LeadRow = QueryResultRow & {
+  id: string;
+  unit_id: string;
+  unit_name: string;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  course_id: string | null;
+  course_name_snapshot: string | null;
+  course_value_snapshot: string | null;
+  acquisition_channel_id: string | null;
+  acquisition_channel_name_snapshot: string | null;
+  observations: string | null;
+  stage: LeadStage;
+  created_at: string;
+};
+
+type CourseSnapshotRow = QueryResultRow & {
+  id: string;
+  name: string;
+  value: string;
+};
+
+type ChannelSnapshotRow = QueryResultRow & {
+  id: string;
+  name: string;
+};
+
+function mapLead(row: LeadRow): LeadRecord {
+  return {
+    id: row.id,
+    unitId: row.unit_id,
+    unitName: row.unit_name,
+    fullName: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    courseId: row.course_id,
+    courseName: row.course_name_snapshot,
+    courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
+    acquisitionChannelId: row.acquisition_channel_id,
+    acquisitionChannelName: row.acquisition_channel_name_snapshot,
+    observations: row.observations,
+    stage: row.stage,
+    createdAt: row.created_at,
+  };
+}
+
+function parseLeadPayload(body: unknown) {
+  const data = body as {
+    fullName?: unknown;
+    phone?: unknown;
+    email?: unknown;
+    courseId?: unknown;
+    acquisitionChannelId?: unknown;
+    unitId?: unknown;
+    observations?: unknown;
+  };
+
+  return {
+    fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
+    phone: typeof data?.phone === "string" ? data.phone.trim() : "",
+    email: typeof data?.email === "string" ? data.email.trim() : "",
+    courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
+    acquisitionChannelId:
+      typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
+    unitId: data?.unitId,
+    observations: typeof data?.observations === "string" ? data.observations.trim() : "",
+  };
+}
+
+async function getCourseSnapshot(courseId: string, unitId: string) {
+  if (!courseId) {
+    return { course: null };
+  }
+
+  if (!isUuid(courseId)) {
+    return { error: "Curso inválido.", status: 400 };
+  }
+
+  const result = await queryDb<CourseSnapshotRow>(
+    `
+      select id, name, value::text
+      from app_courses
+      where id = $1 and unit_id = $2
+      limit 1
+    `,
+    [courseId, unitId],
+  );
+
+  const course = result.rows[0];
+
+  if (!course) {
+    return { error: "Curso não encontrado.", status: 404 };
+  }
+
+  return { course };
+}
+
+async function getChannelSnapshot(channelId: string, unitId: string) {
+  if (!channelId) {
+    return { channel: null };
+  }
+
+  if (!isUuid(channelId)) {
+    return { error: "Canal inválido.", status: 400 };
+  }
+
+  const result = await queryDb<ChannelSnapshotRow>(
+    `
+      select id, name
+      from app_acquisition_channels
+      where id = $1 and unit_id = $2
+      limit 1
+    `,
+    [channelId, unitId],
+  );
+
+  const channel = result.rows[0];
+
+  if (!channel) {
+    return { error: "Canal não encontrado.", status: 404 };
+  }
+
+  return { channel };
+}
+
+export const Route = createFileRoute("/api/crm/leads")({
+  server: {
+    handlers: {
+      GET: async ({ request }) => {
+        const session = await getSessionFromRequest(request);
+
+        if (!session) {
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        const unit = getUnitFromRequest(session, request);
+
+        if (!unit) {
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+        }
+
+        await ensureCommercialSchema();
+
+        const result = await queryDb<LeadRow>(
+          `
+            select
+              l.id,
+              l.unit_id,
+              u.name as unit_name,
+              l.full_name,
+              l.phone,
+              l.email,
+              l.course_id,
+              l.course_name_snapshot,
+              l.course_value_snapshot::text,
+              l.acquisition_channel_id,
+              l.acquisition_channel_name_snapshot,
+              l.observations,
+              l.stage,
+              l.created_at::text
+            from app_leads l
+            inner join app_units u on u.id = l.unit_id
+            where l.unit_id = $1
+            order by l.created_at desc
+          `,
+          [unit.id],
+        );
+
+        return Response.json(
+          { leads: result.rows.map(mapLead) },
+          { headers: { "Cache-Control": "no-store" } },
+        );
+      },
+      POST: async ({ request }) => {
+        const session = await getSessionFromRequest(request);
+
+        if (!session) {
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        const body = await request.json().catch(() => null);
+        const payload = parseLeadPayload(body);
+        const unit = getUnitFromBody(session, payload.unitId);
+
+        if (!unit) {
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+        }
+
+        if (!payload.fullName || !payload.phone) {
+          return Response.json(
+            { ok: false, error: "Nome completo e telefone são obrigatórios." },
+            { status: 400 },
+          );
+        }
+
+        await ensureCommercialSchema();
+
+        const courseResult = await getCourseSnapshot(payload.courseId, unit.id);
+
+        if (courseResult.error) {
+          return Response.json(
+            { ok: false, error: courseResult.error },
+            { status: courseResult.status },
+          );
+        }
+
+        const channelResult = await getChannelSnapshot(payload.acquisitionChannelId, unit.id);
+
+        if (channelResult.error) {
+          return Response.json(
+            { ok: false, error: channelResult.error },
+            { status: channelResult.status },
+          );
+        }
+
+        const course = courseResult.course;
+        const channel = channelResult.channel;
+        const result = await queryDb<LeadRow>(
+          `
+            insert into app_leads (
+              unit_id,
+              full_name,
+              phone,
+              email,
+              course_id,
+              course_name_snapshot,
+              course_value_snapshot,
+              acquisition_channel_id,
+              acquisition_channel_name_snapshot,
+              observations,
+              created_by
+            )
+            values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, $9, nullif($10, ''), $11)
+            returning
+              id,
+              unit_id,
+              (select name from app_units where id = $1) as unit_name,
+              full_name,
+              phone,
+              email,
+              course_id,
+              course_name_snapshot,
+              course_value_snapshot::text,
+              acquisition_channel_id,
+              acquisition_channel_name_snapshot,
+              observations,
+              stage,
+              created_at::text
+          `,
+          [
+            unit.id,
+            payload.fullName,
+            payload.phone,
+            payload.email,
+            course?.id ?? null,
+            course?.name ?? null,
+            course ? Number(course.value) : null,
+            channel?.id ?? null,
+            channel?.name ?? null,
+            payload.observations,
+            session.user.id,
+          ],
+        );
+
+        return Response.json({ lead: mapLead(result.rows[0]) }, { status: 201 });
+      },
+    },
+  },
+});

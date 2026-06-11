@@ -28,11 +28,17 @@ import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
+import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
+import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
+import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminUnitsRouteImport } from './routes/api/admin/units'
+import { Route as ApiGestaoCoursesIdRouteImport } from './routes/api/gestao/courses.$id'
+import { Route as ApiGestaoChannelsIdRouteImport } from './routes/api/gestao/channels.$id'
+import { Route as ApiCrmLeadsIdRouteImport } from './routes/api/crm/leads.$id'
 
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
@@ -129,6 +135,21 @@ const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   path: '/api/health/db',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGestaoCoursesRoute = ApiGestaoCoursesRouteImport.update({
+  id: '/api/gestao/courses',
+  path: '/api/gestao/courses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGestaoChannelsRoute = ApiGestaoChannelsRouteImport.update({
+  id: '/api/gestao/channels',
+  path: '/api/gestao/channels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrmLeadsRoute = ApiCrmLeadsRouteImport.update({
+  id: '/api/crm/leads',
+  path: '/api/crm/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
   id: '/api/auth/session',
   path: '/api/auth/session',
@@ -153,6 +174,21 @@ const ApiAdminUnitsRoute = ApiAdminUnitsRouteImport.update({
   id: '/api/admin/units',
   path: '/api/admin/units',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGestaoCoursesIdRoute = ApiGestaoCoursesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiGestaoCoursesRoute,
+} as any)
+const ApiGestaoChannelsIdRoute = ApiGestaoChannelsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiGestaoChannelsRoute,
+} as any)
+const ApiCrmLeadsIdRoute = ApiCrmLeadsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiCrmLeadsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -179,7 +215,13 @@ export interface FileRoutesByFullPath {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
+  '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
+  '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -205,7 +247,13 @@ export interface FileRoutesByTo {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
+  '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
+  '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -232,7 +280,13 @@ export interface FileRoutesById {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
+  '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
+  '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -260,7 +314,13 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/crm/leads'
+    | '/api/gestao/channels'
+    | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/crm/leads/$id'
+    | '/api/gestao/channels/$id'
+    | '/api/gestao/courses/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -286,7 +346,13 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/crm/leads'
+    | '/api/gestao/channels'
+    | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/crm/leads/$id'
+    | '/api/gestao/channels/$id'
+    | '/api/gestao/courses/$id'
   id:
     | '__root__'
     | '/'
@@ -312,7 +378,13 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/api/crm/leads'
+    | '/api/gestao/channels'
+    | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/crm/leads/$id'
+    | '/api/gestao/channels/$id'
+    | '/api/gestao/courses/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -339,6 +411,9 @@ export interface RootRouteChildren {
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
+  ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
+  ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
   ApiHealthDbRoute: typeof ApiHealthDbRoute
 }
 
@@ -477,6 +552,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthDbRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/gestao/courses': {
+      id: '/api/gestao/courses'
+      path: '/api/gestao/courses'
+      fullPath: '/api/gestao/courses'
+      preLoaderRoute: typeof ApiGestaoCoursesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gestao/channels': {
+      id: '/api/gestao/channels'
+      path: '/api/gestao/channels'
+      fullPath: '/api/gestao/channels'
+      preLoaderRoute: typeof ApiGestaoChannelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crm/leads': {
+      id: '/api/crm/leads'
+      path: '/api/crm/leads'
+      fullPath: '/api/crm/leads'
+      preLoaderRoute: typeof ApiCrmLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/session': {
       id: '/api/auth/session'
       path: '/api/auth/session'
@@ -512,8 +608,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUnitsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/gestao/courses/$id': {
+      id: '/api/gestao/courses/$id'
+      path: '/$id'
+      fullPath: '/api/gestao/courses/$id'
+      preLoaderRoute: typeof ApiGestaoCoursesIdRouteImport
+      parentRoute: typeof ApiGestaoCoursesRoute
+    }
+    '/api/gestao/channels/$id': {
+      id: '/api/gestao/channels/$id'
+      path: '/$id'
+      fullPath: '/api/gestao/channels/$id'
+      preLoaderRoute: typeof ApiGestaoChannelsIdRouteImport
+      parentRoute: typeof ApiGestaoChannelsRoute
+    }
+    '/api/crm/leads/$id': {
+      id: '/api/crm/leads/$id'
+      path: '/$id'
+      fullPath: '/api/crm/leads/$id'
+      preLoaderRoute: typeof ApiCrmLeadsIdRouteImport
+      parentRoute: typeof ApiCrmLeadsRoute
+    }
   }
 }
+
+interface ApiCrmLeadsRouteChildren {
+  ApiCrmLeadsIdRoute: typeof ApiCrmLeadsIdRoute
+}
+
+const ApiCrmLeadsRouteChildren: ApiCrmLeadsRouteChildren = {
+  ApiCrmLeadsIdRoute: ApiCrmLeadsIdRoute,
+}
+
+const ApiCrmLeadsRouteWithChildren = ApiCrmLeadsRoute._addFileChildren(
+  ApiCrmLeadsRouteChildren,
+)
+
+interface ApiGestaoChannelsRouteChildren {
+  ApiGestaoChannelsIdRoute: typeof ApiGestaoChannelsIdRoute
+}
+
+const ApiGestaoChannelsRouteChildren: ApiGestaoChannelsRouteChildren = {
+  ApiGestaoChannelsIdRoute: ApiGestaoChannelsIdRoute,
+}
+
+const ApiGestaoChannelsRouteWithChildren =
+  ApiGestaoChannelsRoute._addFileChildren(ApiGestaoChannelsRouteChildren)
+
+interface ApiGestaoCoursesRouteChildren {
+  ApiGestaoCoursesIdRoute: typeof ApiGestaoCoursesIdRoute
+}
+
+const ApiGestaoCoursesRouteChildren: ApiGestaoCoursesRouteChildren = {
+  ApiGestaoCoursesIdRoute: ApiGestaoCoursesIdRoute,
+}
+
+const ApiGestaoCoursesRouteWithChildren =
+  ApiGestaoCoursesRoute._addFileChildren(ApiGestaoCoursesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -539,6 +690,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
+  ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
+  ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
+  ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
   ApiHealthDbRoute: ApiHealthDbRoute,
 }
 export const routeTree = rootRouteImport

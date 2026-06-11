@@ -10,6 +10,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import type {
+  AcquisitionChannelRecord,
+  CommercialStatus,
+  CourseRecord,
+} from "@/lib/commercial-types";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,39 +46,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Status = "active" | "inactive";
-
-type Course = {
-  id: string;
-  name: string;
-  value: number;
-  category?: string;
-  status: Status;
-};
-
-type AcquisitionChannel = {
-  id: string;
-  name: string;
-  type: string;
-  status: Status;
-};
-
 type CourseFormState = {
   name: string;
   value: string;
   category: string;
-  status: Status;
+  status: CommercialStatus;
 };
 
 type ChannelFormState = {
   name: string;
   type: string;
-  status: Status;
+  status: CommercialStatus;
 };
 
 type DeleteTarget =
   | { kind: "course"; id: string; name: string }
   | { kind: "channel"; id: string; name: string };
+
+type CoursesResponse = {
+  courses: Array<CourseRecord>;
+};
+
+type ChannelsResponse = {
+  channels: Array<AcquisitionChannelRecord>;
+};
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -92,17 +89,19 @@ const initialChannelForm: ChannelFormState = {
   status: "active",
 };
 
-const initialChannels: Array<AcquisitionChannel> = [
-  { id: "meta-ads", name: "Meta Ads", type: "Pago", status: "active" },
-  { id: "google-ads", name: "Google Ads", type: "Pago", status: "active" },
-  { id: "tiktok", name: "TikTok", type: "Pago", status: "active" },
-  { id: "instagram-organico", name: "Instagram Orgânico", type: "Orgânico", status: "active" },
-  { id: "whatsapp", name: "WhatsApp", type: "Conversacional", status: "active" },
-  { id: "indicacao", name: "Indicação", type: "Relacionamento", status: "active" },
-  { id: "site", name: "Site", type: "Próprio", status: "active" },
-  { id: "evento", name: "Evento", type: "Presencial", status: "inactive" },
-  { id: "parceria", name: "Parceria", type: "Relacionamento", status: "active" },
-];
+async function readJson<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Falha na requisição.");
+  }
+
+  return data;
+}
+
+function unitQuery(unitId: string) {
+  return `?unitId=${encodeURIComponent(unitId)}`;
+}
 
 export const Route = createFileRoute("/gestao/cadastro")({
   head: () => ({ meta: [{ title: "Cadastro - Gestão - Plenarius Growth Hub" }] }),
@@ -110,8 +109,14 @@ export const Route = createFileRoute("/gestao/cadastro")({
 });
 
 function CadastroPage() {
-  const [courses, setCourses] = React.useState<Array<Course>>([]);
-  const [channels, setChannels] = React.useState<Array<AcquisitionChannel>>(initialChannels);
+  const { session } = useAuth();
+  const activeUnitId = session?.activeUnit?.id ?? "";
+  const [courses, setCourses] = React.useState<Array<CourseRecord>>([]);
+  const [channels, setChannels] = React.useState<Array<AcquisitionChannelRecord>>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [savingCourse, setSavingCourse] = React.useState(false);
+  const [savingChannel, setSavingChannel] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
   const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
   const [channelDialogOpen, setChannelDialogOpen] = React.useState(false);
   const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
@@ -123,13 +128,50 @@ function CadastroPage() {
   const activeCourses = courses.filter((course) => course.status === "active").length;
   const activeChannels = channels.filter((channel) => channel.status === "active").length;
 
+  const loadData = React.useCallback(async () => {
+    if (!activeUnitId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const [coursesData, channelsData] = await Promise.all([
+        readJson<CoursesResponse>(
+          await fetch(`/api/gestao/courses${unitQuery(activeUnitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        ),
+        readJson<ChannelsResponse>(
+          await fetch(`/api/gestao/channels${unitQuery(activeUnitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        ),
+      ]);
+
+      setCourses(coursesData.courses);
+      setChannels(channelsData.channels);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao carregar cadastros.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeUnitId]);
+
+  React.useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
   function openNewCourseDialog() {
     setEditingCourseId(null);
     setCourseForm(initialCourseForm);
     setCourseDialogOpen(true);
   }
 
-  function openEditCourseDialog(course: Course) {
+  function openEditCourseDialog(course: CourseRecord) {
     setEditingCourseId(course.id);
     setCourseForm({
       name: course.name,
@@ -146,7 +188,7 @@ function CadastroPage() {
     setChannelDialogOpen(true);
   }
 
-  function openEditChannelDialog(channel: AcquisitionChannel) {
+  function openEditChannelDialog(channel: AcquisitionChannelRecord) {
     setEditingChannelId(channel.id);
     setChannelForm({
       name: channel.name,
@@ -156,8 +198,13 @@ function CadastroPage() {
     setChannelDialogOpen(true);
   }
 
-  function handleCourseSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCourseSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!activeUnitId) {
+      toast.error("Selecione uma unidade ativa.");
+      return;
+    }
 
     const parsedValue = Number(courseForm.value.replace(",", "."));
     if (!courseForm.name.trim() || Number.isNaN(parsedValue) || parsedValue < 0) {
@@ -165,90 +212,114 @@ function CadastroPage() {
       return;
     }
 
-    if (editingCourseId) {
-      setCourses((current) =>
-        current.map((course) =>
-          course.id === editingCourseId
-            ? {
-                ...course,
-                name: courseForm.name.trim(),
-                value: parsedValue,
-                category: courseForm.category.trim() || undefined,
-                status: courseForm.status,
-              }
-            : course,
-        ),
-      );
-      toast.success("Curso atualizado.");
-    } else {
-      setCourses((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          name: courseForm.name.trim(),
-          value: parsedValue,
-          category: courseForm.category.trim() || undefined,
-          status: courseForm.status,
-        },
-      ]);
-      toast.success("Curso cadastrado.");
-    }
+    setSavingCourse(true);
 
-    setCourseDialogOpen(false);
+    try {
+      const payload = {
+        ...courseForm,
+        value: parsedValue,
+        unitId: activeUnitId,
+      };
+      const endpoint = editingCourseId
+        ? `/api/gestao/courses/${editingCourseId}`
+        : "/api/gestao/courses";
+      const method = editingCourseId ? "PATCH" : "POST";
+
+      await readJson<{ course: CourseRecord }>(
+        await fetch(endpoint, {
+          method,
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }),
+      );
+
+      toast.success(editingCourseId ? "Curso atualizado." : "Curso cadastrado.");
+      setCourseDialogOpen(false);
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar curso.");
+    } finally {
+      setSavingCourse(false);
+    }
   }
 
-  function handleChannelSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleChannelSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!activeUnitId) {
+      toast.error("Selecione uma unidade ativa.");
+      return;
+    }
 
     if (!channelForm.name.trim() || !channelForm.type.trim()) {
       toast.error("Preencha o canal e o tipo.");
       return;
     }
 
-    if (editingChannelId) {
-      setChannels((current) =>
-        current.map((channel) =>
-          channel.id === editingChannelId
-            ? {
-                ...channel,
-                name: channelForm.name.trim(),
-                type: channelForm.type.trim(),
-                status: channelForm.status,
-              }
-            : channel,
-        ),
-      );
-      toast.success("Canal atualizado.");
-    } else {
-      setChannels((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          name: channelForm.name.trim(),
-          type: channelForm.type.trim(),
-          status: channelForm.status,
-        },
-      ]);
-      toast.success("Canal cadastrado.");
-    }
+    setSavingChannel(true);
 
-    setChannelDialogOpen(false);
+    try {
+      const payload = { ...channelForm, unitId: activeUnitId };
+      const endpoint = editingChannelId
+        ? `/api/gestao/channels/${editingChannelId}`
+        : "/api/gestao/channels";
+      const method = editingChannelId ? "PATCH" : "POST";
+
+      await readJson<{ channel: AcquisitionChannelRecord }>(
+        await fetch(endpoint, {
+          method,
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }),
+      );
+
+      toast.success(editingChannelId ? "Canal atualizado." : "Canal cadastrado.");
+      setChannelDialogOpen(false);
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar canal.");
+    } finally {
+      setSavingChannel(false);
+    }
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) {
+  async function confirmDelete() {
+    if (!deleteTarget || !activeUnitId) {
       return;
     }
 
-    if (deleteTarget.kind === "course") {
-      setCourses((current) => current.filter((course) => course.id !== deleteTarget.id));
-      toast.success("Curso excluído.");
-    } else {
-      setChannels((current) => current.filter((channel) => channel.id !== deleteTarget.id));
-      toast.success("Canal excluído.");
-    }
+    setDeleting(true);
 
-    setDeleteTarget(null);
+    try {
+      const endpoint =
+        deleteTarget.kind === "course"
+          ? `/api/gestao/courses/${deleteTarget.id}${unitQuery(activeUnitId)}`
+          : `/api/gestao/channels/${deleteTarget.id}${unitQuery(activeUnitId)}`;
+
+      await readJson<{ ok: true }>(
+        await fetch(endpoint, {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        }),
+      );
+
+      toast.success(deleteTarget.kind === "course" ? "Curso excluído." : "Canal excluído.");
+      setDeleteTarget(null);
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao excluir registro.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -284,9 +355,9 @@ function CadastroPage() {
         />
         <MetricCard
           icon={Sparkles}
-          label="Status operacional"
-          value="Live"
-          detail="Fluxos locais ativos, aguardando APIs finais."
+          label="Unidade ativa"
+          value={session?.activeUnit?.name ?? "--"}
+          detail="Dados gravados no banco por unidade."
         />
       </div>
 
@@ -318,11 +389,17 @@ function CadastroPage() {
                   <TableHead className="px-5">Nome</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[128px] text-right pr-5">Ações</TableHead>
+                  <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {courses.length ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-28 px-5 text-center text-muted-foreground">
+                      Carregando cursos...
+                    </TableCell>
+                  </TableRow>
+                ) : courses.length ? (
                   courses.map((course) => (
                     <TableRow key={course.id} className="group">
                       <TableCell className="px-5 font-medium">
@@ -409,51 +486,63 @@ function CadastroPage() {
                   <TableHead className="px-5">Canal</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[128px] text-right pr-5">Ações</TableHead>
+                  <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {channels.map((channel) => (
-                  <TableRow key={channel.id}>
-                    <TableCell className="px-5 font-medium">{channel.name}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="bg-secondary/80 text-secondary-foreground"
-                      >
-                        {channel.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={channel.status} />
-                    </TableCell>
-                    <TableCell className="pr-5">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditChannelDialog(channel)}
-                          aria-label={`Editar ${channel.name}`}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() =>
-                            setDeleteTarget({ kind: "channel", id: channel.id, name: channel.name })
-                          }
-                          aria-label={`Excluir ${channel.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-28 px-5 text-center text-muted-foreground">
+                      Carregando canais...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  channels.map((channel) => (
+                    <TableRow key={channel.id}>
+                      <TableCell className="px-5 font-medium">{channel.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className="bg-secondary/80 text-secondary-foreground"
+                        >
+                          {channel.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={channel.status} />
+                      </TableCell>
+                      <TableCell className="pr-5">
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditChannelDialog(channel)}
+                            aria-label={`Editar ${channel.name}`}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({
+                                kind: "channel",
+                                id: channel.id,
+                                name: channel.name,
+                              })
+                            }
+                            aria-label={`Excluir ${channel.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -464,6 +553,7 @@ function CadastroPage() {
         open={courseDialogOpen}
         editing={Boolean(editingCourseId)}
         form={courseForm}
+        saving={savingCourse}
         onOpenChange={setCourseDialogOpen}
         onFormChange={setCourseForm}
         onSubmit={handleCourseSubmit}
@@ -472,14 +562,16 @@ function CadastroPage() {
         open={channelDialogOpen}
         editing={Boolean(editingChannelId)}
         form={channelForm}
+        saving={savingChannel}
         onOpenChange={setChannelDialogOpen}
         onFormChange={setChannelForm}
         onSubmit={handleChannelSubmit}
       />
       <DeleteDialog
         target={deleteTarget}
+        deleting={deleting}
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
       />
     </div>
   );
@@ -503,7 +595,7 @@ function MetricCard({
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-2xl font-bold leading-none text-foreground">{value}</div>
+          <div className="truncate text-2xl font-bold leading-none text-foreground">{value}</div>
           <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {label}
           </div>
@@ -514,7 +606,7 @@ function MetricCard({
   );
 }
 
-function StatusBadge({ status }: { status: Status }) {
+function StatusBadge({ status }: { status: CommercialStatus }) {
   const isActive = status === "active";
 
   return (
@@ -531,6 +623,7 @@ function CourseDialog({
   open,
   editing,
   form,
+  saving,
   onOpenChange,
   onFormChange,
   onSubmit,
@@ -538,6 +631,7 @@ function CourseDialog({
   open: boolean;
   editing: boolean;
   form: CourseFormState;
+  saving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<CourseFormState>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
@@ -562,7 +656,7 @@ function CourseDialog({
                 onChange={(event) =>
                   onFormChange((current) => ({ ...current, name: event.target.value }))
                 }
-                placeholder="Ex.: Informatica Profissional"
+                placeholder="Ex.: Informática Profissional"
                 required
               />
             </div>
@@ -597,7 +691,10 @@ function CourseDialog({
               <Select
                 value={form.status}
                 onValueChange={(value) =>
-                  onFormChange((current) => ({ ...current, status: value as Status }))
+                  onFormChange((current) => ({
+                    ...current,
+                    status: value as CommercialStatus,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -615,8 +712,8 @@ function CourseDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary">
-              {editing ? "Salvar alterações" : "Criar curso"}
+            <Button type="submit" className="bg-gradient-primary" disabled={saving}>
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar curso"}
             </Button>
           </DialogFooter>
         </form>
@@ -629,6 +726,7 @@ function ChannelDialog({
   open,
   editing,
   form,
+  saving,
   onOpenChange,
   onFormChange,
   onSubmit,
@@ -636,6 +734,7 @@ function ChannelDialog({
   open: boolean;
   editing: boolean;
   form: ChannelFormState;
+  saving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<ChannelFormState>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
@@ -681,7 +780,10 @@ function ChannelDialog({
               <Select
                 value={form.status}
                 onValueChange={(value) =>
-                  onFormChange((current) => ({ ...current, status: value as Status }))
+                  onFormChange((current) => ({
+                    ...current,
+                    status: value as CommercialStatus,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -699,8 +801,8 @@ function ChannelDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary">
-              {editing ? "Salvar alterações" : "Criar canal"}
+            <Button type="submit" className="bg-gradient-primary" disabled={saving}>
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar canal"}
             </Button>
           </DialogFooter>
         </form>
@@ -711,10 +813,12 @@ function ChannelDialog({
 
 function DeleteDialog({
   target,
+  deleting,
   onCancel,
   onConfirm,
 }: {
   target: DeleteTarget | null;
+  deleting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -725,7 +829,7 @@ function DeleteDialog({
           <DialogTitle>Confirmar exclusão</DialogTitle>
           <DialogDescription>
             {target
-              ? `Deseja excluir "${target.name}"? Esta ação remove o registro da tela atual.`
+              ? `Deseja excluir "${target.name}"? Esta ação remove o registro do banco de dados.`
               : "Deseja excluir este registro?"}
           </DialogDescription>
         </DialogHeader>
@@ -733,8 +837,8 @@ function DeleteDialog({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
-            Excluir
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={deleting}>
+            {deleting ? "Excluindo..." : "Excluir"}
           </Button>
         </DialogFooter>
       </DialogContent>

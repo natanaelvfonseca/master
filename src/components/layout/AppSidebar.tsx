@@ -12,7 +12,6 @@ import {
   Megaphone,
   Palette,
   Plug,
-  ShieldCheck,
   Trophy,
   UserCog,
   Users,
@@ -44,7 +43,7 @@ const groups = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
-      { title: "Leads / Alunos", url: "/leads", icon: Users },
+      { title: "Leads", url: "/leads", icon: Users },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
     ],
@@ -52,10 +51,8 @@ const groups = [
   {
     label: "Crescimento",
     items: [
-      { title: "Recuperacao", url: "/recuperacao", icon: ShieldCheck },
-      { title: "BI Comercial", url: "/bi", icon: BarChart3 },
-      { title: "Branding", url: "/branding", icon: Megaphone },
-      { title: "Integracoes", url: "/integracoes", icon: Plug },
+      { title: "Comercial", url: "/bi", icon: BarChart3 },
+      { title: "Marketing", url: "/branding", icon: Megaphone },
     ],
   },
   {
@@ -69,7 +66,10 @@ const groups = [
   },
   {
     label: "Gestão",
-    items: [{ title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList }],
+    items: [
+      { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList },
+      { title: "Integrações", url: "/integracoes", icon: Plug },
+    ],
   },
 ];
 
