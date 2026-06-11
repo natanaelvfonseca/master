@@ -3,8 +3,6 @@ import { Upload, ShieldCheck, Check, X, Lock } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { brandColors, promptRules, generatedImages } from "@/lib/brand";
@@ -34,7 +32,7 @@ function BrandKit() {
           <CardHeader><CardTitle className="text-base">Logos oficiais</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="flex h-32 items-center justify-center rounded-lg border bg-background">
+              <div className="flex h-32 items-center justify-center rounded-lg border bg-[#FFFFFF]">
                 <img
                   src={plenariusLogo}
                   alt="Plenarius"
@@ -47,7 +45,7 @@ function BrandKit() {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex h-32 items-center justify-center rounded-lg border bg-gradient-to-br from-primary via-primary to-[#0B2A6F]">
+              <div className="flex h-32 items-center justify-center rounded-lg border bg-[#0B2A6F]">
                 <img
                   src={plenariusLogo}
                   alt="Plenarius em branco"
@@ -85,7 +83,7 @@ function BrandKit() {
         </Card>
 
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Tom de comunicação</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Tom de comunicacao</CardTitle></CardHeader>
           <CardContent>
             <Textarea rows={4} defaultValue={promptRules.tom} />
           </CardContent>
@@ -94,7 +92,7 @@ function BrandKit() {
         <Card className="shadow-card border-success/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Check className="h-4 w-4 text-success" /> Regras obrigatórias
+              <Check className="h-4 w-4 text-success" /> Regras obrigatorias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -153,7 +151,7 @@ function BrandKit() {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline">Descartar alterações</Button>
+        <Button variant="outline">Descartar alteracoes</Button>
         <Button className="bg-primary text-primary-foreground">Salvar Brand Kit</Button>
       </div>
     </div>

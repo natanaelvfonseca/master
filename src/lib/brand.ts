@@ -1,10 +1,10 @@
 export const brandColors = [
   { hex: "#0B2A6F", name: "Azul Profundo" },
   { hex: "#1746B8", name: "Azul Royal" },
-  { hex: "#3F73D8", name: "Azul Médio Frio" },
+  { hex: "#3F73D8", name: "Azul Medio Frio" },
   { hex: "#DCE8FF", name: "Azul Claro Suave" },
   { hex: "#FFFFFF", name: "Branco" },
-  { hex: "#E3AA2B", name: "Dourado / Mostarda" },
+  { hex: "#E3AA2B", name: "Dourado Mostarda" },
 ];
 
 export const pieceTypes = [
@@ -12,21 +12,21 @@ export const pieceTypes = [
   { id: "story", label: "Story", ratio: "9:16" },
   { id: "banner", label: "Banner Site", ratio: "16:6" },
   { id: "capa", label: "Capa de Curso", ratio: "16:9" },
-  { id: "ads", label: "Anúncio Facebook/Ads", ratio: "1:1" },
+  { id: "ads", label: "Anuncio Facebook/Ads", ratio: "1:1" },
   { id: "comercial", label: "Material Comercial", ratio: "A4" },
   { id: "custom", label: "Personalizado", ratio: "Livre" },
 ];
 
 export const objectives = [
-  "Matrícula", "Campanha institucional", "Divulgação de curso",
-  "Evento", "Promoção", "Conteúdo educativo",
+  "Matricula", "Campanha institucional", "Divulgacao de curso",
+  "Evento", "Promocao", "Conteudo educativo",
   "Boas-vindas aos alunos", "Foto de turmas",
 ];
 
 export const courses = [
-  "Inseminação Artificial", "Ciências Mortuárias", "Máquinas Agrícolas",
-  "Máquinas Pesadas", "Drone", "Confeitaria", "Mecânica de Moto",
-  "Diagnóstico Gestacional", "Bombeiro Civil",
+  "Inseminacao Artificial", "Ciencias Mortuarias", "Maquinas Agricolas",
+  "Maquinas Pesadas", "Drone", "Confeitaria", "Mecanica de Moto",
+  "Diagnostico Gestacional", "Bombeiro Civil",
 ];
 
 export const visualStyles = [
@@ -34,8 +34,8 @@ export const visualStyles = [
 ];
 
 export const audiences = [
-  "Jovens 18-25", "Profissionais em transição", "Produtores rurais",
-  "Empresas e RH", "Público geral", "Ex-alunos",
+  "Jovens 18-25", "Profissionais em transicao", "Produtores rurais",
+  "Empresas e RH", "Publico geral", "Ex-alunos",
 ];
 
 const seed = (i: number) => `https://picsum.photos/seed/brandplen-${i}/600/600`;
@@ -49,24 +49,24 @@ export const generatedImages = Array.from({ length: 18 }).map((_, i) => ({
   style: visualStyles[i % visualStyles.length],
   author: ["Lucas Andrade", "Mariana Vieira", "Helena Costa", "Pedro Henrique"][i % 4],
   date: `${(i % 27) + 1}/06/2026`,
-  status: ["Aprovado", "Pendente", "Em revisão", "Aprovado"][i % 4],
+  status: ["Aprovado", "Pendente", "Em revisao", "Aprovado"][i % 4],
   credits: 4 + (i % 6),
   favorite: i % 5 === 0,
 }));
 
 export const promptRules = {
   obrigatorias: [
-    "Sempre exibir o logo da Plenarius com proteção mínima",
-    "Usar paleta oficial vibrante (azul profundo, azul royal, azul médio frio, azul claro suave, branco e dourado)",
-    "Pessoas reais com aparência profissional e diversa",
-    "Iluminação clean, premium e tecnológica",
+    "Sempre exibir o logo da Plenarius com protecao minima",
+    "Usar a paleta oficial: azul profundo, azul royal, azul medio frio, azul claro suave, branco e dourado mostarda",
+    "Pessoas reais com aparencia profissional e diversa",
+    "Iluminacao clean, forte e profissional",
   ],
   proibidas: [
     "Tipografia serifada decorativa",
-    "Fundo roxo, azul desbotado ou cores fora da paleta",
-    "Imagens com baixa resolução ou ruído",
-    "Elementos genéricos de banco de imagens 2010",
+    "Fundo roxo, gradiente neon ou cores fora da paleta",
+    "Imagens com baixa resolucao ou ruido",
+    "Elementos genericos de banco de imagens 2010",
   ],
-  tom: "Profissional, vibrante, premium e orientado a crescimento.",
-  estilo: "Tech premium com azul forte, contrastes limpos, brilho controlado e composição editorial sofisticada.",
+  tom: "Profissional, forte, premium e orientado a crescimento.",
+  estilo: "Visual tech premium com contraste elegante, azuis vibrantes, branco limpo e dourado controlado.",
 };
