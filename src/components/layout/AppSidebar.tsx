@@ -14,6 +14,7 @@ import {
   Trophy,
   UserCog,
   Wand2,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,12 +32,30 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
-import { canViewGrowth, canViewManagement, getInitials, ROLE_LABELS } from "@/lib/auth-types";
+import {
+  canManageBrandPlen,
+  canViewGrowth,
+  canViewManagement,
+  getInitials,
+  ROLE_LABELS,
+} from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
-const groups = [
+type NavigationItem = {
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  brandAdminOnly?: boolean;
+};
+
+type NavigationGroup = {
+  label: string;
+  items: Array<NavigationItem>;
+};
+
+const groups: Array<NavigationGroup> = [
   {
-    label: "Visao geral",
+    label: "Visão geral",
     items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }],
   },
   {
@@ -58,17 +77,15 @@ const groups = [
   {
     label: "Brand Plen",
     items: [
-      { title: "Nova Criacao", url: "/brand-plen/nova", icon: Wand2 },
+      { title: "Nova Criação", url: "/brand-plen/nova", icon: Wand2 },
       { title: "Biblioteca", url: "/brand-plen/biblioteca", icon: Images },
-      { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette },
-      { title: "Historico", url: "/brand-plen/historico", icon: History },
+      { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette, brandAdminOnly: true },
+      { title: "Histórico", url: "/brand-plen/historico", icon: History, brandAdminOnly: true },
     ],
   },
   {
     label: "Gestão",
-    items: [
-      { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList },
-    ],
+    items: [{ title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList }],
   },
 ];
 
@@ -80,17 +97,27 @@ export function AppSidebar() {
   const user = session?.user;
   const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
-  const visibleGroups = groups.filter(
-    (group) =>
-      (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
-      (group.label !== "Gestão" || (user ? canViewManagement(user.role) : false)),
-  );
+  const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
+  const visibleGroups = groups
+    .filter(
+      (group) =>
+        (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
+        (group.label !== "Gestão" || (user ? canViewManagement(user.role) : false)),
+    )
+    .map((group) => ({
+      ...group,
+      items:
+        group.label === "Brand Plen"
+          ? group.items.filter((item) => !item.brandAdminOnly || canViewBrandAdmin)
+          : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
   const navGroups = session?.canRegisterUsers
     ? [
         ...visibleGroups,
         {
-          label: "Administracao",
-          items: [{ title: "Usuarios e unidades", url: "/usuarios", icon: UserCog }],
+          label: "Administração",
+          items: [{ title: "Usuários e unidades", url: "/usuarios", icon: UserCog }],
         },
       ]
     : visibleGroups;

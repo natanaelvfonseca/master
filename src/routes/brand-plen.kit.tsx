@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { brandColors, promptRules, generatedImages } from "@/lib/brand";
+import { useAuth } from "@/lib/auth";
+import { canManageBrandPlen } from "@/lib/auth-types";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 
 export const Route = createFileRoute("/brand-plen/kit")({
@@ -14,6 +16,12 @@ export const Route = createFileRoute("/brand-plen/kit")({
 });
 
 function BrandKit() {
+  const { session } = useAuth();
+
+  if (session && !canManageBrandPlen(session.user.role)) {
+    return <BrandAdminAccessDenied />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -29,7 +37,9 @@ function BrandKit() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Logos oficiais</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Logos oficiais</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex h-32 items-center justify-center rounded-lg border bg-[#FFFFFF]">
@@ -41,7 +51,9 @@ function BrandKit() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Logo principal</span>
-                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Upload className="h-3 w-3" /> Trocar</Button>
+                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs">
+                  <Upload className="h-3 w-3" /> Trocar
+                </Button>
               </div>
             </div>
             <div className="space-y-2">
@@ -54,18 +66,25 @@ function BrandKit() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Logo branca</span>
-                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Upload className="h-3 w-3" /> Trocar</Button>
+                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs">
+                  <Upload className="h-3 w-3" /> Trocar
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Cores oficiais</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Cores oficiais</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3">
             {brandColors.map((c) => (
               <div key={c.hex} className="space-y-2">
-                <div className="aspect-square rounded-lg border shadow-card" style={{ background: c.hex }} />
+                <div
+                  className="aspect-square rounded-lg border shadow-card"
+                  style={{ background: c.hex }}
+                />
                 <div>
                   <div className="text-xs font-semibold">{c.name}</div>
                   <div className="font-mono text-[10px] text-muted-foreground">{c.hex}</div>
@@ -76,14 +95,18 @@ function BrandKit() {
         </Card>
 
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Estilo visual da marca</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Estilo visual da marca</CardTitle>
+          </CardHeader>
           <CardContent>
             <Textarea rows={4} defaultValue={promptRules.estilo} />
           </CardContent>
         </Card>
 
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Tom de comunicacao</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Tom de comunicação</CardTitle>
+          </CardHeader>
           <CardContent>
             <Textarea rows={4} defaultValue={promptRules.tom} />
           </CardContent>
@@ -92,7 +115,7 @@ function BrandKit() {
         <Card className="shadow-card border-success/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Check className="h-4 w-4 text-success" /> Regras obrigatorias
+              <Check className="h-4 w-4 text-success" /> Regras obrigatórias
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -112,7 +135,10 @@ function BrandKit() {
           </CardHeader>
           <CardContent className="space-y-2">
             {promptRules.proibidas.map((r, i) => (
-              <div key={i} className="flex items-start gap-2 rounded-md bg-destructive/5 p-2 text-sm">
+              <div
+                key={i}
+                className="flex items-start gap-2 rounded-md bg-destructive/5 p-2 text-sm"
+              >
                 <X className="mt-0.5 h-3.5 w-3.5 text-destructive" /> {r}
               </div>
             ))}
@@ -130,7 +156,10 @@ function BrandKit() {
               <div className="mb-2 text-xs font-semibold text-success">Aprovados</div>
               <div className="grid grid-cols-3 gap-2">
                 {generatedImages.slice(0, 3).map((i) => (
-                  <div key={i.id} className="aspect-square overflow-hidden rounded-md ring-2 ring-success/40">
+                  <div
+                    key={i.id}
+                    className="aspect-square overflow-hidden rounded-md ring-2 ring-success/40"
+                  >
                     <img src={i.url} alt="" className="h-full w-full object-cover" />
                   </div>
                 ))}
@@ -140,7 +169,10 @@ function BrandKit() {
               <div className="mb-2 text-xs font-semibold text-destructive">Reprovados</div>
               <div className="grid grid-cols-3 gap-2">
                 {generatedImages.slice(10, 13).map((i) => (
-                  <div key={i.id} className="aspect-square overflow-hidden rounded-md ring-2 ring-destructive/40 opacity-70">
+                  <div
+                    key={i.id}
+                    className="aspect-square overflow-hidden rounded-md ring-2 ring-destructive/40 opacity-70"
+                  >
                     <img src={i.url} alt="" className="h-full w-full object-cover grayscale" />
                   </div>
                 ))}
@@ -151,8 +183,24 @@ function BrandKit() {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline">Descartar alteracoes</Button>
+        <Button variant="outline">Descartar alterações</Button>
         <Button className="bg-primary text-primary-foreground">Salvar Brand Kit</Button>
+      </div>
+    </div>
+  );
+}
+
+function BrandAdminAccessDenied() {
+  return (
+    <div className="flex min-h-[55vh] items-center justify-center">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h1 className="text-xl font-bold">Acesso restrito</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          O Brand Kit fica disponível apenas para Master e CEO.
+        </p>
       </div>
     </div>
   );

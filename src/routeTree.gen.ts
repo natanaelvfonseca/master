@@ -31,6 +31,7 @@ import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
+import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -154,6 +155,11 @@ const ApiDashboardRoute = ApiDashboardRouteImport.update({
   path: '/api/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBrandLibraryRoute = ApiBrandLibraryRouteImport.update({
+  id: '/api/brand-library',
+  path: '/api/brand-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
   path: '/api/health/db',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
@@ -263,6 +270,7 @@ export interface FileRoutesByTo {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
@@ -300,6 +308,7 @@ export interface FileRoutesById {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
@@ -338,6 +347,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
@@ -447,6 +459,7 @@ export interface RootRouteChildren {
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
   UsuariosRoute: typeof UsuariosRoute
+  ApiBrandLibraryRoute: typeof ApiBrandLibraryRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
   ApiGrowthRoute: typeof ApiGrowthRoute
   ApiProfileRoute: typeof ApiProfileRoute
@@ -625,6 +638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/brand-library': {
+      id: '/api/brand-library'
+      path: '/api/brand-library'
+      fullPath: '/api/brand-library'
+      preLoaderRoute: typeof ApiBrandLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health/db': {
       id: '/api/health/db'
       path: '/api/health/db'
@@ -758,6 +778,7 @@ const rootRouteChildren: RootRouteChildren = {
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
   UsuariosRoute: UsuariosRoute,
+  ApiBrandLibraryRoute: ApiBrandLibraryRoute,
   ApiDashboardRoute: ApiDashboardRoute,
   ApiGrowthRoute: ApiGrowthRoute,
   ApiProfileRoute: ApiProfileRoute,

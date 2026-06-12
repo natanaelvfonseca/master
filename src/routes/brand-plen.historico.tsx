@@ -5,8 +5,17 @@ import { StatCard } from "@/components/layout/StatCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { generatedImages } from "@/lib/brand";
+import { useAuth } from "@/lib/auth";
+import { canManageBrandPlen } from "@/lib/auth-types";
 
 export const Route = createFileRoute("/brand-plen/historico")({
   head: () => ({ meta: [{ title: "Histórico · Brand Plen" }] }),
@@ -20,7 +29,13 @@ const statusColor: Record<string, string> = {
 };
 
 function Historico() {
+  const { session } = useAuth();
   const totalCreditos = generatedImages.reduce((a, i) => a + i.credits, 0);
+
+  if (session && !canManageBrandPlen(session.user.role)) {
+    return <BrandAdminAccessDenied />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -35,9 +50,25 @@ function Historico() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Gerações no mês" value={generatedImages.length * 4} icon={Sparkles} accent="primary" delta={24} />
-        <StatCard label="Imagens aprovadas" value={generatedImages.filter(i => i.status === "Aprovado").length * 3} icon={ImageIcon} accent="success" />
-        <StatCard label="Créditos consumidos" value={totalCreditos * 12} icon={Coins} accent="gold" />
+        <StatCard
+          label="Gerações no mês"
+          value={generatedImages.length * 4}
+          icon={Sparkles}
+          accent="primary"
+          delta={24}
+        />
+        <StatCard
+          label="Imagens aprovadas"
+          value={generatedImages.filter((i) => i.status === "Aprovado").length * 3}
+          icon={ImageIcon}
+          accent="success"
+        />
+        <StatCard
+          label="Créditos consumidos"
+          value={totalCreditos * 12}
+          icon={Coins}
+          accent="gold"
+        />
         <StatCard label="Usuários ativos" value={8} icon={Sparkles} accent="primary" />
       </div>
 
@@ -60,7 +91,15 @@ function Historico() {
                 <TableRow key={i.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7"><AvatarFallback className="text-[10px]">{i.author.split(" ").map(n => n[0]).join("").slice(0,2)}</AvatarFallback></Avatar>
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="text-[10px]">
+                          {i.author
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="text-sm">{i.author}</span>
                     </div>
                   </TableCell>
@@ -69,7 +108,9 @@ function Historico() {
                   <TableCell className="text-sm">{i.objective}</TableCell>
                   <TableCell className="text-sm">{i.course}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={statusColor[i.status] ?? ""}>{i.status}</Badge>
+                    <Badge variant="outline" className={statusColor[i.status] ?? ""}>
+                      {i.status}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{i.credits}</TableCell>
                 </TableRow>
@@ -78,6 +119,22 @@ function Historico() {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function BrandAdminAccessDenied() {
+  return (
+    <div className="flex min-h-[55vh] items-center justify-center">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h1 className="text-xl font-bold">Acesso restrito</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          O histórico do Brand Plen fica disponível apenas para Master e CEO.
+        </p>
+      </div>
     </div>
   );
 }

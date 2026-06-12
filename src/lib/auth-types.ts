@@ -63,6 +63,10 @@ export function canViewManagement(role: UserRole) {
   return role === "MASTER" || role === "CEO";
 }
 
+export function canManageBrandPlen(role: UserRole) {
+  return role === "MASTER" || role === "CEO";
+}
+
 export function getAssignableRoles(role: UserRole): Array<UserRole> {
   if (role === "MASTER") {
     return ["CEO", "DIRETOR", "GERENTE", "CONSULTOR"];
