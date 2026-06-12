@@ -1,13 +1,21 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Crown, GraduationCap, Medal, Trophy, Users } from "lucide-react";
+import {
+  Award,
+  Crown,
+  Flame,
+  GraduationCap,
+  Medal,
+  Sparkles,
+  Target,
+  Trophy,
+  Users,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { EmptyState } from "@/components/layout/EmptyState";
-import { StatCard } from "@/components/layout/StatCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -19,6 +27,7 @@ import {
 import { getInitials } from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
 import type { RankingMember, RankingResponse } from "@/lib/ranking-types";
+import { cn } from "@/lib/utils";
 
 const emptyTotals: RankingResponse["totals"] = {
   consultants: 0,
@@ -68,6 +77,14 @@ function formatDate(value: string | null) {
   }
 
   return dateFormatter.format(new Date(value));
+}
+
+function progressWidth(value: number, max: number) {
+  if (max <= 0 || value <= 0) {
+    return 0;
+  }
+
+  return Math.max(8, Math.round((value / max) * 100));
 }
 
 export const Route = createFileRoute("/ranking")({
@@ -133,206 +150,512 @@ function Ranking() {
   }, [activeUnitId, authLoading]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Gamificacao"
-        title="Ranking da Equipe Comercial"
-        description={`Taxas feitas confirmadas por consultor na unidade ${activeUnitName}.`}
-        actions={<Badge variant="outline">{activeUnitName}</Badge>}
-      />
+    <div className="dark ranking-elite-shell -m-4 min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-5 text-white md:-m-6 md:px-6 md:py-7 lg:-m-8 lg:px-8 lg:py-8">
+      <div className="ranking-light-beams" />
+      <div className="ranking-energy-lines" />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          label="Taxas feitas"
-          value={metricValue(isLoading, totals.taxaFeita)}
-          icon={GraduationCap}
-          accent="gold"
-          hint="Total da equipe"
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <RankingHero
+          activeUnitName={activeUnitName}
+          isLoading={isLoading}
+          leader={leader}
+          totals={totals}
+          teamConversionRate={teamConversionRate}
         />
-        <StatCard
-          label="Consultores"
-          value={metricValue(isLoading, totals.consultants)}
-          icon={Users}
-          accent="primary"
-          hint={activeUnitName}
-        />
-        <StatCard
-          label="Lider"
-          value={metricValue(isLoading, leader?.name ?? "--")}
-          icon={Crown}
-          accent="success"
-          hint={leader ? `${leader.taxaFeita} taxas` : "Sem lider"}
-        />
-        <StatCard
-          label="Conversao"
-          value={metricValue(isLoading, formatPercent(teamConversionRate))}
-          icon={Award}
-          accent="primary"
-          hint="Taxas/leads"
-        />
-      </div>
 
-      {isLoading ? (
-        <RankingLoading />
-      ) : ranking.length ? (
-        <>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {ranking.slice(0, 3).map((member) => (
-              <PodiumCard
-                key={member.userId}
-                member={member}
-                progress={topTaxaFeita > 0 ? (member.taxaFeita / topTaxaFeita) * 100 : 0}
+        {isLoading ? (
+          <RankingLoading />
+        ) : ranking.length ? (
+          <>
+            <ElitePodium members={ranking.slice(0, 3)} topTaxaFeita={topTaxaFeita} />
+
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <RankingBoard members={ranking} topTaxaFeita={topTaxaFeita} />
+              <SpotlightPanel
+                activeUnitName={activeUnitName}
+                leader={leader}
+                members={ranking}
+                topTaxaFeita={topTaxaFeita}
               />
-            ))}
-          </div>
-
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Ranking por taxa feita</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[96px] pl-5">Posicao</TableHead>
-                    <TableHead>Consultor</TableHead>
-                    <TableHead className="text-right">Taxas feitas</TableHead>
-                    <TableHead className="text-right">Leads</TableHead>
-                    <TableHead className="text-right">Conversao</TableHead>
-                    <TableHead>Ultima taxa</TableHead>
-                    <TableHead className="w-[160px] pr-5">Ritmo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ranking.map((member) => (
-                    <RankingRow
-                      key={member.userId}
-                      member={member}
-                      progress={topTaxaFeita > 0 ? (member.taxaFeita / topTaxaFeita) * 100 : 0}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <Card className="shadow-card">
-          <CardContent className="p-4">
-            <EmptyState
-              icon={Trophy}
-              title="Nenhum consultor encontrado"
-              description="Cadastre consultores ativos na unidade para montar o ranking."
-            />
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          </>
+        ) : (
+          <EmptyRankingPanel />
+        )}
+      </div>
     </div>
   );
 }
 
-function PodiumCard({ member, progress }: { member: RankingMember; progress: number }) {
-  const rankClass =
-    member.rank === 1
-      ? "border-gold/40 bg-gold/10 text-gold"
-      : member.rank === 2
-        ? "border-primary/20 bg-primary/5 text-primary"
-        : "border-success/20 bg-success/5 text-success";
+function RankingHero({
+  activeUnitName,
+  isLoading,
+  leader,
+  totals,
+  teamConversionRate,
+}: {
+  activeUnitName: string;
+  isLoading: boolean;
+  leader: RankingMember | undefined;
+  totals: RankingResponse["totals"];
+  teamConversionRate: number;
+}) {
+  return (
+    <header className="ranking-hero-panel">
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Badge className="border-gold/50 bg-gold/20 text-gold hover:bg-gold/20">
+            <Trophy className="mr-1.5 h-3.5 w-3.5" />
+            Hall da Taxa Feita
+          </Badge>
+          <Badge className="border-white/20 bg-white/10 text-white hover:bg-white/10">
+            {activeUnitName}
+          </Badge>
+        </div>
+
+        <h1 className="max-w-4xl text-4xl font-extrabold leading-[1.02] text-white md:text-6xl">
+          Ranking da Equipe Comercial
+        </h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-white/70 md:text-base">
+          O topo e definido por quem mais confirmou Taxa Feita no CRM. O primeiro lugar assume o
+          palco, e o restante da equipe corre na esteira logo abaixo.
+        </p>
+      </div>
+
+      <div className="grid min-w-0 grid-cols-2 gap-3 lg:min-w-[520px]">
+        <MetricTile
+          icon={GraduationCap}
+          label="Taxas feitas"
+          value={metricValue(isLoading, totals.taxaFeita)}
+          detail="equipe"
+          tone="gold"
+        />
+        <MetricTile
+          icon={Users}
+          label="Consultores"
+          value={metricValue(isLoading, totals.consultants)}
+          detail="ativos"
+          tone="blue"
+        />
+        <MetricTile
+          icon={Crown}
+          label="Lider"
+          value={metricValue(isLoading, leader?.name ?? "--")}
+          detail={leader ? `${leader.taxaFeita} taxas` : "sem lider"}
+          tone="green"
+        />
+        <MetricTile
+          icon={Target}
+          label="Conversao"
+          value={metricValue(isLoading, formatPercent(teamConversionRate))}
+          detail="taxas/leads"
+          tone="blue"
+        />
+      </div>
+    </header>
+  );
+}
+
+function MetricTile({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: React.ReactNode;
+  detail: string;
+  tone: "gold" | "blue" | "green";
+}) {
+  return (
+    <div className={cn("ranking-metric-tile", `ranking-metric-${tone}`)}>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase text-white/60">{label}</div>
+          <div className="mt-2 truncate text-2xl font-extrabold leading-none text-white">
+            {value}
+          </div>
+        </div>
+        <div className="ranking-metric-icon">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      <div className="mt-3 truncate text-xs text-white/60">{detail}</div>
+    </div>
+  );
+}
+
+function ElitePodium({
+  members,
+  topTaxaFeita,
+}: {
+  members: Array<RankingMember>;
+  topTaxaFeita: number;
+}) {
+  return (
+    <section className="ranking-stage-panel" aria-label="Top 3 vendedores">
+      <div className="ranking-stage-title">
+        <div>
+          <div className="text-xs font-semibold uppercase text-gold">Top 3 vendedores</div>
+          <h2 className="mt-1 text-2xl font-extrabold leading-none text-white md:text-3xl">
+            Podium da Taxa Feita
+          </h2>
+        </div>
+        <div className="hidden items-center gap-2 text-sm text-white/60 md:flex">
+          <Zap className="h-4 w-4 text-gold" />
+          Ordenado por matriculas pagas
+        </div>
+      </div>
+
+      <div className="ranking-podium-grid">
+        {members.map((member) => (
+          <ChampionCard
+            key={member.userId}
+            member={member}
+            progress={progressWidth(member.taxaFeita, topTaxaFeita)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ChampionCard({ member, progress }: { member: RankingMember; progress: number }) {
+  const visual = getRankVisual(member.rank);
+  const Icon = visual.icon;
+  const podiumHeight = member.rank === 1 ? 142 : member.rank === 2 ? 106 : 88;
 
   return (
-    <Card className="shadow-card">
-      <CardContent className="p-5">
+    <article
+      className={cn("ranking-podium-card", visual.cardClass)}
+      data-rank={member.rank}
+      style={
+        {
+          "--podium-height": `${podiumHeight}px`,
+          "--entry-delay": `${member.rank * 90}ms`,
+        } as React.CSSProperties
+      }
+    >
+      <div className="ranking-person-card">
+        <div className="ranking-person-shine" />
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-11 w-11 border border-border">
+          <Badge className={cn("ranking-medal-badge", visual.badgeClass)}>
+            <Icon className="mr-1.5 h-4 w-4" />
+            {visual.medal}
+          </Badge>
+          <div className="ranking-rank-chip">#{member.rank}</div>
+        </div>
+
+        <div className="mt-5 flex flex-col items-center text-center">
+          <div className="ranking-avatar-frame">
+            {member.rank === 1 && <Crown className="ranking-floating-crown h-10 w-10" />}
+            <Avatar className="h-28 w-28 border-4 border-white/20 bg-white/10 shadow-2xl md:h-32 md:w-32">
               <AvatarImage src={member.avatarUrl ?? undefined} alt={member.name} />
-              <AvatarFallback className="text-xs font-semibold">
+              <AvatarFallback className="bg-gradient-primary text-3xl font-extrabold text-white">
                 {getInitials(member.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{member.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+          </div>
+
+          <h3 className="mt-5 w-full truncate text-xl font-extrabold leading-tight text-white">
+            {member.name}
+          </h3>
+          <p className="mt-1 w-full truncate text-xs text-white/50">{member.email}</p>
+
+          <div className="mt-5 flex w-full items-end justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.07] p-3">
+            <div className="text-left">
+              <div className="text-4xl font-extrabold leading-none text-white">
+                {member.taxaFeita}
+              </div>
+              <div className="mt-1 text-xs text-white/50">taxas feitas</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-white">
+                {formatPercent(member.conversionRate)}
+              </div>
+              <div className="mt-1 text-xs text-white/50">conversao</div>
             </div>
           </div>
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${rankClass}`}
-          >
-            {member.rank === 1 ? <Crown className="h-5 w-5" /> : <Medal className="h-5 w-5" />}
+
+          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn("h-full rounded-full", visual.barClass)}
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
+      </div>
 
-        <div className="mt-5 flex items-end justify-between gap-4">
-          <div>
-            <div className="text-3xl font-bold tracking-tight">{member.taxaFeita}</div>
-            <p className="text-xs text-muted-foreground">taxas feitas</p>
-          </div>
-          <Badge variant="outline">#{member.rank}</Badge>
-        </div>
+      <div className={cn("ranking-podium-base", visual.baseClass)}>
+        <span className="ranking-podium-number">{member.rank}</span>
+      </div>
+    </article>
+  );
+}
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-gold" style={{ width: `${progress}%` }} />
+function RankingBoard({
+  members,
+  topTaxaFeita,
+}: {
+  members: Array<RankingMember>;
+  topTaxaFeita: number;
+}) {
+  return (
+    <section className="ranking-board-panel">
+      <div className="flex flex-col gap-2 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase text-white/50">Classificacao geral</div>
+          <h2 className="mt-1 text-xl font-extrabold leading-tight text-white">
+            Esteira da equipe
+          </h2>
         </div>
-      </CardContent>
-    </Card>
+        <Badge className="w-fit border-white/20 bg-white/10 text-white hover:bg-white/10">
+          <Flame className="mr-1.5 h-3.5 w-3.5 text-gold" />
+          {members.length} consultores
+        </Badge>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 hover:bg-transparent">
+              <TableHead className="w-[96px] pl-5 text-white/50">Posicao</TableHead>
+              <TableHead className="min-w-[240px] text-white/50">Consultor</TableHead>
+              <TableHead className="min-w-[120px] text-right text-white/50">Taxas</TableHead>
+              <TableHead className="min-w-[100px] text-right text-white/50">Leads</TableHead>
+              <TableHead className="min-w-[116px] text-right text-white/50">Conversao</TableHead>
+              <TableHead className="min-w-[120px] text-white/50">Ultima taxa</TableHead>
+              <TableHead className="min-w-[180px] pr-5 text-white/50">Ritmo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {members.map((member) => (
+              <RankingRow
+                key={member.userId}
+                member={member}
+                progress={progressWidth(member.taxaFeita, topTaxaFeita)}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
   );
 }
 
 function RankingRow({ member, progress }: { member: RankingMember; progress: number }) {
+  const visual = getRankVisual(member.rank);
+  const Icon = visual.icon;
+
   return (
-    <TableRow>
+    <TableRow className="border-white/10 hover:bg-white/[0.06]">
       <TableCell className="pl-5 font-semibold">
-        <div className="flex items-center gap-2">
-          {member.rank === 1 ? (
-            <Crown className="h-4 w-4 text-gold" />
-          ) : (
-            <Medal className="h-4 w-4 text-muted-foreground" />
-          )}
-          #{member.rank}
+        <div className="flex items-center gap-2 text-white">
+          <Icon className={cn("h-4 w-4", visual.iconClass)} />#{member.rank}
         </div>
       </TableCell>
       <TableCell>
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar className="h-9 w-9 border border-border">
+          <Avatar className="h-10 w-10 border border-white/20 bg-white/10">
             <AvatarImage src={member.avatarUrl ?? undefined} alt={member.name} />
-            <AvatarFallback className="text-xs font-semibold">
+            <AvatarFallback className="bg-white/10 text-xs font-semibold text-white">
               {getInitials(member.name)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <div className="truncate font-medium">{member.name}</div>
-            <div className="truncate text-xs text-muted-foreground">{member.email}</div>
+            <div className="truncate font-semibold text-white">{member.name}</div>
+            <div className="truncate text-xs text-white/50">{member.email}</div>
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-right font-semibold text-gold">{member.taxaFeita}</TableCell>
-      <TableCell className="text-right">{member.leads}</TableCell>
-      <TableCell className="text-right">{formatPercent(member.conversionRate)}</TableCell>
-      <TableCell className="text-muted-foreground">{formatDate(member.lastTaxaAt)}</TableCell>
+      <TableCell className="text-right text-lg font-extrabold text-gold">
+        {member.taxaFeita}
+      </TableCell>
+      <TableCell className="text-right text-white/70">{member.leads}</TableCell>
+      <TableCell className="text-right text-white/70">
+        {formatPercent(member.conversionRate)}
+      </TableCell>
+      <TableCell className="text-white/60">{formatDate(member.lastTaxaAt)}</TableCell>
       <TableCell className="pr-5">
-        <div className="h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div
+            className={cn("h-full rounded-full", visual.barClass)}
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </TableCell>
     </TableRow>
   );
 }
 
-function RankingLoading() {
+function SpotlightPanel({
+  activeUnitName,
+  leader,
+  members,
+  topTaxaFeita,
+}: {
+  activeUnitName: string;
+  leader: RankingMember | undefined;
+  members: Array<RankingMember>;
+  topTaxaFeita: number;
+}) {
   return (
-    <Card className="shadow-card">
-      <CardContent className="space-y-4 p-5">
-        <div className="h-5 w-48 animate-pulse rounded bg-muted" />
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-              <div className="h-2 animate-pulse rounded bg-muted" />
+    <aside className="ranking-spotlight-panel">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase text-gold">Destaque</div>
+          <h2 className="mt-1 text-xl font-extrabold leading-tight text-white">Vendedor em foco</h2>
+        </div>
+        <Award className="h-7 w-7 text-gold" />
+      </div>
+
+      {leader ? (
+        <div className="mt-6">
+          <div className="ranking-leader-portrait">
+            <Crown className="absolute -top-6 left-1/2 h-12 w-12 -translate-x-1/2 text-gold drop-shadow-[0_8px_18px_rgba(227,170,43,0.45)]" />
+            <Avatar className="h-32 w-32 border-4 border-gold/50 bg-white/10">
+              <AvatarImage src={leader.avatarUrl ?? undefined} alt={leader.name} />
+              <AvatarFallback className="bg-gradient-gold text-4xl font-extrabold text-gold-foreground">
+                {getInitials(leader.name)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          <div className="mt-5 text-center">
+            <div className="truncate text-2xl font-extrabold text-white">{leader.name}</div>
+            <div className="mt-1 truncate text-sm text-white/50">{activeUnitName}</div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <MiniScore label="Taxas" value={leader.taxaFeita} />
+            <MiniScore label="Conversao" value={formatPercent(leader.conversionRate)} />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-7 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
+          <Sparkles className="h-4 w-4 text-gold" />
+          Top performers
+        </div>
+        {members.slice(0, 5).map((member) => (
+          <div key={member.userId} className="ranking-mini-row">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="ranking-mini-rank">{member.rank}</div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-white">{member.name}</div>
+                <div className="text-xs text-white/50">{member.taxaFeita} taxas feitas</div>
+              </div>
+            </div>
+            <div className="h-2 w-20 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-gold"
+                style={{ width: `${progressWidth(member.taxaFeita, topTaxaFeita)}%` }}
+              />
             </div>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </aside>
   );
+}
+
+function MiniScore({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.07] p-3 text-center">
+      <div className="text-2xl font-extrabold leading-none text-white">{value}</div>
+      <div className="mt-1 text-xs text-white/50">{label}</div>
+    </div>
+  );
+}
+
+function EmptyRankingPanel() {
+  return (
+    <section className="ranking-board-panel p-6">
+      <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-gold">
+          <Trophy className="h-8 w-8" />
+        </div>
+        <h2 className="mt-5 text-2xl font-extrabold text-white">Nenhum consultor encontrado</h2>
+        <p className="mt-2 max-w-md text-sm leading-6 text-white/60">
+          Cadastre consultores ativos na unidade para montar o ranking da Taxa Feita.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function RankingLoading() {
+  return (
+    <section className="ranking-board-panel p-5">
+      <div className="mb-5 h-7 w-64 animate-pulse rounded bg-white/10" />
+      <div className="grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-lg border border-white/10 bg-white/[0.06] p-5">
+            <div className="mx-auto h-28 w-28 animate-pulse rounded-full bg-white/10" />
+            <div className="mx-auto mt-5 h-5 w-36 animate-pulse rounded bg-white/10" />
+            <div className="mt-6 h-24 animate-pulse rounded-lg bg-white/10" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getRankVisual(rank: number): {
+  icon: LucideIcon;
+  medal: string;
+  cardClass: string;
+  badgeClass: string;
+  baseClass: string;
+  barClass: string;
+  iconClass: string;
+} {
+  if (rank === 1) {
+    return {
+      icon: Crown,
+      medal: "Ouro",
+      cardClass: "ranking-place-gold",
+      badgeClass: "border-gold/50 bg-gold/20 text-gold",
+      baseClass: "ranking-base-gold",
+      barClass: "bg-gradient-gold",
+      iconClass: "text-gold",
+    };
+  }
+
+  if (rank === 2) {
+    return {
+      icon: Medal,
+      medal: "Prata",
+      cardClass: "ranking-place-silver",
+      badgeClass: "border-slate-200/50 bg-slate-100/10 text-slate-100",
+      baseClass: "ranking-base-silver",
+      barClass: "bg-slate-200",
+      iconClass: "text-slate-200",
+    };
+  }
+
+  if (rank === 3) {
+    return {
+      icon: Medal,
+      medal: "Bronze",
+      cardClass: "ranking-place-bronze",
+      badgeClass: "border-amber-700/60 bg-amber-800/20 text-amber-200",
+      baseClass: "ranking-base-bronze",
+      barClass: "bg-amber-600",
+      iconClass: "text-amber-500",
+    };
+  }
+
+  return {
+    icon: Trophy,
+    medal: "Equipe",
+    cardClass: "ranking-place-default",
+    badgeClass: "border-white/20 bg-white/10 text-white",
+    baseClass: "ranking-base-default",
+    barClass: "bg-primary",
+    iconClass: "text-white/60",
+  };
 }
