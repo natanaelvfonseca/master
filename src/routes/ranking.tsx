@@ -1,18 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Award,
-  Crown,
-  Flame,
-  GraduationCap,
-  Medal,
-  Sparkles,
-  Target,
-  Trophy,
-  Users,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Award, Crown, Flame, Medal, Sparkles, Trophy, Zap, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,12 +16,6 @@ import { getInitials } from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
 import type { RankingMember, RankingResponse } from "@/lib/ranking-types";
 import { cn } from "@/lib/utils";
-
-const emptyTotals: RankingResponse["totals"] = {
-  consultants: 0,
-  leads: 0,
-  taxaFeita: 0,
-};
 
 const percentFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
@@ -88,7 +70,7 @@ function progressWidth(value: number, max: number) {
 }
 
 export const Route = createFileRoute("/ranking")({
-  head: () => ({ meta: [{ title: "Ranking - Planarius" }] }),
+  head: () => ({ meta: [{ title: "Ranking Plenárius - Planarius" }] }),
   component: Ranking,
 });
 
@@ -100,10 +82,8 @@ function Ranking() {
   const activeUnitName = data?.unit.name ?? session?.activeUnit?.name ?? "Unidade ativa";
   const isLoading = authLoading || loadingRanking;
   const ranking = data?.ranking ?? [];
-  const totals = data?.totals ?? emptyTotals;
   const leader = ranking[0];
   const topTaxaFeita = Math.max(...ranking.map((member) => member.taxaFeita), 0);
-  const teamConversionRate = totals.leads > 0 ? (totals.taxaFeita / totals.leads) * 100 : 0;
 
   React.useEffect(() => {
     if (authLoading) {
@@ -150,18 +130,12 @@ function Ranking() {
   }, [activeUnitId, authLoading]);
 
   return (
-    <div className="dark ranking-elite-shell -m-4 min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-5 text-white md:-m-6 md:px-6 md:py-7 lg:-m-8 lg:px-8 lg:py-8">
+    <div className="ranking-elite-shell -m-4 min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-5 text-foreground md:-m-6 md:px-6 md:py-7 lg:-m-8 lg:px-8 lg:py-8">
       <div className="ranking-light-beams" />
       <div className="ranking-energy-lines" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <RankingHero
-          activeUnitName={activeUnitName}
-          isLoading={isLoading}
-          leader={leader}
-          totals={totals}
-          teamConversionRate={teamConversionRate}
-        />
+        <RankingHero activeUnitName={activeUnitName} isLoading={isLoading} leader={leader} />
 
         {isLoading ? (
           <RankingLoading />
@@ -191,14 +165,10 @@ function RankingHero({
   activeUnitName,
   isLoading,
   leader,
-  totals,
-  teamConversionRate,
 }: {
   activeUnitName: string;
   isLoading: boolean;
   leader: RankingMember | undefined;
-  totals: RankingResponse["totals"];
-  teamConversionRate: number;
 }) {
   return (
     <header className="ranking-hero-panel">
@@ -206,50 +176,25 @@ function RankingHero({
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge className="border-gold/50 bg-gold/20 text-gold hover:bg-gold/20">
             <Trophy className="mr-1.5 h-3.5 w-3.5" />
-            Hall da Taxa Feita
-          </Badge>
-          <Badge className="border-white/20 bg-white/10 text-white hover:bg-white/10">
-            {activeUnitName}
+            Top Consultores
           </Badge>
         </div>
 
-        <h1 className="max-w-4xl text-4xl font-extrabold leading-[1.02] text-white md:text-6xl">
-          Ranking da Equipe Comercial
+        <h1 className="max-w-4xl text-4xl font-extrabold leading-[1.02] text-[#071a42] md:text-6xl">
+          Ranking Plenárius ({activeUnitName})
         </h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-white/70 md:text-base">
-          O topo e definido por quem mais confirmou Taxa Feita no CRM. O primeiro lugar assume o
-          palco, e o restante da equipe corre na esteira logo abaixo.
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-[#526a9a] md:text-base">
+          O topo é reservado para quem tem responsabilidade como resultado
         </p>
       </div>
 
-      <div className="grid min-w-0 grid-cols-2 gap-3 lg:min-w-[520px]">
-        <MetricTile
-          icon={GraduationCap}
-          label="Taxas feitas"
-          value={metricValue(isLoading, totals.taxaFeita)}
-          detail="equipe"
-          tone="gold"
-        />
-        <MetricTile
-          icon={Users}
-          label="Consultores"
-          value={metricValue(isLoading, totals.consultants)}
-          detail="ativos"
-          tone="blue"
-        />
+      <div className="min-w-0 lg:min-w-[320px]">
         <MetricTile
           icon={Crown}
           label="Lider"
           value={metricValue(isLoading, leader?.name ?? "--")}
           detail={leader ? `${leader.taxaFeita} taxas` : "sem lider"}
-          tone="green"
-        />
-        <MetricTile
-          icon={Target}
-          label="Conversao"
-          value={metricValue(isLoading, formatPercent(teamConversionRate))}
-          detail="taxas/leads"
-          tone="blue"
+          tone="gold"
         />
       </div>
     </header>
@@ -267,7 +212,7 @@ function MetricTile({
   label: string;
   value: React.ReactNode;
   detail: string;
-  tone: "gold" | "blue" | "green";
+  tone: "gold" | "blue";
 }) {
   return (
     <div className={cn("ranking-metric-tile", `ranking-metric-${tone}`)}>
@@ -300,7 +245,7 @@ function ElitePodium({
         <div>
           <div className="text-xs font-semibold uppercase text-gold">Top 3 vendedores</div>
           <h2 className="mt-1 text-2xl font-extrabold leading-none text-white md:text-3xl">
-            Podium da Taxa Feita
+            Podium do mês
           </h2>
         </div>
         <div className="hidden items-center gap-2 text-sm text-white/60 md:flex">
@@ -325,7 +270,7 @@ function ElitePodium({
 function ChampionCard({ member, progress }: { member: RankingMember; progress: number }) {
   const visual = getRankVisual(member.rank);
   const Icon = visual.icon;
-  const podiumHeight = member.rank === 1 ? 142 : member.rank === 2 ? 106 : 88;
+  const podiumHeight = member.rank === 1 ? 168 : member.rank === 2 ? 128 : 112;
 
   return (
     <article
