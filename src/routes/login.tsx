@@ -72,11 +72,11 @@ function LoginPage() {
             <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
           </div>
           <div className="max-w-xl pb-4 pt-8 md:pt-10">
-            <div className="pointer-events-none relative -ml-4 -mb-28 mt-2 w-[420px] max-w-none md:-ml-12 md:-mb-48 md:w-[640px]">
+            <div className="pointer-events-none relative -top-8 -ml-4 -mb-28 mt-2 w-[420px] max-w-none md:-top-12 md:-ml-12 md:-mb-48 md:w-[640px]">
               <img
                 src={anniversary30}
                 alt="30 anos Plenarius"
-                className="block aspect-square w-full object-cover opacity-95 mix-blend-screen drop-shadow-[0_30px_52px_rgba(0,0,0,0.28)]"
+                className="block aspect-square w-full object-cover drop-shadow-[0_30px_52px_rgba(0,0,0,0.28)]"
               />
             </div>
             <div className="relative z-10 mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
