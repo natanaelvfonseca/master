@@ -27,6 +27,7 @@ import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
+import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
@@ -133,6 +134,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
   path: '/brand-plen/biblioteca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRankingRoute = ApiRankingRouteImport.update({
+  id: '/api/ranking',
+  path: '/api/ranking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProfileRoute = ApiProfileRouteImport.update({
   id: '/api/profile',
   path: '/api/profile',
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
+  '/api/ranking': typeof ApiRankingRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -259,6 +266,7 @@ export interface FileRoutesByTo {
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
+  '/api/ranking': typeof ApiRankingRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -295,6 +303,7 @@ export interface FileRoutesById {
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
+  '/api/ranking': typeof ApiRankingRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -332,6 +341,7 @@ export interface FileRouteTypes {
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
+    | '/api/ranking'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
+    | '/api/ranking'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
+    | '/api/ranking'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -438,6 +450,7 @@ export interface RootRouteChildren {
   ApiDashboardRoute: typeof ApiDashboardRoute
   ApiGrowthRoute: typeof ApiGrowthRoute
   ApiProfileRoute: typeof ApiProfileRoute
+  ApiRankingRoute: typeof ApiRankingRoute
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
@@ -582,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/brand-plen/biblioteca'
       fullPath: '/brand-plen/biblioteca'
       preLoaderRoute: typeof BrandPlenBibliotecaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ranking': {
+      id: '/api/ranking'
+      path: '/api/ranking'
+      fullPath: '/api/ranking'
+      preLoaderRoute: typeof ApiRankingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/profile': {
@@ -741,6 +761,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDashboardRoute: ApiDashboardRoute,
   ApiGrowthRoute: ApiGrowthRoute,
   ApiProfileRoute: ApiProfileRoute,
+  ApiRankingRoute: ApiRankingRoute,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,
