@@ -10,7 +10,6 @@ import {
   Sparkles,
   UserCheck,
   Users,
-  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StatCard } from "@/components/layout/StatCard";
@@ -26,7 +25,6 @@ type DashboardMetrics = {
   conversionRate: number;
   followUpRate: number;
   averageTicket: number;
-  revenue: number;
 };
 
 type DashboardResponse = {
@@ -40,7 +38,6 @@ type DashboardResponse = {
     source: string;
     leads: number;
     enrollments: number;
-    revenue: number;
   }>;
   funnel: Array<{
     stage: string;
@@ -51,10 +48,6 @@ type DashboardResponse = {
     leads: number;
     enrollments: number;
   }>;
-  revenueByMonth: Array<{
-    month: string;
-    revenue: number;
-  }>;
 };
 
 const emptyMetrics: DashboardMetrics = {
@@ -64,7 +57,6 @@ const emptyMetrics: DashboardMetrics = {
   conversionRate: 0,
   followUpRate: 0,
   averageTicket: 0,
-  revenue: 0,
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -126,7 +118,6 @@ function Dashboard() {
   const sourceTotal = dashboard?.sources.reduce((total, item) => total + item.leads, 0) ?? 0;
   const funnelTotal = dashboard?.funnel.reduce((total, item) => total + item.leads, 0) ?? 0;
   const cityTotal = dashboard?.cities.reduce((total, item) => total + item.leads, 0) ?? 0;
-  const maxRevenue = Math.max(0, ...(dashboard?.revenueByMonth.map((item) => item.revenue) ?? []));
   const insights = buildInsights(metrics);
 
   React.useEffect(() => {
@@ -185,8 +176,8 @@ function Dashboard() {
               {greeting}, {userName}. Dashboard conectado à operação.
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-white/70">
-              Indicadores calculados em tempo real a partir dos leads, alunos, pagamentos, presença
-              e recuperações da unidade {activeUnitName}.
+              Indicadores calculados em tempo real a partir dos leads, alunos e funil comercial da
+              unidade {activeUnitName}.
             </p>
           </div>
           <div className="flex gap-2">
@@ -244,47 +235,10 @@ function Dashboard() {
           accent="primary"
           hint="Alunos"
         />
-        <StatCard
-          label="Faturamento"
-          value={metricValue(isLoading, formatCurrency(metrics.revenue))}
-          icon={Wallet}
-          accent="gold"
-          hint="Confirmado"
-        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-card">
-          <CardHeader>
-            <CardTitle className="text-base">Faturamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <PanelLoading />
-            ) : dashboard?.revenueByMonth.length ? (
-              <div className="space-y-4">
-                {dashboard.revenueByMonth.map((item) => (
-                  <DataBar
-                    key={item.month}
-                    label={item.month}
-                    value={item.revenue}
-                    max={maxRevenue}
-                    detail={formatCurrency(item.revenue)}
-                    accent="gold"
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={LineChart}
-                title="Sem faturamento registrado"
-                description="Quando houver matrículas ou pagamentos confirmados, o realizado aparecerá aqui."
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-base">Origem dos leads</CardTitle>
           </CardHeader>
@@ -477,13 +431,6 @@ function buildInsights(metrics: DashboardMetrics) {
     insights.push({
       title: "Conversão abaixo do alvo",
       detail: `${formatPercent(metrics.conversionRate)} dos leads viraram alunos até agora.`,
-    });
-  }
-
-  if (metrics.enrollments > 0) {
-    insights.push({
-      title: "Receita confirmada",
-      detail: `${formatCurrency(metrics.revenue)} em matrículas com ticket médio de ${formatCurrency(metrics.averageTicket)}.`,
     });
   }
 
