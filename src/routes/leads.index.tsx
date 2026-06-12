@@ -1,12 +1,13 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, Users } from "lucide-react";
+import { Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import type { LeadRecord } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,6 +48,7 @@ function LeadsList() {
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
+  const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function loadLeads() {
@@ -94,6 +96,31 @@ function LeadsList() {
     return searchText.includes(search.trim().toLowerCase());
   });
 
+  async function handleRemoveStudent(lead: LeadRecord) {
+    if (!window.confirm(`Remover o cliente "${lead.fullName}" do banco de dados?`)) {
+      return;
+    }
+
+    setRemovingLeadId(lead.id);
+
+    try {
+      await readJson<{ ok: true }>(
+        await fetch(`/api/crm/leads/${lead.id}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        }),
+      );
+
+      setLeads((current) => current.filter((item) => item.id !== lead.id));
+      toast.success("Cliente removido.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao remover cliente.");
+    } finally {
+      setRemovingLeadId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -123,12 +150,13 @@ function LeadsList() {
               <TableHead>Origem</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="w-[72px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   Carregando alunos...
                 </TableCell>
               </TableRow>
@@ -156,11 +184,25 @@ function LeadsList() {
                         })
                       : "--"}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void handleRemoveStudent(lead)}
+                      disabled={removingLeadId === lead.id}
+                      aria-label={`Remover ${lead.fullName}`}
+                      title="Remover cliente"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="p-4">
+                <TableCell colSpan={8} className="p-4">
                   <EmptyState
                     icon={Users}
                     title="Nenhum aluno convertido"

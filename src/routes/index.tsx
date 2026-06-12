@@ -1,17 +1,13 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
   BarChart3,
-  CalendarCheck,
   DollarSign,
   GraduationCap,
   LineChart,
   Phone,
   PieChart,
-  ShieldCheck,
   Sparkles,
-  Timer,
   UserCheck,
   Users,
   Wallet,
@@ -28,14 +24,9 @@ type DashboardMetrics = {
   qualifiedLeads: number;
   enrollments: number;
   conversionRate: number;
-  speedToLeadMinutes: number | null;
   followUpRate: number;
   averageTicket: number;
   revenue: number;
-  delinquencyRate: number;
-  noShowRisk: number;
-  recoveredAi: number;
-  attendanceRate: number;
 };
 
 type DashboardResponse = {
@@ -71,14 +62,9 @@ const emptyMetrics: DashboardMetrics = {
   qualifiedLeads: 0,
   enrollments: 0,
   conversionRate: 0,
-  speedToLeadMinutes: null,
   followUpRate: 0,
   averageTicket: 0,
   revenue: 0,
-  delinquencyRate: 0,
-  noShowRisk: 0,
-  recoveredAi: 0,
-  attendanceRate: 0,
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -115,18 +101,6 @@ function formatCurrency(value: number) {
 
 function formatPercent(value: number) {
   return `${percentFormatter.format(value)}%`;
-}
-
-function formatSpeed(minutes: number | null) {
-  if (minutes === null) {
-    return "--";
-  }
-
-  if (minutes < 60) {
-    return `${Math.max(1, Math.round(minutes))} min`;
-  }
-
-  return `${percentFormatter.format(minutes / 60)} h`;
 }
 
 function metricValue(loading: boolean, value: string | number) {
@@ -257,13 +231,6 @@ function Dashboard() {
           hint="Matrículas/leads"
         />
         <StatCard
-          label="Speed-to-lead"
-          value={metricValue(isLoading, formatSpeed(metrics.speedToLeadMinutes))}
-          icon={Timer}
-          accent="success"
-          hint="1º contato"
-        />
-        <StatCard
           label="Follow-up"
           value={metricValue(isLoading, formatPercent(metrics.followUpRate))}
           icon={Phone}
@@ -283,34 +250,6 @@ function Dashboard() {
           icon={Wallet}
           accent="gold"
           hint="Confirmado"
-        />
-        <StatCard
-          label="Inadimplência"
-          value={metricValue(isLoading, formatPercent(metrics.delinquencyRate))}
-          icon={AlertTriangle}
-          accent="warning"
-          hint="Pagamentos vencidos"
-        />
-        <StatCard
-          label="No-show em risco"
-          value={metricValue(isLoading, metrics.noShowRisk)}
-          icon={AlertTriangle}
-          accent="warning"
-          hint="Presença"
-        />
-        <StatCard
-          label="Recuperados (IA)"
-          value={metricValue(isLoading, metrics.recoveredAi)}
-          icon={ShieldCheck}
-          accent="success"
-          hint="Ações fechadas"
-        />
-        <StatCard
-          label="Comparecimento"
-          value={metricValue(isLoading, formatPercent(metrics.attendanceRate))}
-          icon={CalendarCheck}
-          accent="success"
-          hint="Aulas/eventos"
         />
       </div>
 
@@ -545,20 +484,6 @@ function buildInsights(metrics: DashboardMetrics) {
     insights.push({
       title: "Receita confirmada",
       detail: `${formatCurrency(metrics.revenue)} em matrículas com ticket médio de ${formatCurrency(metrics.averageTicket)}.`,
-    });
-  }
-
-  if (metrics.noShowRisk > 0) {
-    insights.push({
-      title: "Risco de no-show",
-      detail: `${metrics.noShowRisk} aluno(s) precisam de ação preventiva de comparecimento.`,
-    });
-  }
-
-  if (metrics.recoveredAi > 0) {
-    insights.push({
-      title: "Recuperação funcionando",
-      detail: `${metrics.recoveredAi} recuperação(ões) concluídas com apoio da IA.`,
     });
   }
 

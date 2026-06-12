@@ -20,16 +20,9 @@ type SummaryRow = QueryResultRow & {
   leads_received: string | number;
   qualified_leads: string | number;
   enrollments: string | number;
-  avg_speed_minutes: string | number | null;
   follow_up_leads: string | number;
   average_ticket: string | number | null;
   revenue: string | number | null;
-  overdue_payments: string | number;
-  payable_payments: string | number;
-  no_show_risk: string | number;
-  recovered_ai: string | number;
-  attendance_total: string | number;
-  attended_total: string | number;
 };
 
 type SourceRow = QueryResultRow & {
@@ -106,20 +99,6 @@ export const Route = createFileRoute("/api/dashboard")({
                       )
                     ) as qualified_leads,
                     count(*) filter (where stage = 'Matriculado') as enrollments,
-                    avg(
-                      extract(
-                        epoch from (
-                          (
-                            case
-                              when first_contact_at is not null then first_contact_at
-                              when stage <> 'Novo lead' then updated_at
-                              else null
-                            end
-                          ) - created_at
-                        )
-                      ) / 60
-                    ) filter (where first_contact_at is not null or stage <> 'Novo lead')
-                      as avg_speed_minutes,
                     count(*) filter (
                       where follow_up_count > 0
                         or first_contact_at is not null
@@ -130,12 +109,7 @@ export const Route = createFileRoute("/api/dashboard")({
                 ),
                 payment_metrics as (
                   select
-                    coalesce(sum(p.amount) filter (where p.status = 'paid'), 0) as paid_revenue,
-                    count(*) filter (
-                      where p.status in ('pending', 'overdue')
-                        and p.due_at < current_date
-                    ) as overdue_payments,
-                    count(*) filter (where p.status in ('pending', 'overdue', 'paid')) as payable_payments
+                    coalesce(sum(p.amount) filter (where p.status = 'paid'), 0) as paid_revenue
                   from app_student_payments p
                   inner join scoped_leads l on l.id = p.lead_id
                   where p.unit_id = $1
@@ -150,42 +124,17 @@ export const Route = createFileRoute("/api/dashboard")({
                       where p.lead_id = l.id
                         and p.status = 'paid'
                     )
-                ),
-                attendance_metrics as (
-                  select
-                    count(*) filter (where a.status in ('risk', 'no_show')) as no_show_risk,
-                    count(*) filter (where a.status in ('attended', 'missed', 'no_show')) as attendance_total,
-                    count(*) filter (where a.status = 'attended') as attended_total
-                  from app_student_attendance a
-                  inner join scoped_leads l on l.id = a.lead_id
-                  where a.unit_id = $1
-                ),
-                recovery_metrics as (
-                  select count(*) filter (where r.status = 'recovered') as recovered_ai
-                  from app_ai_recoveries r
-                  left join scoped_leads l on l.id = r.lead_id
-                  where r.unit_id = $1
-                    and (l.id is not null or r.created_by = $2)
                 )
                 select
                   lm.leads_received,
                   lm.qualified_leads,
                   lm.enrollments,
-                  lm.avg_speed_minutes,
                   lm.follow_up_leads,
                   lm.average_ticket,
-                  coalesce(pm.paid_revenue, 0) + coalesce(lrf.fallback_revenue, 0) as revenue,
-                  coalesce(pm.overdue_payments, 0) as overdue_payments,
-                  coalesce(pm.payable_payments, 0) as payable_payments,
-                  coalesce(am.no_show_risk, 0) as no_show_risk,
-                  coalesce(rm.recovered_ai, 0) as recovered_ai,
-                  coalesce(am.attendance_total, 0) as attendance_total,
-                  coalesce(am.attended_total, 0) as attended_total
+                  coalesce(pm.paid_revenue, 0) + coalesce(lrf.fallback_revenue, 0) as revenue
                 from lead_metrics lm
                 cross join payment_metrics pm
                 cross join lead_revenue_fallback lrf
-                cross join attendance_metrics am
-                cross join recovery_metrics rm
               `,
               params,
             ),
@@ -275,10 +224,6 @@ export const Route = createFileRoute("/api/dashboard")({
         const qualifiedLeads = toNumber(summary?.qualified_leads);
         const enrollments = toNumber(summary?.enrollments);
         const followUpLeads = toNumber(summary?.follow_up_leads);
-        const payablePayments = toNumber(summary?.payable_payments);
-        const overduePayments = toNumber(summary?.overdue_payments);
-        const attendanceTotal = toNumber(summary?.attendance_total);
-        const attendedTotal = toNumber(summary?.attended_total);
 
         const funnelCounts = new Map(
           funnelResult.rows.map((row) => [row.stage, toNumber(row.leads)] as const),
@@ -292,15 +237,9 @@ export const Route = createFileRoute("/api/dashboard")({
               qualifiedLeads,
               enrollments,
               conversionRate: percentage(enrollments, leadsReceived),
-              speedToLeadMinutes:
-                summary?.avg_speed_minutes === null ? null : toNumber(summary?.avg_speed_minutes),
               followUpRate: percentage(followUpLeads, leadsReceived),
               averageTicket: toNumber(summary?.average_ticket),
               revenue: toNumber(summary?.revenue),
-              delinquencyRate: percentage(overduePayments, payablePayments),
-              noShowRisk: toNumber(summary?.no_show_risk),
-              recoveredAi: toNumber(summary?.recovered_ai),
-              attendanceRate: percentage(attendedTotal, attendanceTotal),
             },
             sources: sourceResult.rows.map((row) => ({
               source: row.source,
