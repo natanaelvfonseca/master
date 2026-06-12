@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Bot,
-  Building2,
   ClipboardList,
   GraduationCap,
   History,
@@ -30,8 +29,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
+import { getInitials, ROLE_LABELS } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -78,6 +79,8 @@ export function AppSidebar() {
   const { logout, session } = useAuth();
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
+  const user = session?.user;
+  const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const navGroups = session?.canRegisterUsers
     ? [
@@ -142,18 +145,40 @@ export function AppSidebar() {
         {!collapsed ? (
           <div className="m-2 space-y-2">
             <div className="rounded-lg bg-sidebar-accent/60 p-3">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-gold">
-                <Building2 className="h-3.5 w-3.5" />
-                Plano Enterprise
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9 border border-sidebar-border">
+                  <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                    {user ? getInitials(user.name) : "PG"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate text-sm font-semibold text-sidebar-foreground">
+                    {user?.name ?? "Plenarius"}
+                  </div>
+                  <div className="truncate text-xs text-sidebar-foreground/70">
+                    {user ? ROLE_LABELS[user.role] : "Growth Hub"}
+                  </div>
+                </div>
               </div>
-              <div className="mt-1 text-xs text-sidebar-foreground/80">
-                IA + automacoes ativas em todas as unidades.
-              </div>
+              {activeUnit ? (
+                <div className="mt-2 truncate rounded-md border border-sidebar-border/70 bg-sidebar/40 px-2 py-1 text-xs text-sidebar-foreground/75">
+                  {activeUnit.name}
+                </div>
+              ) : null}
             </div>
             <LogoutMenuItem onLogout={logout} />
           </div>
         ) : (
-          <LogoutMenuItem onLogout={logout} />
+          <div className="m-2 space-y-2">
+            <div className="flex justify-center">
+              <Avatar className="h-8 w-8 border border-sidebar-border">
+                <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                  {user ? getInitials(user.name) : "PG"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <LogoutMenuItem onLogout={logout} />
+          </div>
         )}
       </SidebarFooter>
     </Sidebar>
