@@ -191,9 +191,9 @@ function RankingHero({
       <div className="min-w-0 lg:min-w-[320px]">
         <MetricTile
           icon={Crown}
-          label="Lider"
+          label="Líder"
           value={metricValue(isLoading, leader?.name ?? "--")}
-          detail={leader ? `${leader.taxaFeita} taxas` : "sem lider"}
+          detail={leader ? `${leader.taxaFeita} taxas` : "sem líder"}
           tone="gold"
         />
       </div>
@@ -240,17 +240,17 @@ function ElitePodium({
   topTaxaFeita: number;
 }) {
   return (
-    <section className="ranking-stage-panel" aria-label="Top 3 vendedores">
+    <section className="ranking-stage-panel" aria-label="Top 3 consultores">
       <div className="ranking-stage-title">
         <div>
-          <div className="text-xs font-semibold uppercase text-gold">Top 3 vendedores</div>
+          <div className="text-xs font-semibold uppercase text-gold">Top 3 consultores</div>
           <h2 className="mt-1 text-2xl font-extrabold leading-none text-white md:text-3xl">
             Podium do mês
           </h2>
         </div>
         <div className="hidden items-center gap-2 text-sm text-white/60 md:flex">
           <Zap className="h-4 w-4 text-gold" />
-          Ordenado por matriculas pagas
+          Ordenado por matrículas pagas
         </div>
       </div>
 
@@ -351,7 +351,7 @@ function RankingBoard({
     <section className="ranking-board-panel">
       <div className="flex flex-col gap-2 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="text-xs font-semibold uppercase text-white/50">Classificacao geral</div>
+          <div className="text-xs font-semibold uppercase text-white/50">Classificação geral</div>
           <h2 className="mt-1 text-xl font-extrabold leading-tight text-white">
             Esteira da equipe
           </h2>
@@ -366,12 +366,12 @@ function RankingBoard({
         <Table>
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="w-[96px] pl-5 text-white/50">Posicao</TableHead>
+              <TableHead className="w-[96px] pl-5 text-white/50">Posição</TableHead>
               <TableHead className="min-w-[240px] text-white/50">Consultor</TableHead>
               <TableHead className="min-w-[120px] text-right text-white/50">Taxas</TableHead>
               <TableHead className="min-w-[100px] text-right text-white/50">Leads</TableHead>
-              <TableHead className="min-w-[116px] text-right text-white/50">Conversao</TableHead>
-              <TableHead className="min-w-[120px] text-white/50">Ultima taxa</TableHead>
+              <TableHead className="min-w-[116px] text-right text-white/50">Conversão</TableHead>
+              <TableHead className="min-w-[120px] text-white/50">Última taxa</TableHead>
               <TableHead className="min-w-[180px] pr-5 text-white/50">Ritmo</TableHead>
             </TableRow>
           </TableHeader>
@@ -451,7 +451,9 @@ function SpotlightPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase text-gold">Destaque</div>
-          <h2 className="mt-1 text-xl font-extrabold leading-tight text-white">Vendedor em foco</h2>
+          <h2 className="mt-1 text-xl font-extrabold leading-tight text-white">
+            Consultor em foco
+          </h2>
         </div>
         <Award className="h-7 w-7 text-gold" />
       </div>
@@ -475,7 +477,7 @@ function SpotlightPanel({
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <MiniScore label="Taxas" value={leader.taxaFeita} />
-            <MiniScore label="Conversao" value={formatPercent(leader.conversionRate)} />
+            <MiniScore label="Conversão" value={formatPercent(leader.conversionRate)} />
           </div>
         </div>
       ) : null}
