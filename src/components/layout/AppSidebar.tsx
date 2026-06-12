@@ -29,7 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import { getInitials, ROLE_LABELS } from "@/lib/auth-types";
@@ -144,9 +144,18 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         {!collapsed ? (
           <div className="m-2 space-y-2">
-            <div className="rounded-lg bg-sidebar-accent/60 p-3">
+            <Link
+              to="/perfil"
+              title="Editar perfil"
+              className="block rounded-lg bg-sidebar-accent/60 p-3 transition hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            >
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9 border border-sidebar-border">
+                  <AvatarImage
+                    src={user?.avatarUrl ?? undefined}
+                    alt={user?.name ?? "Perfil"}
+                    className="object-cover"
+                  />
                   <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
                     {user ? getInitials(user.name) : "PG"}
                   </AvatarFallback>
@@ -165,17 +174,29 @@ export function AppSidebar() {
                   {activeUnit.name}
                 </div>
               ) : null}
-            </div>
+            </Link>
             <LogoutMenuItem onLogout={logout} />
           </div>
         ) : (
           <div className="m-2 space-y-2">
             <div className="flex justify-center">
-              <Avatar className="h-8 w-8 border border-sidebar-border">
-                <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
-                  {user ? getInitials(user.name) : "PG"}
-                </AvatarFallback>
-              </Avatar>
+              <Link
+                to="/perfil"
+                aria-label="Editar perfil"
+                title="Editar perfil"
+                className="rounded-full transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
+                <Avatar className="h-8 w-8 border border-sidebar-border">
+                  <AvatarImage
+                    src={user?.avatarUrl ?? undefined}
+                    alt={user?.name ?? "Perfil"}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                    {user ? getInitials(user.name) : "PG"}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
             </div>
             <LogoutMenuItem onLogout={logout} />
           </div>

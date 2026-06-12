@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { Bell, Search, Settings } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,11 +49,6 @@ export function Topbar() {
           <Badge className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-gold p-0 px-1 text-[10px] text-gold-foreground">
             5
           </Badge>
-        </Button>
-        <Button asChild variant="ghost" size="icon" aria-label="Abrir configurações">
-          <Link to="/gestao/cadastro" title="Configurações">
-            <Settings className="h-5 w-5" />
-          </Link>
         </Button>
       </div>
     </header>

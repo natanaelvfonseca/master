@@ -33,6 +33,7 @@ type SessionRow = QueryResultRow & {
   email: string;
   name: string;
   role: UserRole;
+  avatar_url: string | null;
   active_unit_id: string | null;
 };
 
@@ -53,6 +54,26 @@ type LoginIdentifiers = {
 type LoginRateLimitResult =
   | ({ allowed: true } & LoginIdentifiers)
   | ({ allowed: false; retryAfterSeconds: number } & LoginIdentifiers);
+
+let userProfileSchemaPromise: Promise<void> | null = null;
+
+export async function ensureUserProfileSchema() {
+  if (!userProfileSchemaPromise) {
+    userProfileSchemaPromise = queryDb(
+      `
+        alter table app_users
+        add column if not exists avatar_url text
+      `,
+    )
+      .then(() => undefined)
+      .catch((error) => {
+        userProfileSchemaPromise = null;
+        throw error;
+      });
+  }
+
+  return userProfileSchemaPromise;
+}
 
 export function isValidRole(role: string): role is UserRole {
   return ["MASTER", "CEO", "DIRETOR", "GERENTE", "CONSULTOR"].includes(role);
@@ -286,6 +307,7 @@ function buildSession(row: SessionRow, units: Array<UnitSummary>, activeUnit: Un
       email: row.email,
       name: row.name,
       role: row.role,
+      avatarUrl: row.avatar_url ?? null,
     },
     units,
     activeUnit,
@@ -302,6 +324,8 @@ export async function getSessionFromRequest(request: Request): Promise<AuthSessi
   }
 
   const tokenHash = hashSessionToken(token);
+  await ensureUserProfileSchema();
+
   const result = await queryDb<SessionRow>(
     `
       select
@@ -310,6 +334,7 @@ export async function getSessionFromRequest(request: Request): Promise<AuthSessi
         u.email,
         u.name,
         u.role,
+        u.avatar_url,
         s.active_unit_id
       from app_sessions s
       inner join app_users u on u.id = s.user_id

@@ -16,6 +16,7 @@ create table if not exists app_users (
   id uuid primary key default gen_random_uuid(),
   email text not null,
   name text not null,
+  avatar_url text,
   role text not null check (role in ('MASTER', 'CEO', 'DIRETOR', 'GERENTE', 'CONSULTOR')),
   primary_unit_id uuid not null references app_units(id) on delete restrict,
   password_hash text not null,
@@ -24,6 +25,8 @@ create table if not exists app_users (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table app_users add column if not exists avatar_url text;
 
 create unique index if not exists app_users_email_lower_idx on app_users (lower(email));
 create index if not exists app_users_primary_unit_idx on app_users (primary_unit_id);

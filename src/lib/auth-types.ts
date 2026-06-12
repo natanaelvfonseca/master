@@ -13,6 +13,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: UserRole;
+  avatarUrl: string | null;
 };
 
 export type AuthSession = {

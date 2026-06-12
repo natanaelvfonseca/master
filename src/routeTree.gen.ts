@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IntegracoesRouteImport } from './routes/integracoes'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
@@ -27,6 +28,7 @@ import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
+import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
@@ -54,6 +56,11 @@ const RecuperacaoRoute = RecuperacaoRouteImport.update({
 const RankingRoute = RankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -131,6 +138,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
   path: '/brand-plen/biblioteca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProfileRoute = ApiProfileRouteImport.update({
+  id: '/api/profile',
+  path: '/api/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDashboardRoute = ApiDashboardRouteImport.update({
   id: '/api/dashboard',
   path: '/api/dashboard',
@@ -206,10 +218,12 @@ export interface FileRoutesByFullPath {
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
+  '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -239,10 +253,12 @@ export interface FileRoutesByTo {
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
+  '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -273,10 +289,12 @@ export interface FileRoutesById {
   '/estrategia': typeof EstrategiaRoute
   '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
+  '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -308,10 +326,12 @@ export interface FileRouteTypes {
     | '/estrategia'
     | '/integracoes'
     | '/login'
+    | '/perfil'
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -341,10 +361,12 @@ export interface FileRouteTypes {
     | '/estrategia'
     | '/integracoes'
     | '/login'
+    | '/perfil'
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -374,10 +396,12 @@ export interface FileRouteTypes {
     | '/estrategia'
     | '/integracoes'
     | '/login'
+    | '/perfil'
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -408,10 +432,12 @@ export interface RootRouteChildren {
   EstrategiaRoute: typeof EstrategiaRoute
   IntegracoesRoute: typeof IntegracoesRoute
   LoginRoute: typeof LoginRoute
+  PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
   UsuariosRoute: typeof UsuariosRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
+  ApiProfileRoute: typeof ApiProfileRoute
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
@@ -451,6 +477,13 @@ declare module '@tanstack/react-router' {
       path: '/ranking'
       fullPath: '/ranking'
       preLoaderRoute: typeof RankingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -556,6 +589,13 @@ declare module '@tanstack/react-router' {
       path: '/brand-plen/biblioteca'
       fullPath: '/brand-plen/biblioteca'
       preLoaderRoute: typeof BrandPlenBibliotecaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/profile': {
+      id: '/api/profile'
+      path: '/api/profile'
+      fullPath: '/api/profile'
+      preLoaderRoute: typeof ApiProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/dashboard': {
@@ -695,10 +735,12 @@ const rootRouteChildren: RootRouteChildren = {
   EstrategiaRoute: EstrategiaRoute,
   IntegracoesRoute: IntegracoesRoute,
   LoginRoute: LoginRoute,
+  PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
   UsuariosRoute: UsuariosRoute,
   ApiDashboardRoute: ApiDashboardRoute,
+  ApiProfileRoute: ApiProfileRoute,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,
