@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
+import { canViewManagement } from "@/lib/auth-types";
 import type { AcquisitionChannelRecord, CommercialStatus } from "@/lib/commercial-types";
 import {
   ensureDefaultAcquisitionChannels,
@@ -54,6 +55,10 @@ export const Route = createFileRoute("/api/gestao/channels/$id")({
 
         if (!session) {
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canViewManagement(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
         if (!isUuid(params.id)) {
@@ -112,6 +117,10 @@ export const Route = createFileRoute("/api/gestao/channels/$id")({
 
         if (!isUuid(params.id)) {
           return Response.json({ ok: false, error: "Canal inválido." }, { status: 400 });
+        }
+
+        if (!canViewManagement(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
         const unit = getUnitFromBody(session, new URL(request.url).searchParams.get("unitId"));

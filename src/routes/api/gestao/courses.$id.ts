@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
+import { canViewManagement } from "@/lib/auth-types";
 import type { CommercialStatus, CourseRecord } from "@/lib/commercial-types";
 import {
   ensureCommercialSchema,
@@ -61,6 +62,10 @@ export const Route = createFileRoute("/api/gestao/courses/$id")({
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
+        if (!canViewManagement(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
         if (!isUuid(params.id)) {
           return Response.json({ ok: false, error: "Curso inválido." }, { status: 400 });
         }
@@ -118,6 +123,10 @@ export const Route = createFileRoute("/api/gestao/courses/$id")({
 
         if (!isUuid(params.id)) {
           return Response.json({ ok: false, error: "Curso inválido." }, { status: 400 });
+        }
+
+        if (!canViewManagement(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
         const unit = getUnitFromBody(session, new URL(request.url).searchParams.get("unitId"));

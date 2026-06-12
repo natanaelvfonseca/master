@@ -11,7 +11,6 @@ import {
   LogOut,
   Megaphone,
   Palette,
-  Plug,
   Trophy,
   UserCog,
   Wand2,
@@ -32,7 +31,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
-import { canViewGrowth, getInitials, ROLE_LABELS } from "@/lib/auth-types";
+import { canViewGrowth, canViewManagement, getInitials, ROLE_LABELS } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -69,7 +68,6 @@ const groups = [
     label: "Gestão",
     items: [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList },
-      { title: "Integrações", url: "/integracoes", icon: Plug },
     ],
   },
 ];
@@ -83,7 +81,9 @@ export function AppSidebar() {
   const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const visibleGroups = groups.filter(
-    (group) => group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false),
+    (group) =>
+      (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
+      (group.label !== "Gestão" || (user ? canViewManagement(user.role) : false)),
   );
   const navGroups = session?.canRegisterUsers
     ? [

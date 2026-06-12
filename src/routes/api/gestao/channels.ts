@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
+import { canViewManagement } from "@/lib/auth-types";
 import type { AcquisitionChannelRecord, CommercialStatus } from "@/lib/commercial-types";
 import {
   ensureDefaultAcquisitionChannels,
@@ -86,6 +87,10 @@ export const Route = createFileRoute("/api/gestao/channels")({
 
         if (!session) {
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canViewManagement(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
         const body = await request.json().catch(() => null);

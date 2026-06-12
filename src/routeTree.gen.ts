@@ -14,7 +14,6 @@ import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as IntegracoesRouteImport } from './routes/integracoes'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as ConversasRouteImport } from './routes/conversas'
@@ -67,11 +66,6 @@ const PerfilRoute = PerfilRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IntegracoesRoute = IntegracoesRouteImport.update({
-  id: '/integracoes',
-  path: '/integracoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EstrategiaRoute = EstrategiaRouteImport.update({
@@ -222,7 +216,6 @@ export interface FileRoutesByFullPath {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
-  '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -258,7 +251,6 @@ export interface FileRoutesByTo {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
-  '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -295,7 +287,6 @@ export interface FileRoutesById {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
-  '/integracoes': typeof IntegracoesRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -333,7 +324,6 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
-    | '/integracoes'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -369,7 +359,6 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
-    | '/integracoes'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -405,7 +394,6 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
-    | '/integracoes'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -442,7 +430,6 @@ export interface RootRouteChildren {
   ConversasRoute: typeof ConversasRoute
   CrmRoute: typeof CrmRoute
   EstrategiaRoute: typeof EstrategiaRoute
-  IntegracoesRoute: typeof IntegracoesRoute
   LoginRoute: typeof LoginRoute
   PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
@@ -504,13 +491,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/integracoes': {
-      id: '/integracoes'
-      path: '/integracoes'
-      fullPath: '/integracoes'
-      preLoaderRoute: typeof IntegracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/estrategia': {
@@ -753,7 +733,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConversasRoute: ConversasRoute,
   CrmRoute: CrmRoute,
   EstrategiaRoute: EstrategiaRoute,
-  IntegracoesRoute: IntegracoesRoute,
   LoginRoute: LoginRoute,
   PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,

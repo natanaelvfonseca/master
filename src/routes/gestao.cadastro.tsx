@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   Edit3,
   GraduationCap,
+  Lock,
   Plus,
   RadioTower,
   Sparkles,
@@ -16,6 +17,7 @@ import type {
   CourseRecord,
 } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
+import { canViewManagement } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,6 +131,11 @@ function CadastroPage() {
   const activeChannels = channels.filter((channel) => channel.status === "active").length;
 
   const loadData = React.useCallback(async () => {
+    if (session && !canViewManagement(session.user.role)) {
+      setLoading(false);
+      return;
+    }
+
     if (!activeUnitId) {
       setLoading(false);
       return;
@@ -159,11 +166,27 @@ function CadastroPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeUnitId]);
+  }, [activeUnitId, session]);
 
   React.useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  if (session && !canViewManagement(session.user.role)) {
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <div className="max-w-md text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+            <Lock className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h1 className="text-xl font-bold">Acesso restrito</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            O cadastro de cursos e canais fica disponivel apenas para Master e CEO.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   function openNewCourseDialog() {
     setEditingCourseId(null);
