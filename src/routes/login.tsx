@@ -67,27 +67,27 @@ function LoginPage() {
   return (
     <main className="flex min-h-screen bg-gradient-hero text-primary-foreground">
       <section className="grid min-h-screen w-full lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
-        <div className="flex min-h-[42vh] flex-col justify-between p-6 md:p-10">
+        <div className="flex min-h-[42vh] flex-col justify-between overflow-hidden p-6 md:p-10">
           <div>
             <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
           </div>
           <div className="max-w-xl pb-4 pt-8 md:pt-10">
-            <div className="relative -mb-2 w-[240px] max-w-full overflow-hidden rounded-lg border border-white/15 shadow-[0_22px_54px_-34px_rgba(0,0,0,0.85)] md:w-[320px]">
+            <div className="pointer-events-none relative -ml-8 -mb-28 mt-2 w-[420px] max-w-none md:-ml-12 md:-mb-48 md:w-[640px]">
               <img
                 src={anniversary30}
                 alt="30 anos Plenarius"
-                className="block aspect-square w-full object-cover"
+                className="block aspect-square w-full object-cover opacity-95 mix-blend-screen drop-shadow-[0_30px_52px_rgba(0,0,0,0.28)]"
               />
             </div>
-            <div className="mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
+            <div className="relative z-10 mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
               Growth Hub
             </div>
-            <h1 className="max-w-lg font-display text-3xl font-bold leading-tight md:text-5xl">
+            <h1 className="relative z-10 max-w-lg font-display text-3xl font-bold leading-tight md:text-5xl">
               A educacao profissional
               <br />
               que transforma vidas.
             </h1>
-            <p className="mt-4 max-w-lg text-sm leading-6 text-white/70">
+            <p className="relative z-10 mt-4 max-w-lg text-sm leading-6 text-white/70">
               Cada matricula e o inicio
               <br />
               de uma nova historia.
