@@ -7,10 +7,12 @@ import { queryDb } from "@/lib/server/db";
 
 type LeadUnitRow = QueryResultRow & {
   unit_id: string;
+  created_by: string | null;
 };
 
 type LeadEditableRow = QueryResultRow & {
   unit_id: string;
+  created_by: string | null;
   full_name: string;
   phone: string;
   email: string | null;
@@ -150,6 +152,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           `
             select
               unit_id,
+              created_by,
               full_name,
               phone,
               email,
@@ -171,6 +174,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         }
 
         if (!session.units.some((unit) => unit.id === lead.unit_id)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        if (lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
@@ -205,7 +212,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             );
           }
 
-          const channelResult = await getChannelSnapshot(payload.acquisitionChannelId, lead.unit_id);
+          const channelResult = await getChannelSnapshot(
+            payload.acquisitionChannelId,
+            lead.unit_id,
+          );
 
           if (channelResult.error) {
             return Response.json(
@@ -245,7 +255,11 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             ],
           );
 
-          return Response.json({ ok: true, stage: nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage });
+          return Response.json({
+            ok: true,
+            stage:
+              nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage,
+          });
         }
 
         if (!nextStage || !allowedStages.includes(nextStage as LeadStage)) {
@@ -278,7 +292,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         const leadResult = await queryDb<LeadUnitRow>(
           `
-            select unit_id
+            select unit_id, created_by
             from app_leads
             where id = $1
             limit 1
@@ -292,6 +306,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         }
 
         if (!session.units.some((unit) => unit.id === lead.unit_id)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        if (lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 

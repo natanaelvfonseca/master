@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpenCheck,
+  CheckCircle2,
   Filter,
   KanbanSquare,
   Mail,
@@ -77,14 +78,13 @@ const stages: Array<LeadStage> = [
   "Pagamento pendente",
   "Confirmado",
   "Recuperação",
-  "Matriculado",
 ];
 
 const stageLabels: Record<LeadStage, string> = {
   "Novo lead": "Novo lead",
   "Em contato": "Em contato",
-  "Qualificado": "Qualificado",
-  "Proposta": "Proposta",
+  Qualificado: "Qualificado",
+  Proposta: "Proposta",
   "Pagamento pendente": "Pagamento pendente",
   Confirmado: "Confirmado",
   Recuperação: "Recuperação",
@@ -97,6 +97,18 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
+
+const confettiPalette = ["#E3AA2B", "#15A36D", "#3F73D8", "#FFFFFF", "#DCE8FF"];
+const confettiPieces = Array.from({ length: 54 }, (_, index) => ({
+  id: index,
+  color: confettiPalette[index % confettiPalette.length],
+  left: 8 + ((index * 17) % 84),
+  delay: (index % 9) * 42,
+  drift: ((index % 7) - 3) * 24,
+  spin: 220 + ((index * 41) % 360),
+  width: index % 3 === 0 ? 6 : 8,
+  height: index % 4 === 0 ? 14 : 9,
+}));
 
 function emptyLeadForm(unitId = ""): LeadFormState {
   return {
@@ -157,6 +169,8 @@ function CRM() {
   const [loadingOptions, setLoadingOptions] = React.useState(false);
   const [savingLead, setSavingLead] = React.useState(false);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
+  const [convertingLeadId, setConvertingLeadId] = React.useState<string | null>(null);
+  const [confettiRunId, setConfettiRunId] = React.useState(0);
   const [draggingLeadId, setDraggingLeadId] = React.useState<string | null>(null);
   const [dropTargetStage, setDropTargetStage] = React.useState<LeadStage | null>(null);
   const [syncingLeadId, setSyncingLeadId] = React.useState<string | null>(null);
@@ -164,33 +178,36 @@ function CRM() {
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
 
-  const loadLeads = React.useCallback(async (options?: { silent?: boolean }) => {
-    if (!activeUnitId) {
-      setLoadingLeads(false);
-      return;
-    }
-
-    if (!options?.silent) {
-      setLoadingLeads(true);
-    }
-
-    try {
-      const data = await readJson<LeadsResponse>(
-        await fetch(`/api/crm/leads${unitQuery(activeUnitId)}`, {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        }),
-      );
-
-      setLeads(data.leads);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar leads.");
-    } finally {
-      if (!options?.silent) {
+  const loadLeads = React.useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!activeUnitId) {
         setLoadingLeads(false);
+        return;
       }
-    }
-  }, [activeUnitId]);
+
+      if (!options?.silent) {
+        setLoadingLeads(true);
+      }
+
+      try {
+        const data = await readJson<LeadsResponse>(
+          await fetch(`/api/crm/leads${unitQuery(activeUnitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        );
+
+        setLeads(data.leads);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Falha ao carregar leads.");
+      } finally {
+        if (!options?.silent) {
+          setLoadingLeads(false);
+        }
+      }
+    },
+    [activeUnitId],
+  );
 
   const loadOptions = React.useCallback(async (unitId: string) => {
     if (!unitId) {
@@ -235,7 +252,8 @@ function CRM() {
       return undefined;
     }
 
-    const channel = "BroadcastChannel" in window ? new BroadcastChannel(`crm-pipeline-${activeUnitId}`) : null;
+    const channel =
+      "BroadcastChannel" in window ? new BroadcastChannel(`crm-pipeline-${activeUnitId}`) : null;
     broadcastChannelRef.current = channel;
 
     const handleVisibility = () => {
@@ -456,6 +474,46 @@ function CRM() {
     }
   }
 
+  async function handleConvertLeadToStudent() {
+    if (!editingLead) {
+      return;
+    }
+
+    setConvertingLeadId(editingLead.id);
+    setConfettiRunId((current) => current + 1);
+
+    try {
+      await readJson<{ ok: true; stage: LeadStage }>(
+        await fetch(`/api/crm/leads/${editingLead.id}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ stage: "Matriculado" }),
+        }),
+      );
+
+      setLeads((current) => current.filter((item) => item.id !== editingLead.id));
+      broadcastChannelRef.current?.postMessage({
+        type: "lead-stage-updated",
+        leadId: editingLead.id,
+        stage: "Matriculado",
+      });
+
+      toast.success("Taxa confirmada. Lead convertido em aluno.");
+      setLeadDialogOpen(false);
+      setEditingLead(null);
+      setLeadDialogMode("create");
+      setForm(emptyLeadForm(activeUnitId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao converter lead em aluno.");
+    } finally {
+      setConvertingLeadId(null);
+    }
+  }
+
   function handleDragStart(event: React.DragEvent<HTMLDivElement>, lead: LeadRecord) {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", lead.id);
@@ -484,6 +542,7 @@ function CRM() {
 
   return (
     <div className="space-y-6">
+      <ConversionConfetti runId={confettiRunId} />
       <PageHeader
         eyebrow="Comercial"
         title="CRM Pipeline"
@@ -542,7 +601,9 @@ function CRM() {
                     event.preventDefault();
                     setDropTargetStage(stage);
                   }}
-                  onDragLeave={() => setDropTargetStage((current) => (current === stage ? null : current))}
+                  onDragLeave={() =>
+                    setDropTargetStage((current) => (current === stage ? null : current))
+                  }
                   onDrop={(event) => handleStageDrop(event, stage)}
                 >
                   {loadingLeads ? (
@@ -589,6 +650,7 @@ function CRM() {
         selectedCourse={selectedCourse}
         loadingOptions={loadingOptions}
         saving={savingLead}
+        converting={editingLead ? convertingLeadId === editingLead.id : false}
         onOpenChange={(open) => {
           setLeadDialogOpen(open);
           if (!open) {
@@ -598,12 +660,45 @@ function CRM() {
         }}
         onFormChange={setForm}
         onSubmit={handleSubmitLead}
+        onConvertToStudent={() => void handleConvertLeadToStudent()}
         onResetNewLead={() => {
           setEditingLead(null);
           setLeadDialogMode("create");
           setForm(emptyLeadForm(activeUnitId));
         }}
       />
+    </div>
+  );
+}
+
+function ConversionConfetti({ runId }: { runId: number }) {
+  if (!runId) {
+    return null;
+  }
+
+  return (
+    <div
+      key={runId}
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-[80] overflow-hidden"
+    >
+      {confettiPieces.map((piece) => (
+        <span
+          key={piece.id}
+          className="conversion-confetti-piece"
+          style={
+            {
+              "--confetti-drift": `${piece.drift}px`,
+              "--confetti-spin": `${piece.spin}deg`,
+              animationDelay: `${piece.delay}ms`,
+              backgroundColor: piece.color,
+              height: `${piece.height}px`,
+              left: `${piece.left}%`,
+              width: `${piece.width}px`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -633,7 +728,9 @@ function LeadPipelineCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={`group cursor-grab border-primary/10 bg-white/90 p-3 shadow-card transition-all duration-200 ease-out active:cursor-grabbing ${
-        dragging ? "scale-[0.98] opacity-60 shadow-lg" : "hover:-translate-y-0.5 hover:shadow-elegant"
+        dragging
+          ? "scale-[0.98] opacity-60 shadow-lg"
+          : "hover:-translate-y-0.5 hover:shadow-elegant"
       } ${syncing ? "ring-2 ring-primary/25" : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -699,9 +796,11 @@ function CreateLeadDialog({
   selectedCourse,
   loadingOptions,
   saving,
+  converting,
   onOpenChange,
   onFormChange,
   onSubmit,
+  onConvertToStudent,
   onResetNewLead,
 }: {
   open: boolean;
@@ -713,9 +812,11 @@ function CreateLeadDialog({
   selectedCourse: CourseRecord | null;
   loadingOptions: boolean;
   saving: boolean;
+  converting: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<LeadFormState>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onConvertToStudent: () => void;
   onResetNewLead: () => void;
 }) {
   const isEditMode = mode === "edit";
@@ -725,20 +826,33 @@ function CreateLeadDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(11,42,111,0.85),0_0_34px_rgba(63,115,216,0.22)] sm:max-w-3xl">
         <form onSubmit={onSubmit}>
           <div className="relative overflow-hidden bg-gradient-hero p-6 text-primary-foreground">
-            <div className="relative z-10 flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12 text-gold ring-1 ring-white/20">
-                <UserPlus className="h-5 w-5" />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12 text-gold ring-1 ring-white/20">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <DialogHeader className="space-y-2 text-left">
+                  <DialogTitle className="text-xl text-white">
+                    {isEditMode ? "Editar Lead" : "Criar Lead"}
+                  </DialogTitle>
+                  <DialogDescription className="text-white/70">
+                    {isEditMode
+                      ? "Atualize os dados comerciais e o estágio do lead."
+                      : "Cadastro comercial vinculado ao curso e canal de aquisição."}
+                  </DialogDescription>
+                </DialogHeader>
               </div>
-              <DialogHeader className="space-y-2 text-left">
-                <DialogTitle className="text-xl text-white">
-                  {isEditMode ? "Editar Lead" : "Criar Lead"}
-                </DialogTitle>
-                <DialogDescription className="text-white/70">
-                  {isEditMode
-                    ? "Atualize os dados comerciais e o estágio do lead."
-                    : "Cadastro comercial vinculado ao curso e canal de aquisição."}
-                </DialogDescription>
-              </DialogHeader>
+              {isEditMode ? (
+                <Button
+                  type="button"
+                  onClick={onConvertToStudent}
+                  disabled={saving || converting}
+                  className="shrink-0 bg-emerald-500 font-bold uppercase tracking-wide text-white shadow-[0_16px_34px_-20px_rgba(16,185,129,0.95)] hover:bg-emerald-600 sm:ml-auto"
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {converting ? "Convertendo..." : "TAXA FEITA"}
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -914,8 +1028,18 @@ function CreateLeadDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-primary" disabled={saving || !form.unitId}>
-              {saving ? (isEditMode ? "Salvando..." : "Criando...") : isEditMode ? "Salvar alterações" : "Criar Lead"}
+            <Button
+              type="submit"
+              className="bg-gradient-primary"
+              disabled={saving || converting || !form.unitId}
+            >
+              {saving
+                ? isEditMode
+                  ? "Salvando..."
+                  : "Criando..."
+                : isEditMode
+                  ? "Salvar alterações"
+                  : "Criar Lead"}
             </Button>
           </DialogFooter>
         </form>

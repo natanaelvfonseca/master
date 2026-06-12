@@ -33,11 +33,11 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 function unitQuery(unitId: string) {
-  return `?unitId=${encodeURIComponent(unitId)}`;
+  return `?unitId=${encodeURIComponent(unitId)}&view=students`;
 }
 
 export const Route = createFileRoute("/leads/")({
-  head: () => ({ meta: [{ title: "Leads · Planarius" }] }),
+  head: () => ({ meta: [{ title: "Alunos · Planarius" }] }),
   component: LeadsList,
 });
 
@@ -67,7 +67,7 @@ function LeadsList() {
 
         setLeads(data.leads);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Falha ao carregar leads.");
+        toast.error(error instanceof Error ? error.message : "Falha ao carregar alunos.");
       } finally {
         setLoading(false);
       }
@@ -97,8 +97,8 @@ function LeadsList() {
     <div>
       <PageHeader
         eyebrow="Comercial"
-        title="Leads"
-        description="Base unificada de leads sincronizada com o CRM e os cadastros comerciais."
+        title="Alunos"
+        description="Base de alunos convertidos quando a taxa foi confirmada no CRM Pipeline."
       />
       <Card className="shadow-card">
         <div className="border-b border-border p-4">
@@ -107,7 +107,7 @@ function LeadsList() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por nome, curso, origem..."
+              placeholder="Buscar por aluno, curso, origem..."
               className="pl-9"
             />
           </div>
@@ -115,11 +115,11 @@ function LeadsList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Lead</TableHead>
+              <TableHead>Aluno</TableHead>
               <TableHead>Curso</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead>Origem</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Situação</TableHead>
               <TableHead className="text-right">Valor</TableHead>
             </TableRow>
           </TableHeader>
@@ -127,7 +127,7 @@ function LeadsList() {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Carregando leads...
+                  Carregando alunos...
                 </TableCell>
               </TableRow>
             ) : filteredLeads.length ? (
@@ -142,7 +142,7 @@ function LeadsList() {
                   <TableCell>{lead.acquisitionChannelName ?? "--"}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      {lead.stage}
+                      Aluno
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-semibold text-primary">
@@ -160,8 +160,8 @@ function LeadsList() {
                 <TableCell colSpan={6} className="p-4">
                   <EmptyState
                     icon={Users}
-                    title="Nenhum lead cadastrado"
-                    description="A lista será preenchida quando os leads forem criados no CRM."
+                    title="Nenhum aluno convertido"
+                    description="A lista será preenchida quando a taxa for confirmada no modal do lead."
                   />
                 </TableCell>
               </TableRow>

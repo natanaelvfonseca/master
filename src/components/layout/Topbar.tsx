@@ -44,7 +44,7 @@ export function Topbar() {
       <div className="ml-auto flex items-center gap-2">
         <div className="relative hidden md:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar lead, aluno, turma..." className="h-9 w-[280px] pl-9" />
+          <Input placeholder="Buscar aluno, lead, turma..." className="h-9 w-[280px] pl-9" />
         </div>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />

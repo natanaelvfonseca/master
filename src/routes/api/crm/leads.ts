@@ -80,6 +80,11 @@ function parseLeadPayload(body: unknown) {
   };
 }
 
+function getLeadListView(request: Request) {
+  const url = new URL(request.url);
+  return url.searchParams.get("view") === "students" ? "students" : "pipeline";
+}
+
 async function getCourseSnapshot(courseId: string, unitId: string) {
   if (!courseId) {
     return { course: null };
@@ -154,6 +159,7 @@ export const Route = createFileRoute("/api/crm/leads")({
 
         await ensureCommercialSchema();
 
+        const listView = getLeadListView(request);
         const result = await queryDb<LeadRow>(
           `
             select
@@ -174,9 +180,14 @@ export const Route = createFileRoute("/api/crm/leads")({
             from app_leads l
             inner join app_units u on u.id = l.unit_id
             where l.unit_id = $1
+              and l.created_by = $2
+              and (
+                ($3 = 'students' and l.stage = 'Matriculado')
+                or ($3 = 'pipeline' and l.stage <> 'Matriculado')
+              )
             order by l.created_at desc
           `,
-          [unit.id],
+          [unit.id, session.user.id, listView],
         );
 
         return Response.json(

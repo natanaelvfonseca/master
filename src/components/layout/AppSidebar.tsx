@@ -4,6 +4,7 @@ import {
   Bot,
   Building2,
   ClipboardList,
+  GraduationCap,
   History,
   Images,
   KanbanSquare,
@@ -14,7 +15,6 @@ import {
   Plug,
   Trophy,
   UserCog,
-  Users,
   Wand2,
 } from "lucide-react";
 import {
@@ -43,7 +43,7 @@ const groups = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
-      { title: "Leads", url: "/leads", icon: Users },
+      { title: "Alunos", url: "/leads", icon: GraduationCap },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
     ],

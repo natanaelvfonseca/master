@@ -99,6 +99,7 @@ export async function ensureCommercialSchema() {
     );
 
     create index if not exists app_leads_unit_stage_idx on app_leads (unit_id, stage);
+    create index if not exists app_leads_unit_user_stage_idx on app_leads (unit_id, created_by, stage);
     create index if not exists app_leads_unit_created_idx on app_leads (unit_id, created_at desc);
     create index if not exists app_leads_course_idx on app_leads (course_id);
     create index if not exists app_leads_acquisition_channel_idx on app_leads (acquisition_channel_id);

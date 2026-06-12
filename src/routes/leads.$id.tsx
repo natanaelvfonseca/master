@@ -4,18 +4,21 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/leads/$id")({
-  head: ({ params }) => ({ meta: [{ title: `Lead ${params.id} · Planarius` }] }),
+  head: ({ params }) => ({ meta: [{ title: `Aluno ${params.id} · Planarius` }] }),
   component: LeadDetail,
   notFoundComponent: () => (
     <div className="p-8">
       <div className="mb-4">
         <Button asChild variant="ghost" size="sm">
-          <Link to="/leads"><ArrowLeft className="mr-2 h-4 w-4" />Voltar para leads</Link>
+          <Link to="/leads">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para alunos
+          </Link>
         </Button>
       </div>
       <EmptyState
         icon={Users}
-        title="Lead não encontrado"
+        title="Aluno não encontrado"
         description="Ainda não há cadastro real para este registro."
       />
     </div>
