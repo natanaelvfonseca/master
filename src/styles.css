@@ -554,8 +554,9 @@
     top: -34px;
     left: 50%;
     z-index: 2;
-    color: #f6cf62;
-    filter: drop-shadow(0 12px 18px rgba(227, 170, 43, 0.42));
+    color: #e3aa2b;
+    fill: rgba(227, 170, 43, 0.2);
+    filter: drop-shadow(0 12px 18px rgba(227, 170, 43, 0.5));
     animation: ranking-crown-float 3s ease-in-out infinite;
   }
   .ranking-medal-badge {
@@ -580,6 +581,7 @@
     height: var(--podium-height);
     place-items: center;
     overflow: hidden;
+    padding: 14px 10px 18px;
     margin: 0 18px;
     border-radius: 0 0 8px 8px;
     clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
@@ -605,7 +607,7 @@
     color: rgba(255, 255, 255, 0.78);
     font-size: clamp(2.4rem, 5.8vw, 4.6rem);
     font-weight: 950;
-    line-height: 0.92;
+    line-height: 1;
     text-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
   }
   .ranking-place-gold .ranking-person-card {
@@ -650,30 +652,6 @@
     background:
       linear-gradient(90deg, rgba(227, 170, 43, 0.28), transparent), rgba(255, 255, 255, 0.06);
   }
-  .ranking-mini-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    border: 1px solid rgba(220, 232, 255, 0.11);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.055);
-    padding: 10px;
-  }
-  .ranking-mini-rank {
-    display: flex;
-    height: 30px;
-    width: 30px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: rgba(227, 170, 43, 0.16);
-    color: #f6cf62;
-    font-size: 12px;
-    font-weight: 900;
-  }
-
   @media (min-width: 1024px) {
     .ranking-hero-panel {
       grid-template-columns: minmax(0, 1fr) minmax(300px, 0.36fr);

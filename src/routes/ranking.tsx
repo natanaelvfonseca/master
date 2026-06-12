@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, Crown, Flame, Medal, Sparkles, Trophy, Zap, type LucideIcon } from "lucide-react";
+import { Award, Crown, Flame, Medal, Trophy, Zap, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -145,12 +145,7 @@ function Ranking() {
 
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
               <RankingBoard members={ranking} topTaxaFeita={topTaxaFeita} />
-              <SpotlightPanel
-                activeUnitName={activeUnitName}
-                leader={leader}
-                members={ranking}
-                topTaxaFeita={topTaxaFeita}
-              />
+              <SpotlightPanel leader={leader} />
             </div>
           </>
         ) : (
@@ -435,17 +430,7 @@ function RankingRow({ member, progress }: { member: RankingMember; progress: num
   );
 }
 
-function SpotlightPanel({
-  activeUnitName,
-  leader,
-  members,
-  topTaxaFeita,
-}: {
-  activeUnitName: string;
-  leader: RankingMember | undefined;
-  members: Array<RankingMember>;
-  topTaxaFeita: number;
-}) {
+function SpotlightPanel({ leader }: { leader: RankingMember | undefined }) {
   return (
     <aside className="ranking-spotlight-panel">
       <div className="flex items-center justify-between gap-3">
@@ -472,7 +457,6 @@ function SpotlightPanel({
 
           <div className="mt-5 text-center">
             <div className="truncate text-2xl font-extrabold text-white">{leader.name}</div>
-            <div className="mt-1 truncate text-sm text-white/50">{activeUnitName}</div>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
@@ -481,30 +465,6 @@ function SpotlightPanel({
           </div>
         </div>
       ) : null}
-
-      <div className="mt-7 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
-          <Sparkles className="h-4 w-4 text-gold" />
-          Top performers
-        </div>
-        {members.slice(0, 5).map((member) => (
-          <div key={member.userId} className="ranking-mini-row">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="ranking-mini-rank">{member.rank}</div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-white">{member.name}</div>
-                <div className="text-xs text-white/50">{member.taxaFeita} taxas feitas</div>
-              </div>
-            </div>
-            <div className="h-2 w-20 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-gold"
-                style={{ width: `${progressWidth(member.taxaFeita, topTaxaFeita)}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
     </aside>
   );
 }
