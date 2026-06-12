@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import anniversary30 from "@/assets/plenarius-30anos.svg";
+import anniversary30 from "@/assets/plenarius-30-anos.png";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,8 +72,12 @@ function LoginPage() {
             <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
           </div>
           <div className="max-w-xl pb-4 pt-8 md:pt-10">
-            <div className="relative -mb-3 w-[220px] max-w-full md:w-[280px]">
-              <img src={anniversary30} alt="30 anos Plenarius" className="w-full drop-shadow-[0_14px_24px_rgba(0,0,0,0.28)]" />
+            <div className="relative -mb-2 w-[240px] max-w-full overflow-hidden rounded-lg border border-white/15 shadow-[0_22px_54px_-34px_rgba(0,0,0,0.85)] md:w-[320px]">
+              <img
+                src={anniversary30}
+                alt="30 anos Plenarius"
+                className="block aspect-square w-full object-cover"
+              />
             </div>
             <div className="mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
               Growth Hub
