@@ -176,7 +176,7 @@ function RankingHero({
         </div>
 
         <h1 className="max-w-4xl text-4xl font-extrabold leading-[1.02] text-[#071a42] md:text-6xl">
-          Ranking Plenárius ({activeUnitName})
+          Ranking Plenárius - {activeUnitName}
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-[#526a9a] md:text-base">
           O topo é reservado para quem tem responsabilidade como resultado
