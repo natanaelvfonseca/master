@@ -47,6 +47,7 @@ type LeadFormState = {
   fullName: string;
   phone: string;
   email: string;
+  city: string;
   courseId: string;
   acquisitionChannelId: string;
   unitId: string;
@@ -116,6 +117,7 @@ function emptyLeadForm(unitId = ""): LeadFormState {
     fullName: "",
     phone: "",
     email: "",
+    city: "",
     courseId: "",
     acquisitionChannelId: "",
     unitId,
@@ -129,6 +131,7 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
     fullName: lead.fullName,
     phone: lead.phone,
     email: lead.email ?? "",
+    city: lead.city ?? "",
     courseId: lead.courseId ?? "",
     acquisitionChannelId: lead.acquisitionChannelId ?? "",
     unitId: lead.unitId,
@@ -382,6 +385,7 @@ function CRM() {
                   fullName: payload.fullName,
                   phone: payload.phone,
                   email: payload.email || null,
+                  city: payload.city || null,
                   courseId: payload.courseId || null,
                   courseName: course?.name ?? null,
                   courseValue: course?.value ?? null,
@@ -895,6 +899,18 @@ function CreateLeadDialog({
                   onFormChange((current) => ({ ...current, email: event.target.value }))
                 }
                 placeholder="lead@email.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lead-city">Cidade</Label>
+              <Input
+                id="lead-city"
+                value={form.city}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, city: event.target.value }))
+                }
+                placeholder="Cidade do lead"
               />
             </div>
 

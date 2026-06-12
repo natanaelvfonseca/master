@@ -16,6 +16,7 @@ type LeadEditableRow = QueryResultRow & {
   full_name: string;
   phone: string;
   email: string | null;
+  city: string | null;
   course_id: string | null;
   acquisition_channel_id: string | null;
   observations: string | null;
@@ -54,6 +55,7 @@ function parseLeadUpdate(body: unknown) {
     fullName?: unknown;
     phone?: unknown;
     email?: unknown;
+    city?: unknown;
     courseId?: unknown;
     acquisitionChannelId?: unknown;
     observations?: unknown;
@@ -64,6 +66,7 @@ function parseLeadUpdate(body: unknown) {
     fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
     phone: typeof data?.phone === "string" ? data.phone.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
+    city: typeof data?.city === "string" ? data.city.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
     acquisitionChannelId:
       typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
@@ -128,6 +131,41 @@ async function getChannelSnapshot(channelId: string, unitId: string) {
   return { channel };
 }
 
+async function recordPaidStudentPayment(leadId: string, userId: string) {
+  await queryDb(
+    `
+      insert into app_student_payments (
+        unit_id,
+        lead_id,
+        description,
+        amount,
+        status,
+        due_at,
+        paid_at,
+        created_by
+      )
+      select
+        l.unit_id,
+        l.id,
+        'Taxa/matrícula confirmada',
+        coalesce(l.course_value_snapshot, 0),
+        'paid',
+        coalesce(l.payment_confirmed_at, l.converted_at, now())::date,
+        coalesce(l.payment_confirmed_at, l.converted_at, now()),
+        $2
+      from app_leads l
+      where l.id = $1
+        and not exists (
+          select 1
+          from app_student_payments p
+          where p.lead_id = l.id
+            and p.status = 'paid'
+        )
+    `,
+    [leadId, userId],
+  );
+}
+
 export const Route = createFileRoute("/api/crm/leads/$id")({
   server: {
     handlers: {
@@ -156,6 +194,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               full_name,
               phone,
               email,
+              city,
               course_id,
               acquisition_channel_id,
               observations,
@@ -194,6 +233,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           payload.fullName ||
           payload.phone ||
           payload.email !== "" ||
+          payload.city !== "" ||
           payload.courseId !== "" ||
           payload.acquisitionChannelId !== "" ||
           payload.observations !== "";
@@ -201,6 +241,11 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         if (!hasLeadFields && (!nextStage || !allowedStages.includes(nextStage as LeadStage))) {
           return Response.json({ ok: false, error: "Dados insuficientes." }, { status: 400 });
         }
+
+        const resolvedStage =
+          nextStage && allowedStages.includes(nextStage as LeadStage)
+            ? (nextStage as LeadStage)
+            : lead.stage;
 
         if (payload.fullName && payload.phone) {
           const courseResult = await getCourseSnapshot(payload.courseId, lead.unit_id);
@@ -231,13 +276,43 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
                 full_name = $2,
                 phone = $3,
                 email = nullif($4, ''),
-                course_id = $5,
-                course_name_snapshot = $6,
-                course_value_snapshot = $7,
-                acquisition_channel_id = $8,
-                acquisition_channel_name_snapshot = $9,
-                observations = nullif($10, ''),
-                stage = coalesce($11, stage)
+                city = nullif($5, ''),
+                course_id = $6,
+                course_name_snapshot = $7,
+                course_value_snapshot = $8,
+                acquisition_channel_id = $9,
+                acquisition_channel_name_snapshot = $10,
+                observations = nullif($11, ''),
+                stage = $12,
+                first_contact_at = case
+                  when $12 <> 'Novo lead' then coalesce(first_contact_at, now())
+                  else first_contact_at
+                end,
+                last_follow_up_at = case
+                  when $12 <> stage and $12 <> 'Novo lead' then now()
+                  else last_follow_up_at
+                end,
+                follow_up_count = case
+                  when $12 <> stage and $12 <> 'Novo lead' then follow_up_count + 1
+                  else follow_up_count
+                end,
+                converted_at = case
+                  when $12 = 'Matriculado' then coalesce(converted_at, now())
+                  else converted_at
+                end,
+                converted_by = case
+                  when $12 = 'Matriculado' then coalesce(converted_by, $13)
+                  else converted_by
+                end,
+                payment_status = case
+                  when $12 = 'Matriculado' then 'paid'
+                  else payment_status
+                end,
+                payment_confirmed_at = case
+                  when $12 = 'Matriculado' then coalesce(payment_confirmed_at, now())
+                  else payment_confirmed_at
+                end,
+                updated_at = now()
               where id = $1
             `,
             [
@@ -245,21 +320,23 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               payload.fullName,
               payload.phone,
               payload.email,
+              payload.city,
               courseResult.course?.id ?? null,
               courseResult.course?.name ?? null,
               courseResult.course ? Number(courseResult.course.value) : null,
               channelResult.channel?.id ?? null,
               channelResult.channel?.name ?? null,
               payload.observations,
-              nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage,
+              resolvedStage,
+              session.user.id,
             ],
           );
 
-          return Response.json({
-            ok: true,
-            stage:
-              nextStage && allowedStages.includes(nextStage as LeadStage) ? nextStage : lead.stage,
-          });
+          if (resolvedStage === "Matriculado") {
+            await recordPaidStudentPayment(params.id, session.user.id);
+          }
+
+          return Response.json({ ok: true, stage: resolvedStage });
         }
 
         if (!nextStage || !allowedStages.includes(nextStage as LeadStage)) {
@@ -269,11 +346,45 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         await queryDb(
           `
             update app_leads
-            set stage = $2
+            set
+              stage = $2,
+              first_contact_at = case
+                when $2 <> 'Novo lead' then coalesce(first_contact_at, now())
+                else first_contact_at
+              end,
+              last_follow_up_at = case
+                when $2 <> stage and $2 <> 'Novo lead' then now()
+                else last_follow_up_at
+              end,
+              follow_up_count = case
+                when $2 <> stage and $2 <> 'Novo lead' then follow_up_count + 1
+                else follow_up_count
+              end,
+              converted_at = case
+                when $2 = 'Matriculado' then coalesce(converted_at, now())
+                else converted_at
+              end,
+              converted_by = case
+                when $2 = 'Matriculado' then coalesce(converted_by, $3)
+                else converted_by
+              end,
+              payment_status = case
+                when $2 = 'Matriculado' then 'paid'
+                else payment_status
+              end,
+              payment_confirmed_at = case
+                when $2 = 'Matriculado' then coalesce(payment_confirmed_at, now())
+                else payment_confirmed_at
+              end,
+              updated_at = now()
             where id = $1
           `,
-          [params.id, nextStage],
+          [params.id, nextStage, session.user.id],
         );
+
+        if (nextStage === "Matriculado") {
+          await recordPaidStudentPayment(params.id, session.user.id);
+        }
 
         return Response.json({ ok: true, stage: nextStage });
       },

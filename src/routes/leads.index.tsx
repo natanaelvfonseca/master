@@ -81,6 +81,7 @@ function LeadsList() {
       lead.fullName,
       lead.phone,
       lead.email,
+      lead.city,
       lead.courseName,
       lead.acquisitionChannelName,
       lead.unitName,
@@ -117,6 +118,7 @@ function LeadsList() {
             <TableRow>
               <TableHead>Aluno</TableHead>
               <TableHead>Curso</TableHead>
+              <TableHead>Cidade</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Situação</TableHead>
@@ -126,7 +128,7 @@ function LeadsList() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   Carregando alunos...
                 </TableCell>
               </TableRow>
@@ -138,6 +140,7 @@ function LeadsList() {
                     <div className="text-xs text-muted-foreground">{lead.phone}</div>
                   </TableCell>
                   <TableCell>{lead.courseName ?? "--"}</TableCell>
+                  <TableCell>{lead.city ?? "--"}</TableCell>
                   <TableCell>{lead.unitName}</TableCell>
                   <TableCell>{lead.acquisitionChannelName ?? "--"}</TableCell>
                   <TableCell>
@@ -157,7 +160,7 @@ function LeadsList() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="p-4">
+                <TableCell colSpan={7} className="p-4">
                   <EmptyState
                     icon={Users}
                     title="Nenhum aluno convertido"

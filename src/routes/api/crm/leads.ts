@@ -17,6 +17,7 @@ type LeadRow = QueryResultRow & {
   full_name: string;
   phone: string;
   email: string | null;
+  city: string | null;
   course_id: string | null;
   course_name_snapshot: string | null;
   course_value_snapshot: string | null;
@@ -46,6 +47,7 @@ function mapLead(row: LeadRow): LeadRecord {
     fullName: row.full_name,
     phone: row.phone,
     email: row.email,
+    city: row.city,
     courseId: row.course_id,
     courseName: row.course_name_snapshot,
     courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
@@ -62,6 +64,7 @@ function parseLeadPayload(body: unknown) {
     fullName?: unknown;
     phone?: unknown;
     email?: unknown;
+    city?: unknown;
     courseId?: unknown;
     acquisitionChannelId?: unknown;
     unitId?: unknown;
@@ -72,6 +75,7 @@ function parseLeadPayload(body: unknown) {
     fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
     phone: typeof data?.phone === "string" ? data.phone.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
+    city: typeof data?.city === "string" ? data.city.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
     acquisitionChannelId:
       typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
@@ -169,6 +173,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.full_name,
               l.phone,
               l.email,
+              l.city,
               l.course_id,
               l.course_name_snapshot,
               l.course_value_snapshot::text,
@@ -246,6 +251,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               full_name,
               phone,
               email,
+              city,
               course_id,
               course_name_snapshot,
               course_value_snapshot,
@@ -254,7 +260,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               observations,
               created_by
             )
-            values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, $9, nullif($10, ''), $11)
+            values ($1, $2, $3, nullif($4, ''), nullif($5, ''), $6, $7, $8, $9, $10, nullif($11, ''), $12)
             returning
               id,
               unit_id,
@@ -262,6 +268,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               full_name,
               phone,
               email,
+              city,
               course_id,
               course_name_snapshot,
               course_value_snapshot::text,
@@ -276,6 +283,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             payload.fullName,
             payload.phone,
             payload.email,
+            payload.city,
             course?.id ?? null,
             course?.name ?? null,
             course ? Number(course.value) : null,

@@ -27,6 +27,7 @@ import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
+import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -130,6 +131,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
   path: '/brand-plen/biblioteca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDashboardRoute = ApiDashboardRouteImport.update({
+  id: '/api/dashboard',
+  path: '/api/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
   path: '/api/health/db',
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/dashboard': typeof ApiDashboardRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/dashboard': typeof ApiDashboardRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/dashboard': typeof ApiDashboardRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -302,6 +311,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/dashboard'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/dashboard'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -366,6 +377,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/usuarios'
+    | '/api/dashboard'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
   UsuariosRoute: typeof UsuariosRoute
+  ApiDashboardRoute: typeof ApiDashboardRoute
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
@@ -545,6 +558,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandPlenBibliotecaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/dashboard': {
+      id: '/api/dashboard'
+      path: '/api/dashboard'
+      fullPath: '/api/dashboard'
+      preLoaderRoute: typeof ApiDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health/db': {
       id: '/api/health/db'
       path: '/api/health/db'
@@ -678,6 +698,7 @@ const rootRouteChildren: RootRouteChildren = {
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
   UsuariosRoute: UsuariosRoute,
+  ApiDashboardRoute: ApiDashboardRoute,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,
