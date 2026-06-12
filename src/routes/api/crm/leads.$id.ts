@@ -20,6 +20,17 @@ type LeadEditableRow = QueryResultRow & {
   stage: LeadStage;
 };
 
+type CourseSnapshotRow = QueryResultRow & {
+  id: string;
+  name: string;
+  value: string;
+};
+
+type ChannelSnapshotRow = QueryResultRow & {
+  id: string;
+  name: string;
+};
+
 const allowedStages: Array<LeadStage> = [
   "Novo lead",
   "Em contato",
@@ -57,6 +68,62 @@ function parseLeadUpdate(body: unknown) {
     observations: typeof data?.observations === "string" ? data.observations.trim() : "",
     stage: typeof data?.stage === "string" ? data.stage.trim() : "",
   };
+}
+
+async function getCourseSnapshot(courseId: string, unitId: string) {
+  if (!courseId) {
+    return { course: null };
+  }
+
+  if (!isUuid(courseId)) {
+    return { error: "Curso inválido.", status: 400 };
+  }
+
+  const result = await queryDb<CourseSnapshotRow>(
+    `
+      select id, name, value::text
+      from app_courses
+      where id = $1 and unit_id = $2
+      limit 1
+    `,
+    [courseId, unitId],
+  );
+
+  const course = result.rows[0];
+
+  if (!course) {
+    return { error: "Curso não encontrado.", status: 404 };
+  }
+
+  return { course };
+}
+
+async function getChannelSnapshot(channelId: string, unitId: string) {
+  if (!channelId) {
+    return { channel: null };
+  }
+
+  if (!isUuid(channelId)) {
+    return { error: "Canal inválido.", status: 400 };
+  }
+
+  const result = await queryDb<ChannelSnapshotRow>(
+    `
+      select id, name
+      from app_acquisition_channels
+      where id = $1 and unit_id = $2
+      limit 1
+    `,
+    [channelId, unitId],
+  );
+
+  const channel = result.rows[0];
+
+  if (!channel) {
+    return { error: "Canal não encontrado.", status: 404 };
+  }
+
+  return { channel };
 }
 
 export const Route = createFileRoute("/api/crm/leads/$id")({
