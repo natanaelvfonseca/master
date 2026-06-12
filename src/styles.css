@@ -223,17 +223,22 @@
     }
   }
 
-  @keyframes conversion-confetti-fall {
+  @keyframes conversion-confetti-burst {
     0% {
       opacity: 0;
-      transform: translate3d(0, -24px, 0) rotate(0deg) scale(0.85);
+      transform: translate3d(0, 34px, 0) rotate(0deg) scale(0.82);
     }
-    12% {
+    10% {
       opacity: 1;
+    }
+    58% {
+      opacity: 1;
+      transform: translate3d(0, -58vh, 0) rotate(180deg) scale(1.04);
     }
     100% {
       opacity: 0;
-      transform: translate3d(var(--confetti-drift), 96vh, 0) rotate(var(--confetti-spin)) scale(1);
+      transform: translate3d(var(--confetti-drift), var(--confetti-rise), 0)
+        rotate(var(--confetti-spin)) scale(0.98);
     }
   }
 
@@ -270,10 +275,14 @@
   }
   .conversion-confetti-piece {
     position: absolute;
-    top: -18px;
-    border-radius: 999px;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.42);
-    animation: conversion-confetti-fall 1450ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    bottom: -24px;
+    border-radius: 2px;
+    box-shadow:
+      0 0 14px rgba(247, 211, 77, 0.42),
+      0 0 18px rgba(34, 197, 94, 0.3),
+      0 3px 8px rgba(11, 42, 111, 0.22);
+    animation: conversion-confetti-burst 2400ms cubic-bezier(0.16, 0.78, 0.16, 1) both;
+    will-change: transform, opacity;
   }
   .text-gradient-gold {
     background: var(--gradient-gold);

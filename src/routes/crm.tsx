@@ -98,16 +98,17 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-const confettiPalette = ["#E3AA2B", "#15A36D", "#3F73D8", "#FFFFFF", "#DCE8FF"];
-const confettiPieces = Array.from({ length: 54 }, (_, index) => ({
+const confettiPalette = ["#F7D34D", "#E3AA2B", "#22C55E", "#15803D"];
+const confettiPieces = Array.from({ length: 72 }, (_, index) => ({
   id: index,
   color: confettiPalette[index % confettiPalette.length],
-  left: 8 + ((index * 17) % 84),
-  delay: (index % 9) * 42,
-  drift: ((index % 7) - 3) * 24,
-  spin: 220 + ((index * 41) % 360),
-  width: index % 3 === 0 ? 6 : 8,
-  height: index % 4 === 0 ? 14 : 9,
+  left: 6 + ((index * 19) % 88),
+  delay: (index % 12) * 55,
+  drift: ((index % 9) - 4) * 26,
+  rise: 82 + ((index * 13) % 18),
+  spin: 360 + ((index * 47) % 520),
+  width: index % 3 === 0 ? 8 : 10,
+  height: index % 4 === 0 ? 18 : 12,
 }));
 
 function emptyLeadForm(unitId = ""): LeadFormState {
@@ -689,6 +690,7 @@ function ConversionConfetti({ runId }: { runId: number }) {
           style={
             {
               "--confetti-drift": `${piece.drift}px`,
+              "--confetti-rise": `-${piece.rise}vh`,
               "--confetti-spin": `${piece.spin}deg`,
               animationDelay: `${piece.delay}ms`,
               backgroundColor: piece.color,
