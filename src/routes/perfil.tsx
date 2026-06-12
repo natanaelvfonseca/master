@@ -90,7 +90,12 @@ function ProfilePage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (form.newPassword || form.confirmPassword || form.currentPassword) {
+    if (form.newPassword || form.confirmPassword) {
+      if (!form.currentPassword) {
+        toast.error("Informe a senha atual.");
+        return;
+      }
+
       if (!form.newPassword) {
         toast.error("Informe a nova senha.");
         return;
@@ -256,7 +261,7 @@ function ProfilePage() {
                   onChange={(event) =>
                     setForm((current) => ({ ...current, currentPassword: event.target.value }))
                   }
-                  autoComplete="current-password"
+                  autoComplete="off"
                 />
               </div>
 
