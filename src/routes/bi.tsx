@@ -1,79 +1,267 @@
+import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3, Download, Filter, LineChart, Radar } from "lucide-react";
+import {
+  BarChart3,
+  GraduationCap,
+  LineChart,
+  Phone,
+  Radar,
+  Target,
+  UserCheck,
+  Users,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { EmptyState } from "@/components/layout/EmptyState";
+import { StatCard } from "@/components/layout/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  formatCurrency,
+  formatPercent,
+  GrowthAccessDenied,
+  GrowthDataBar,
+  GrowthEmptyPanel,
+  GrowthLoading,
+  GrowthScopeSelect,
+  metricValue,
+} from "@/components/growth/GrowthDashboardPrimitives";
+import { useAuth } from "@/lib/auth";
+import { canViewGrowth, canViewNetworkGrowth } from "@/lib/auth-types";
+import { useGrowthData } from "@/lib/use-growth-data";
 
 export const Route = createFileRoute("/bi")({
-  head: () => ({ meta: [{ title: "BI Comercial · Planarius" }] }),
+  head: () => ({ meta: [{ title: "BI Comercial - Planarius" }] }),
   component: BI,
 });
 
 function BI() {
+  const { session, loading: authLoading } = useAuth();
+  const [scopeValue, setScopeValue] = React.useState("");
+  const canAccessGrowth = session ? canViewGrowth(session.user.role) : false;
+  const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
+  const activeUnitId = session?.activeUnit?.id ?? "";
+
+  React.useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    setScopeValue((current) => {
+      if (!canViewNetwork) {
+        return activeUnitId;
+      }
+
+      if (current === "all" || session.units.some((unit) => unit.id === current)) {
+        return current;
+      }
+
+      return "all";
+    });
+  }, [activeUnitId, canViewNetwork, session]);
+
+  const { data, loading } = useGrowthData(scopeValue, Boolean(canAccessGrowth && scopeValue));
+  const isLoading = authLoading || loading;
+  const metrics = data?.metrics ?? {
+    leadsReceived: 0,
+    qualifiedLeads: 0,
+    enrollments: 0,
+    conversionRate: 0,
+    followUpRate: 0,
+    averageTicket: 0,
+    leadsWithSource: 0,
+    sourceConversionRate: 0,
+    activeChannels: 0,
+    paidChannels: 0,
+  };
+  const scopeLabel = data?.scope.label ?? session?.activeUnit?.name ?? "Unidade";
+  const courseMax = Math.max(...(data?.courses.map((item) => item.leads) ?? [0]), 0);
+  const cityMax = Math.max(...(data?.cities.map((item) => item.leads) ?? [0]), 0);
+  const funnelMax = Math.max(...(data?.funnel.map((item) => item.leads) ?? [0]), 0);
+  const unitMax = Math.max(...(data?.units.map((item) => item.leads) ?? [0]), 0);
+
+  if (session && !canAccessGrowth) {
+    return <GrowthAccessDenied />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Inteligência"
-        title="BI & Métricas Comerciais"
-        description="Análise multidimensional por vendedor, origem, cidade, curso e campanha."
+        eyebrow="Crescimento"
+        title="BI Comercial"
+        description="Indicadores comerciais consolidados por unidade, curso, cidade e estagio do funil."
         actions={
-          <>
-            <Button variant="outline"><Filter className="mr-2 h-4 w-4" />Filtros</Button>
-            <Button disabled className="bg-gradient-primary"><Download className="mr-2 h-4 w-4" />Exportar</Button>
-          </>
+          session ? (
+            <GrowthScopeSelect session={session} value={scopeValue} onValueChange={setScopeValue} />
+          ) : null
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="shadow-card lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Conversão por cidade</CardTitle></CardHeader>
-          <CardContent>
-            <EmptyState
-              icon={BarChart3}
-              title="Sem dados de cidade"
-              description="O gráfico será calculado quando os leads reais tiverem cidade cadastrada."
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Maturidade comercial</CardTitle></CardHeader>
-          <CardContent>
-            <EmptyState
-              icon={Radar}
-              title="Sem indicadores"
-              description="A maturidade será montada a partir de conversão, follow-up e comparecimento reais."
-            />
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label="Leads"
+          value={metricValue(isLoading, metrics.leadsReceived)}
+          icon={Users}
+          accent="primary"
+          hint={scopeLabel}
+        />
+        <StatCard
+          label="Qualificados"
+          value={metricValue(isLoading, metrics.qualifiedLeads)}
+          icon={UserCheck}
+          accent="primary"
+          hint="Funil avancado"
+        />
+        <StatCard
+          label="Matriculas"
+          value={metricValue(isLoading, metrics.enrollments)}
+          icon={GraduationCap}
+          accent="gold"
+          hint="Taxa feita"
+        />
+        <StatCard
+          label="Conversao"
+          value={metricValue(isLoading, formatPercent(metrics.conversionRate))}
+          icon={LineChart}
+          accent="success"
+          hint="Matriculas/leads"
+        />
+        <StatCard
+          label="Follow-up"
+          value={metricValue(isLoading, formatPercent(metrics.followUpRate))}
+          icon={Phone}
+          accent="primary"
+          hint="Leads acionados"
+        />
+        <StatCard
+          label="Ticket medio"
+          value={metricValue(isLoading, formatCurrency(metrics.averageTicket))}
+          icon={Target}
+          accent="primary"
+          hint="Alunos"
+        />
       </div>
 
+      {data?.scope.mode === "network" ? (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-base">Performance por unidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <GrowthLoading />
+            ) : data.units.length ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {data.units.map((unit) => (
+                  <GrowthDataBar
+                    key={unit.id}
+                    label={unit.name}
+                    value={unit.leads}
+                    max={unitMax}
+                    detail={`${unit.enrollments} matriculas - ${formatPercent(unit.conversionRate)}`}
+                    accent={unit.enrollments > 0 ? "gold" : "primary"}
+                  />
+                ))}
+              </div>
+            ) : (
+              <GrowthEmptyPanel
+                icon={BarChart3}
+                title="Sem dados por unidade"
+                description="As unidades aparecem aqui quando houver leads no CRM."
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Performance por curso</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Performance por curso</CardTitle>
+          </CardHeader>
           <CardContent>
-            <EmptyState
-              icon={BarChart3}
-              title="Sem cursos com performance"
-              description="Os cursos aparecerão quando houver matrículas e vendas registradas."
-            />
+            {isLoading ? (
+              <GrowthLoading />
+            ) : data?.courses.length ? (
+              <div className="space-y-4">
+                {data.courses.map((course) => (
+                  <GrowthDataBar
+                    key={course.course}
+                    label={course.course}
+                    value={course.leads}
+                    max={courseMax}
+                    detail={`${course.enrollments} matriculas - ${formatPercent(course.conversionRate)}`}
+                    accent={course.enrollments > 0 ? "success" : "primary"}
+                  />
+                ))}
+              </div>
+            ) : (
+              <GrowthEmptyPanel
+                icon={BarChart3}
+                title="Sem cursos com performance"
+                description="Os cursos aparecem quando os leads e matriculas tiverem curso vinculado."
+              />
+            )}
           </CardContent>
         </Card>
 
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Tempo médio de fechamento</CardTitle>
+            <CardTitle className="text-base">Funil comercial</CardTitle>
           </CardHeader>
           <CardContent>
-            <EmptyState
-              icon={LineChart}
-              title="Sem ciclo de vendas"
-              description="O tempo médio será calculado quando houver oportunidades concluídas."
-            />
+            {isLoading ? (
+              <GrowthLoading />
+            ) : data?.funnel.some((item) => item.leads > 0) ? (
+              <div className="space-y-4">
+                {data.funnel.map((item) => (
+                  <GrowthDataBar
+                    key={item.stage}
+                    label={item.stage}
+                    value={item.leads}
+                    max={funnelMax}
+                    detail={`${item.leads} leads`}
+                    accent={item.stage === "Matriculado" ? "gold" : "primary"}
+                  />
+                ))}
+              </div>
+            ) : (
+              <GrowthEmptyPanel
+                icon={Radar}
+                title="Sem movimento no funil"
+                description="Os estagios serao preenchidos quando existirem leads na unidade."
+              />
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-base">Conversao por cidade</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <GrowthLoading />
+          ) : data?.cities.length ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {data.cities.map((city) => (
+                <GrowthDataBar
+                  key={city.city}
+                  label={city.city}
+                  value={city.leads}
+                  max={cityMax}
+                  detail={`${city.enrollments} matriculas - ${formatPercent(city.conversionRate)}`}
+                  accent="success"
+                />
+              ))}
+            </div>
+          ) : (
+            <GrowthEmptyPanel
+              icon={BarChart3}
+              title="Sem dados de cidade"
+              description="A conversao por cidade aparece quando os leads tiverem cidade cadastrada."
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

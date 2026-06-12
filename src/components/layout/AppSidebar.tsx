@@ -32,7 +32,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
-import { getInitials, ROLE_LABELS } from "@/lib/auth-types";
+import { canViewGrowth, getInitials, ROLE_LABELS } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -82,15 +82,18 @@ export function AppSidebar() {
   const user = session?.user;
   const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
+  const visibleGroups = groups.filter(
+    (group) => group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false),
+  );
   const navGroups = session?.canRegisterUsers
     ? [
-        ...groups,
+        ...visibleGroups,
         {
           label: "Administracao",
           items: [{ title: "Usuarios e unidades", url: "/usuarios", icon: UserCog }],
         },
       ]
-    : groups;
+    : visibleGroups;
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">

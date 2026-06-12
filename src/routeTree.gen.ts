@@ -29,6 +29,7 @@ import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
@@ -143,6 +144,11 @@ const ApiProfileRoute = ApiProfileRouteImport.update({
   path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGrowthRoute = ApiGrowthRouteImport.update({
+  id: '/api/growth',
+  path: '/api/growth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDashboardRoute = ApiDashboardRouteImport.update({
   id: '/api/dashboard',
   path: '/api/dashboard',
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/recuperacao': typeof RecuperacaoRoute
   '/usuarios': typeof UsuariosRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -331,6 +340,7 @@ export interface FileRouteTypes {
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/growth'
     | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -366,6 +376,7 @@ export interface FileRouteTypes {
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/growth'
     | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/recuperacao'
     | '/usuarios'
     | '/api/dashboard'
+    | '/api/growth'
     | '/api/profile'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -437,6 +449,7 @@ export interface RootRouteChildren {
   RecuperacaoRoute: typeof RecuperacaoRoute
   UsuariosRoute: typeof UsuariosRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
+  ApiGrowthRoute: typeof ApiGrowthRoute
   ApiProfileRoute: typeof ApiProfileRoute
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
@@ -598,6 +611,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/growth': {
+      id: '/api/growth'
+      path: '/api/growth'
+      fullPath: '/api/growth'
+      preLoaderRoute: typeof ApiGrowthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dashboard': {
       id: '/api/dashboard'
       path: '/api/dashboard'
@@ -740,6 +760,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperacaoRoute: RecuperacaoRoute,
   UsuariosRoute: UsuariosRoute,
   ApiDashboardRoute: ApiDashboardRoute,
+  ApiGrowthRoute: ApiGrowthRoute,
   ApiProfileRoute: ApiProfileRoute,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,

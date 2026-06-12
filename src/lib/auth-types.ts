@@ -51,6 +51,14 @@ export function canCreateUnits(role: UserRole) {
   return role === "MASTER";
 }
 
+export function canViewGrowth(role: UserRole) {
+  return role !== "CONSULTOR";
+}
+
+export function canViewNetworkGrowth(role: UserRole) {
+  return role === "MASTER" || role === "CEO";
+}
+
 export function getAssignableRoles(role: UserRole): Array<UserRole> {
   if (role === "MASTER") {
     return ["CEO", "DIRETOR", "GERENTE", "CONSULTOR"];
