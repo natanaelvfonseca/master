@@ -72,7 +72,7 @@ function LoginPage() {
             <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
           </div>
           <div className="max-w-xl pb-4 pt-8 md:pt-10">
-            <div className="pointer-events-none relative -top-8 -ml-4 -mb-28 mt-2 w-[420px] max-w-none md:-top-12 md:-ml-12 md:-mb-48 md:w-[640px]">
+            <div className="pointer-events-none -ml-4 -mt-6 mb-6 w-[88vw] max-w-[390px] md:-ml-12 md:-mt-10 md:mb-7 md:w-[560px] md:max-w-none">
               <img
                 src={anniversary30}
                 alt="30 anos Plenarius"
