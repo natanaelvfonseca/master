@@ -65,14 +65,18 @@ function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen bg-gradient-hero text-primary-foreground">
-      <section className="grid min-h-screen w-full lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
-        <div className="flex min-h-[42vh] flex-col justify-between overflow-hidden p-6 md:p-10">
+    <main className="flex min-h-screen bg-gradient-hero text-primary-foreground md:h-dvh md:min-h-0 md:overflow-hidden">
+      <section className="grid min-h-screen w-full md:h-full md:min-h-0 md:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
+        <div className="flex min-h-[42vh] flex-col justify-between overflow-hidden p-6 md:h-full md:min-h-0 md:px-8 md:py-7 lg:px-10 lg:py-8">
           <div>
-            <img src={plenariusLogo} alt="Plenarius" className="h-20 w-auto object-contain" />
+            <img
+              src={plenariusLogo}
+              alt="Plenarius"
+              className="h-20 w-auto object-contain md:h-[min(5rem,10vh)]"
+            />
           </div>
-          <div className="max-w-xl pb-4 pt-8 md:pt-10">
-            <div className="pointer-events-none -ml-4 -mt-6 mb-6 w-[88vw] max-w-[390px] md:-ml-12 md:-mt-10 md:mb-7 md:w-[560px] md:max-w-none">
+          <div className="max-w-xl pb-4 pt-8 md:pb-0 md:pt-6">
+            <div className="pointer-events-none -ml-4 -mt-6 mb-6 w-[88vw] max-w-[390px] md:-ml-10 md:-mt-8 md:mb-5 md:w-[min(520px,46vh)] md:max-w-none lg:-ml-12 lg:w-[min(560px,49vh)]">
               <img
                 src={anniversary30}
                 alt="30 anos Plenarius"
@@ -82,7 +86,7 @@ function LoginPage() {
             <div className="relative z-10 mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
               Growth Hub
             </div>
-            <h1 className="relative z-10 max-w-lg font-display text-3xl font-bold leading-tight md:text-5xl">
+            <h1 className="relative z-10 max-w-lg font-display text-3xl font-bold leading-tight md:text-[clamp(2rem,5vh,3rem)]">
               A educacao profissional
               <br />
               que transforma vidas.
