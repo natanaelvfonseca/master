@@ -30,10 +30,26 @@ type TrainingLessonRow = QueryResultRow & {
   completed_at: string | null;
 };
 
+type TrainingLessonInput = {
+  unitId: string | null;
+  trail: TrainingTrailId;
+  title: string;
+  description: string;
+  durationLabel: string;
+  orderIndex: number;
+  thumbnailDataUrl: string | null;
+  videoSource: TrainingVideoSource;
+  videoUrl: string;
+  videoFileName: string;
+  videoMimeType: string;
+  videoDataUrl: string | null;
+};
+
 const MAX_VIDEO_FILE_SIZE = 60 * 1024 * 1024;
 const MAX_THUMBNAIL_FILE_SIZE = 6 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 1200;
 const MAX_TITLE_LENGTH = 140;
+const MAX_MEDIA_URL_LENGTH = 4000;
 
 let trainingSchemaPromise: Promise<void> | null = null;
 
@@ -167,6 +183,22 @@ function normalizeVideoUrl(value: string) {
   }
 }
 
+function normalizeMediaReference(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("data:image/")) {
+    return value;
+  }
+
+  return normalizeVideoUrl(value) || null;
+}
+
+function isJsonRequest(request: Request) {
+  return request.headers.get("content-type")?.includes("application/json") ?? false;
+}
+
 async function listLessons(unit: UnitSummary, userId: string) {
   const result = await queryDb<TrainingLessonRow>(
     `
@@ -218,6 +250,63 @@ async function assertLessonVisible(id: string, unit: UnitSummary) {
   return Boolean(result.rows[0]);
 }
 
+async function insertLesson(input: TrainingLessonInput, session: AuthSession) {
+  const result = await queryDb<TrainingLessonRow>(
+    `
+      insert into app_training_lessons (
+        unit_id,
+        trail,
+        title,
+        description,
+        duration_label,
+        order_index,
+        thumbnail_data_url,
+        video_source,
+        video_url,
+        video_file_name,
+        video_mime_type,
+        video_data_url,
+        created_by
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8, nullif($9, ''), $10, $11, $12, $13)
+      returning
+        id,
+        unit_id,
+        trail,
+        title,
+        description,
+        duration_label,
+        order_index,
+        thumbnail_data_url,
+        video_source,
+        video_url,
+        video_file_name,
+        video_mime_type,
+        $14::text as created_by_name,
+        created_at::text,
+        null::text as completed_at
+    `,
+    [
+      input.unitId,
+      input.trail,
+      input.title,
+      input.description,
+      input.durationLabel,
+      input.orderIndex,
+      input.thumbnailDataUrl,
+      input.videoSource,
+      input.videoUrl,
+      input.videoFileName,
+      input.videoMimeType,
+      input.videoDataUrl,
+      session.user.id,
+      session.user.name,
+    ],
+  );
+
+  return mapLesson(result.rows[0]);
+}
+
 export const Route = createFileRoute("/api/training")({
   server: {
     handlers: {
@@ -265,59 +354,38 @@ export const Route = createFileRoute("/api/training")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        const form = await request.formData().catch(() => null);
+        let input: TrainingLessonInput;
 
-        if (!form) {
-          return Response.json({ ok: false, error: "Envio inválido." }, { status: 400 });
-        }
+        if (isJsonRequest(request)) {
+          const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
 
-        const requestedUnit = getRequestedUnit(session, form.get("unitId"));
-        const scope: TrainingLessonScope = form.get("scope") === "unit" ? "unit" : "global";
-        const unitId = scope === "unit" ? requestedUnit?.id : null;
-        const title = readString(form.get("title"), MAX_TITLE_LENGTH);
-        const description = readString(form.get("description"));
-        const durationLabel = readString(form.get("durationLabel"), 40);
-        const orderIndex = Number.parseInt(readString(form.get("orderIndex"), 12), 10) || 0;
-        const trail = isTrainingTrail(form.get("trail")) ? form.get("trail") : "plataforma";
-        const videoSource = isVideoSource(form.get("videoSource"))
-          ? form.get("videoSource")
-          : "upload";
-        const videoFile = getFile(form.get("video"));
-        const thumbnailFile = getFile(form.get("thumbnail"));
-        const videoUrl = normalizeVideoUrl(readString(form.get("videoUrl"), 1000));
-
-        if (scope === "unit" && !requestedUnit) {
-          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
-        }
-
-        if (!title || !description || !durationLabel) {
-          return Response.json(
-            { ok: false, error: "Preencha título, descrição e duração." },
-            { status: 400 },
-          );
-        }
-
-        let videoDataUrl: string | null = null;
-        let videoFileName = "";
-        let videoMimeType = "video/mp4";
-
-        if (videoSource === "upload") {
-          if (!videoFile) {
-            return Response.json({ ok: false, error: "Envie um vídeo válido." }, { status: 400 });
+          if (!body) {
+            return Response.json({ ok: false, error: "Envio inválido." }, { status: 400 });
           }
 
-          videoDataUrl = await fileToDataUrl(videoFile, MAX_VIDEO_FILE_SIZE, "video/");
+          const requestedUnit = getRequestedUnit(session, body.unitId);
+          const scope: TrainingLessonScope = body.scope === "unit" ? "unit" : "global";
+          const title = readString(body.title, MAX_TITLE_LENGTH);
+          const description = readString(body.description);
+          const durationLabel = readString(body.durationLabel, 40);
+          const orderIndex = Number.parseInt(readString(body.orderIndex, 12), 10) || 0;
+          const trail = isTrainingTrail(body.trail) ? body.trail : "plataforma";
+          const videoUrl = normalizeVideoUrl(readString(body.videoUrl, MAX_MEDIA_URL_LENGTH));
+          const thumbnailDataUrl = normalizeMediaReference(
+            readString(body.thumbnailDataUrl ?? body.thumbnailUrl, MAX_MEDIA_URL_LENGTH),
+          );
 
-          if (!videoDataUrl) {
+          if (scope === "unit" && !requestedUnit) {
+            return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+          }
+
+          if (!title || !description || !durationLabel) {
             return Response.json(
-              { ok: false, error: "O vídeo precisa ser MP4/WebM e ter até 60 MB." },
+              { ok: false, error: "Preencha título, descrição e duração." },
               { status: 400 },
             );
           }
 
-          videoFileName = videoFile.name;
-          videoMimeType = videoFile.type || "video/mp4";
-        } else {
           if (!videoUrl) {
             return Response.json(
               { ok: false, error: "Informe uma URL HTTPS direta do vídeo." },
@@ -325,61 +393,103 @@ export const Route = createFileRoute("/api/training")({
             );
           }
 
-          videoFileName = "video-url";
-          videoMimeType = "video/mp4";
-        }
+          input = {
+            unitId: scope === "unit" ? (requestedUnit?.id ?? null) : null,
+            trail,
+            title,
+            description,
+            durationLabel,
+            orderIndex,
+            thumbnailDataUrl,
+            videoSource: "url",
+            videoUrl,
+            videoFileName: readString(body.videoFileName, 240) || "video-url",
+            videoMimeType: readString(body.videoMimeType, 120) || "video/mp4",
+            videoDataUrl: null,
+          };
+        } else {
+          const form = await request.formData().catch(() => null);
 
-        let thumbnailDataUrl: string | null = null;
+          if (!form) {
+            return Response.json({ ok: false, error: "Envio inválido." }, { status: 400 });
+          }
 
-        if (thumbnailFile) {
-          thumbnailDataUrl = await fileToDataUrl(thumbnailFile, MAX_THUMBNAIL_FILE_SIZE, "image/");
+          const requestedUnit = getRequestedUnit(session, form.get("unitId"));
+          const scope: TrainingLessonScope = form.get("scope") === "unit" ? "unit" : "global";
+          const unitId = scope === "unit" ? requestedUnit?.id : null;
+          const title = readString(form.get("title"), MAX_TITLE_LENGTH);
+          const description = readString(form.get("description"));
+          const durationLabel = readString(form.get("durationLabel"), 40);
+          const orderIndex = Number.parseInt(readString(form.get("orderIndex"), 12), 10) || 0;
+          const trail = isTrainingTrail(form.get("trail")) ? form.get("trail") : "plataforma";
+          const videoSource = isVideoSource(form.get("videoSource"))
+            ? form.get("videoSource")
+            : "upload";
+          const videoFile = getFile(form.get("video"));
+          const thumbnailFile = getFile(form.get("thumbnail"));
+          const videoUrl = normalizeVideoUrl(readString(form.get("videoUrl"), 1000));
 
-          if (!thumbnailDataUrl) {
+          if (scope === "unit" && !requestedUnit) {
+            return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+          }
+
+          if (!title || !description || !durationLabel) {
             return Response.json(
-              { ok: false, error: "A capa precisa ser uma imagem de até 6 MB." },
+              { ok: false, error: "Preencha título, descrição e duração." },
               { status: 400 },
             );
           }
-        }
 
-        await ensureTrainingSchema();
+          let videoDataUrl: string | null = null;
+          let videoFileName = "";
+          let videoMimeType = "video/mp4";
 
-        const result = await queryDb<TrainingLessonRow>(
-          `
-            insert into app_training_lessons (
-              unit_id,
-              trail,
-              title,
-              description,
-              duration_label,
-              order_index,
-              thumbnail_data_url,
-              video_source,
-              video_url,
-              video_file_name,
-              video_mime_type,
-              video_data_url,
-              created_by
-            )
-            values ($1, $2, $3, $4, $5, $6, $7, $8, nullif($9, ''), $10, $11, $12, $13)
-            returning
-              id,
-              unit_id,
-              trail,
-              title,
-              description,
-              duration_label,
-              order_index,
-              thumbnail_data_url,
-              video_source,
-              video_url,
-              video_file_name,
-              video_mime_type,
-              $14::text as created_by_name,
-              created_at::text,
-              null::text as completed_at
-          `,
-          [
+          if (videoSource === "upload") {
+            if (!videoFile) {
+              return Response.json({ ok: false, error: "Envie um vídeo válido." }, { status: 400 });
+            }
+
+            videoDataUrl = await fileToDataUrl(videoFile, MAX_VIDEO_FILE_SIZE, "video/");
+
+            if (!videoDataUrl) {
+              return Response.json(
+                { ok: false, error: "O vídeo precisa ser MP4/WebM e ter até 60 MB." },
+                { status: 400 },
+              );
+            }
+
+            videoFileName = videoFile.name;
+            videoMimeType = videoFile.type || "video/mp4";
+          } else {
+            if (!videoUrl) {
+              return Response.json(
+                { ok: false, error: "Informe uma URL HTTPS direta do vídeo." },
+                { status: 400 },
+              );
+            }
+
+            videoFileName = "video-url";
+            videoMimeType = "video/mp4";
+          }
+
+          let thumbnailDataUrl: string | null = null;
+
+          if (thumbnailFile) {
+            thumbnailDataUrl = await fileToDataUrl(
+              thumbnailFile,
+              MAX_THUMBNAIL_FILE_SIZE,
+              "image/",
+            );
+
+            if (!thumbnailDataUrl) {
+              return Response.json(
+                { ok: false, error: "A capa precisa ser uma imagem de até 6 MB." },
+                { status: 400 },
+              );
+            }
+          }
+
+          input = {
             unitId,
             trail,
             title,
@@ -392,12 +502,14 @@ export const Route = createFileRoute("/api/training")({
             videoFileName,
             videoMimeType,
             videoDataUrl,
-            session.user.id,
-            session.user.name,
-          ],
-        );
+          };
+        }
 
-        return Response.json({ lesson: mapLesson(result.rows[0]) }, { status: 201 });
+        await ensureTrainingSchema();
+
+        const lesson = await insertLesson(input, session);
+
+        return Response.json({ lesson }, { status: 201 });
       },
       PATCH: async ({ request }) => {
         const session = await getSessionFromRequest(request);

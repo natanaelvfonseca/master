@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { upload } from "@vercel/blob/client";
 import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
@@ -90,6 +91,10 @@ const initialUploadForm: UploadFormState = {
   thumbnailFile: null,
 };
 
+const TRAINING_UPLOAD_URL = "/api/training/upload";
+const MAX_VIDEO_UPLOAD_BYTES = 1024 * 1024 * 1024;
+const MAX_THUMBNAIL_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 const trailStyles: Record<TrainingTrailId, { ring: string; glow: string; icon: typeof Sparkles }> =
   {
     plataforma: {
@@ -161,8 +166,8 @@ function validateVideoFile(file: File) {
     return false;
   }
 
-  if (file.size > 60 * 1024 * 1024) {
-    toast.error("O vídeo precisa ter até 60 MB.");
+  if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+    toast.error("O vídeo precisa ter até 1 GB.");
     return false;
   }
 
@@ -175,12 +180,48 @@ function validateImageFile(file: File) {
     return false;
   }
 
-  if (file.size > 6 * 1024 * 1024) {
-    toast.error("A capa precisa ter até 6 MB.");
+  if (file.size > MAX_THUMBNAIL_UPLOAD_BYTES) {
+    toast.error("A capa precisa ter até 10 MB.");
     return false;
   }
 
   return true;
+}
+
+function getSafeFileName(file: File) {
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "") ?? "";
+  const baseName =
+    file.name
+      .replace(/\.[^.]+$/, "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "arquivo";
+
+  return extension ? `${baseName}.${extension}` : baseName;
+}
+
+async function uploadTrainingAsset(
+  file: File,
+  kind: "video" | "thumbnail",
+  onProgress: (percentage: number) => void,
+) {
+  const blob = await upload(`treinamentos/${kind}/${Date.now()}-${getSafeFileName(file)}`, file, {
+    access: "public",
+    contentType: file.type,
+    handleUploadUrl: TRAINING_UPLOAD_URL,
+    multipart: kind === "video",
+    clientPayload: JSON.stringify({ kind }),
+    onUploadProgress: ({ percentage }) => onProgress(Math.round(percentage)),
+  });
+
+  return blob.url;
 }
 
 function TrainingPlaceholder({ trail }: { trail: TrainingTrailId }) {
@@ -216,6 +257,8 @@ function UploadDialog({
 }) {
   const [form, setForm] = useState<UploadFormState>(initialUploadForm);
   const [uploading, setUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const updateForm = (patch: Partial<UploadFormState>) => {
     setForm((current) => ({ ...current, ...patch }));
@@ -264,34 +307,57 @@ function UploadDialog({
       return;
     }
 
-    const payload = new FormData();
-
-    payload.append("unitId", activeUnitId);
-    payload.append("title", form.title);
-    payload.append("description", form.description);
-    payload.append("trail", form.trail);
-    payload.append("durationLabel", form.durationLabel);
-    payload.append("orderIndex", form.orderIndex);
-    payload.append("scope", form.scope);
-    payload.append("videoSource", form.videoSource);
-    payload.append("videoUrl", form.videoUrl);
-
-    if (form.videoFile) {
-      payload.append("video", form.videoFile);
-    }
-
-    if (form.thumbnailFile) {
-      payload.append("thumbnail", form.thumbnailFile);
-    }
-
     setUploading(true);
+    setUploadProgress(0);
 
     try {
+      let videoUrl = form.videoUrl.trim();
+      let videoFileName = "video-url";
+      let videoMimeType = "video/mp4";
+      let thumbnailDataUrl: string | null = null;
+
+      if (form.videoSource === "upload" && form.videoFile) {
+        setUploadStep("Enviando vídeo da aula");
+        videoUrl = await uploadTrainingAsset(form.videoFile, "video", setUploadProgress);
+        videoFileName = form.videoFile.name;
+        videoMimeType = form.videoFile.type || "video/mp4";
+      }
+
+      if (form.thumbnailFile) {
+        setUploadStep("Enviando capa da aula");
+        setUploadProgress(0);
+        thumbnailDataUrl = await uploadTrainingAsset(
+          form.thumbnailFile,
+          "thumbnail",
+          setUploadProgress,
+        );
+      }
+
+      setUploadStep("Publicando na trilha");
+      setUploadProgress(100);
+
       const data = await readJson<TrainingResponse>(
         await fetch("/api/training", {
           method: "POST",
           credentials: "same-origin",
-          body: payload,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            unitId: activeUnitId,
+            title: form.title,
+            description: form.description,
+            trail: form.trail,
+            durationLabel: form.durationLabel,
+            orderIndex: form.orderIndex,
+            scope: form.scope,
+            videoSource: "url",
+            videoUrl,
+            videoFileName,
+            videoMimeType,
+            thumbnailDataUrl,
+          }),
         }),
       );
 
@@ -306,11 +372,13 @@ function UploadDialog({
       toast.error(error instanceof Error ? error.message : "Falha ao publicar aula.");
     } finally {
       setUploading(false);
+      setUploadStep("");
+      setUploadProgress(0);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !uploading && onOpenChange(nextOpen)}>
       <DialogTrigger asChild>
         <Button className="gap-2 bg-gold text-[#0B2A6F] hover:bg-gold/90">
           <Plus className="h-4 w-4" /> Nova aula
@@ -450,6 +518,22 @@ function UploadDialog({
             </Button>
           </div>
         </div>
+
+        {uploading ? (
+          <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2 font-bold text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {uploadStep || "Preparando publicação"}
+              </div>
+              <span className="font-black text-primary">{uploadProgress}%</span>
+            </div>
+            <Progress value={uploadProgress} className="mt-3 h-2" />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Mantenha esta janela aberta enquanto o vídeo é enviado.
+            </p>
+          </div>
+        ) : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>

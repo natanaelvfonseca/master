@@ -35,6 +35,7 @@ import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
 import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.video'
+import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upload'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -180,6 +181,11 @@ const ApiTrainingVideoRoute = ApiTrainingVideoRouteImport.update({
   path: '/video',
   getParentRoute: () => ApiTrainingRoute,
 } as any)
+const ApiTrainingUploadRoute = ApiTrainingUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => ApiTrainingRoute,
+} as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
   path: '/api/health/db',
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -330,6 +337,7 @@ export interface FileRoutesByTo {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -417,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/upload'
     | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -459,6 +469,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/upload'
     | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -501,6 +512,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/upload'
     | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -730,6 +742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTrainingVideoRouteImport
       parentRoute: typeof ApiTrainingRoute
     }
+    '/api/training/upload': {
+      id: '/api/training/upload'
+      path: '/upload'
+      fullPath: '/api/training/upload'
+      preLoaderRoute: typeof ApiTrainingUploadRouteImport
+      parentRoute: typeof ApiTrainingRoute
+    }
     '/api/health/db': {
       id: '/api/health/db'
       path: '/api/health/db'
@@ -832,10 +851,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface ApiTrainingRouteChildren {
+  ApiTrainingUploadRoute: typeof ApiTrainingUploadRoute
   ApiTrainingVideoRoute: typeof ApiTrainingVideoRoute
 }
 
 const ApiTrainingRouteChildren: ApiTrainingRouteChildren = {
+  ApiTrainingUploadRoute: ApiTrainingUploadRoute,
   ApiTrainingVideoRoute: ApiTrainingVideoRoute,
 }
 
