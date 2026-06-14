@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as TreinamentosRouteImport } from './routes/treinamentos'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
@@ -27,11 +28,13 @@ import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
+import { Route as ApiTrainingRouteImport } from './routes/api/training'
 import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
+import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.video'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -50,6 +53,11 @@ import { Route as ApiCrmLeadsIdRouteImport } from './routes/api/crm/leads.$id'
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TreinamentosRoute = TreinamentosRouteImport.update({
+  id: '/treinamentos',
+  path: '/treinamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperacaoRoute = RecuperacaoRouteImport.update({
@@ -137,6 +145,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
   path: '/brand-plen/biblioteca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTrainingRoute = ApiTrainingRouteImport.update({
+  id: '/api/training',
+  path: '/api/training',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRankingRoute = ApiRankingRouteImport.update({
   id: '/api/ranking',
   path: '/api/ranking',
@@ -161,6 +174,11 @@ const ApiBrandLibraryRoute = ApiBrandLibraryRouteImport.update({
   id: '/api/brand-library',
   path: '/api/brand-library',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTrainingVideoRoute = ApiTrainingVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => ApiTrainingRoute,
 } as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
@@ -244,12 +262,14 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -268,6 +288,7 @@ export interface FileRoutesByFullPath {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -283,12 +304,14 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -307,6 +330,7 @@ export interface FileRoutesByTo {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -323,12 +347,14 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/treinamentos': typeof TreinamentosRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
@@ -347,6 +373,7 @@ export interface FileRoutesById {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -364,12 +391,14 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/treinamentos'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -388,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -403,12 +433,14 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/treinamentos'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -427,6 +459,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -442,12 +475,14 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/treinamentos'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
     | '/brand-plen/kit'
@@ -466,6 +501,7 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/training/video'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -482,12 +518,14 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
+  TreinamentosRoute: typeof TreinamentosRoute
   UsuariosRoute: typeof UsuariosRoute
   ApiBrandLibraryRoute: typeof ApiBrandLibraryRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
   ApiGrowthRoute: typeof ApiGrowthRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiRankingRoute: typeof ApiRankingRoute
+  ApiTrainingRoute: typeof ApiTrainingRouteWithChildren
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
   BrandPlenKitRoute: typeof BrandPlenKitRoute
@@ -515,6 +553,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinamentos': {
+      id: '/treinamentos'
+      path: '/treinamentos'
+      fullPath: '/treinamentos'
+      preLoaderRoute: typeof TreinamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperacao': {
@@ -636,6 +681,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandPlenBibliotecaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/training': {
+      id: '/api/training'
+      path: '/api/training'
+      fullPath: '/api/training'
+      preLoaderRoute: typeof ApiTrainingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ranking': {
       id: '/api/ranking'
       path: '/api/ranking'
@@ -670,6 +722,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/brand-library'
       preLoaderRoute: typeof ApiBrandLibraryRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/training/video': {
+      id: '/api/training/video'
+      path: '/video'
+      fullPath: '/api/training/video'
+      preLoaderRoute: typeof ApiTrainingVideoRouteImport
+      parentRoute: typeof ApiTrainingRoute
     }
     '/api/health/db': {
       id: '/api/health/db'
@@ -772,6 +831,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ApiTrainingRouteChildren {
+  ApiTrainingVideoRoute: typeof ApiTrainingVideoRoute
+}
+
+const ApiTrainingRouteChildren: ApiTrainingRouteChildren = {
+  ApiTrainingVideoRoute: ApiTrainingVideoRoute,
+}
+
+const ApiTrainingRouteWithChildren = ApiTrainingRoute._addFileChildren(
+  ApiTrainingRouteChildren,
+)
+
 interface ApiCrmLeadsRouteChildren {
   ApiCrmLeadsIdRoute: typeof ApiCrmLeadsIdRoute
 }
@@ -817,12 +888,14 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
+  TreinamentosRoute: TreinamentosRoute,
   UsuariosRoute: UsuariosRoute,
   ApiBrandLibraryRoute: ApiBrandLibraryRoute,
   ApiDashboardRoute: ApiDashboardRoute,
   ApiGrowthRoute: ApiGrowthRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiRankingRoute: ApiRankingRoute,
+  ApiTrainingRoute: ApiTrainingRouteWithChildren,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
   BrandPlenKitRoute: BrandPlenKitRoute,

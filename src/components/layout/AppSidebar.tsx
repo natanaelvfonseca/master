@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Bot,
+  BookOpenCheck,
   ClipboardList,
   GraduationCap,
   History,
@@ -84,6 +85,10 @@ const groups: Array<NavigationGroup> = [
       { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette, brandAdminOnly: true },
       { title: "Histórico", url: "/brand-plen/historico", icon: History, brandHistoryOnly: true },
     ],
+  },
+  {
+    label: "Área de Membros",
+    items: [{ title: "Treinamentos", url: "/treinamentos", icon: BookOpenCheck }],
   },
   {
     label: "Gestão",
