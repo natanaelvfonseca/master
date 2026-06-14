@@ -7,6 +7,7 @@ import {
   getUnitFromRequest,
   isUuid,
 } from "@/lib/server/commercial-schema";
+import { canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 
@@ -164,6 +165,10 @@ export const Route = createFileRoute("/api/crm/leads")({
         await ensureCommercialSchema();
 
         const listView = getLeadListView(request);
+        if (listView === "students" && !canViewStudents(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
         const result = await queryDb<LeadRow>(
           `
             select

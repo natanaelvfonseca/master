@@ -38,6 +38,7 @@ import {
   canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
+  canViewStudents,
   getInitials,
   ROLE_LABELS,
 } from "@/lib/auth-types";
@@ -49,6 +50,7 @@ type NavigationItem = {
   icon: LucideIcon;
   brandAdminOnly?: boolean;
   brandHistoryOnly?: boolean;
+  studentViewOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -65,7 +67,7 @@ const groups: Array<NavigationGroup> = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
-      { title: "Alunos", url: "/leads", icon: GraduationCap },
+      { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
     ],
@@ -97,7 +99,7 @@ const groups: Array<NavigationGroup> = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const { logout, session } = useAuth();
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
@@ -106,6 +108,12 @@ export function AppSidebar() {
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
   const canViewBrandHistory = user ? canViewBrandPlenHistory(user.role) : false;
+  const canViewStudentList = user ? canViewStudents(user.role) : false;
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
   const visibleGroups = groups
     .filter(
       (group) =>
@@ -114,14 +122,12 @@ export function AppSidebar() {
     )
     .map((group) => ({
       ...group,
-      items:
-        group.label === "Brand Plen"
-          ? group.items.filter(
-              (item) =>
-                (!item.brandAdminOnly || canViewBrandAdmin) &&
-                (!item.brandHistoryOnly || canViewBrandHistory),
-            )
-          : group.items,
+      items: group.items.filter(
+        (item) =>
+          (!item.brandAdminOnly || canViewBrandAdmin) &&
+          (!item.brandHistoryOnly || canViewBrandHistory) &&
+          (!item.studentViewOnly || canViewStudentList),
+      ),
     }))
     .filter((group) => group.items.length > 0);
   const navGroups = session?.canRegisterUsers
@@ -169,7 +175,7 @@ export function AppSidebar() {
                         isActive={active}
                         className="relative transition-all duration-200 hover:translate-x-0.5 hover:shadow-[0_12px_28px_-22px_rgba(63,115,216,0.95)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_30px_-22px_rgba(63,115,216,1)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold [&>svg]:transition-transform [&>svg]:duration-200 hover:[&>svg]:scale-110"
                       >
-                        <Link to={item.url}>
+                        <Link to={item.url} onClick={closeMobileSidebar}>
                           <item.icon className="h-4 w-4" />
                           <span>{item.title}</span>
                         </Link>
@@ -189,6 +195,7 @@ export function AppSidebar() {
             <Link
               to="/perfil"
               title="Editar perfil"
+              onClick={closeMobileSidebar}
               className="block rounded-lg bg-sidebar-accent/60 p-3 transition hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <div className="flex items-center gap-3">
@@ -226,6 +233,7 @@ export function AppSidebar() {
                 to="/perfil"
                 aria-label="Editar perfil"
                 title="Editar perfil"
+                onClick={closeMobileSidebar}
                 className="rounded-full transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
               >
                 <Avatar className="h-8 w-8 border border-sidebar-border">

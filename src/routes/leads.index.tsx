@@ -1,9 +1,10 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, Trash2, Users } from "lucide-react";
+import { Lock, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import type { LeadRecord } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
+import { canViewStudents } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/leads/")({
 function LeadsList() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
+  const canViewStudentList = session ? canViewStudents(session.user.role) : false;
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
@@ -52,6 +54,12 @@ function LeadsList() {
 
   React.useEffect(() => {
     async function loadLeads() {
+      if (session && !canViewStudentList) {
+        setLeads([]);
+        setLoading(false);
+        return;
+      }
+
       if (!activeUnitId) {
         setLoading(false);
         return;
@@ -76,7 +84,11 @@ function LeadsList() {
     }
 
     void loadLeads();
-  }, [activeUnitId]);
+  }, [activeUnitId, canViewStudentList, session]);
+
+  if (session && !canViewStudentList) {
+    return <StudentsAccessDenied />;
+  }
 
   const filteredLeads = leads.filter((lead) => {
     const searchText = [
@@ -214,6 +226,22 @@ function LeadsList() {
           </TableBody>
         </Table>
       </Card>
+    </div>
+  );
+}
+
+function StudentsAccessDenied() {
+  return (
+    <div className="flex min-h-[55vh] items-center justify-center">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h1 className="text-xl font-bold">Acesso restrito</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          A lista de alunos fica disponível para liderança e administração.
+        </p>
+      </div>
     </div>
   );
 }

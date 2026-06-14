@@ -63,6 +63,10 @@ export function canViewManagement(role: UserRole) {
   return role === "MASTER" || role === "CEO";
 }
 
+export function canViewStudents(role: UserRole) {
+  return role !== "CONSULTOR";
+}
+
 export function canManageBrandPlen(role: UserRole) {
   return role === "MASTER";
 }
