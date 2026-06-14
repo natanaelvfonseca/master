@@ -28,7 +28,7 @@ type OpenAiErrorResponse = {
 
 const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
 const OPENAI_IMAGE_EDIT_ENDPOINT = "https://api.openai.com/v1/images/edits";
-const DEFAULT_IMAGE_MODEL = "gpt-image-1.5";
+const DEFAULT_IMAGE_MODEL = "gpt-image-2";
 const MAX_TEXT_LENGTH = 32000;
 const MAX_REFERENCE_DATA_URL_LENGTH = 8 * 1024 * 1024;
 
@@ -52,6 +52,21 @@ function isDataImageUrl(value: unknown) {
   );
 }
 
+function toImageFile(dataUrl: string, index: number) {
+  const [metadata = "", content = ""] = dataUrl.split(",");
+  const mimeType = metadata.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64$/i)?.[1];
+
+  if (!mimeType || !content) {
+    return null;
+  }
+
+  const bytes = Buffer.from(content, "base64");
+  const extension = mimeType.replace("image/", "").replace("jpeg", "jpg");
+  const blob = new Blob([bytes], { type: mimeType });
+
+  return { blob, fileName: `brand-reference-${index + 1}.${extension}` };
+}
+
 function parseOpenAiError(status: number, payload: OpenAiErrorResponse | null) {
   const code = payload?.error?.code;
 
@@ -68,6 +83,54 @@ function parseOpenAiError(status: number, payload: OpenAiErrorResponse | null) {
   }
 
   return payload?.error?.message ?? "Não foi possível gerar a imagem agora.";
+}
+
+async function postImageEdit({
+  apiKey,
+  model,
+  prompt,
+  referenceImages,
+  size,
+  quality,
+  outputFormat,
+  userId,
+}: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  referenceImages: Array<string>;
+  size: string;
+  quality: BrandImageQuality;
+  outputFormat: BrandImageOutputFormat;
+  userId: string;
+}) {
+  const form = new FormData();
+
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("n", "1");
+  form.append("size", size);
+  form.append("quality", quality);
+  form.append("output_format", outputFormat);
+  form.append("background", "opaque");
+  form.append("moderation", "auto");
+  form.append("user", userId);
+
+  referenceImages.forEach((imageUrl, index) => {
+    const imageFile = toImageFile(imageUrl, index);
+
+    if (imageFile) {
+      form.append("image[]", imageFile.blob, imageFile.fileName);
+    }
+  });
+
+  return fetch(OPENAI_IMAGE_EDIT_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: form,
+  });
 }
 
 export const Route = createFileRoute("/api/brand-plen/generate")({
@@ -143,33 +206,35 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const referenceImages = [applyLogo ? logoDataUrl : "", referenceImageDataUrl].filter(
           Boolean,
         );
-        const endpoint = referenceImages.length
-          ? OPENAI_IMAGE_EDIT_ENDPOINT
-          : OPENAI_IMAGE_ENDPOINT;
-        const openAiBody: Record<string, unknown> = {
-          model,
-          prompt,
-          n: 1,
-          size,
-          quality,
-          output_format: outputFormat,
-          background: "opaque",
-          moderation: "auto",
-          user: session.user.id,
-        };
-
-        if (referenceImages.length) {
-          openAiBody.images = referenceImages.map((imageUrl) => ({ image_url: imageUrl }));
-        }
-
-        const openAiResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(openAiBody),
-        });
+        const openAiResponse = referenceImages.length
+          ? await postImageEdit({
+              apiKey,
+              model,
+              prompt,
+              referenceImages,
+              size,
+              quality,
+              outputFormat,
+              userId: session.user.id,
+            })
+          : await fetch(OPENAI_IMAGE_ENDPOINT, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                prompt,
+                n: 1,
+                size,
+                quality,
+                output_format: outputFormat,
+                background: "opaque",
+                moderation: "auto",
+                user: session.user.id,
+              }),
+            });
         const payload = (await openAiResponse.json().catch(() => null)) as
           | OpenAiImageResponse
           | OpenAiErrorResponse
