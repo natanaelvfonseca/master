@@ -18,7 +18,7 @@ async function readJson<T>(response: Response): Promise<T> {
     const message =
       typeof (data as { error?: unknown }).error === "string"
         ? (data as { error: string }).error
-        : "Falha na requisicao.";
+        : "Falha na requisição.";
     throw new Error(message);
   }
 

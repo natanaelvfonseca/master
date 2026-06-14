@@ -53,12 +53,12 @@ function LoginPage() {
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Nao foi possivel entrar.");
+        throw new Error(data.error ?? "Não foi possível entrar.");
       }
 
       window.location.assign("/");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Nao foi possivel entrar.");
+      setError(error instanceof Error ? error.message : "Não foi possível entrar.");
     } finally {
       setLoading(false);
     }
@@ -87,14 +87,14 @@ function LoginPage() {
               Growth Hub
             </div>
             <h1 className="relative z-10 max-w-lg font-display text-3xl font-bold leading-tight md:text-[clamp(2rem,5vh,3rem)]">
-              A educacao profissional
+              A educação profissional
               <br />
               que transforma vidas.
             </h1>
             <p className="relative z-10 mt-4 max-w-lg text-sm leading-6 text-white/70">
-              Cada matricula e o inicio
+              Cada matrícula é o início
               <br />
-              de uma nova historia.
+              de uma nova história.
             </p>
           </div>
         </div>

@@ -8,7 +8,12 @@ import type {
   GrowthSourceMetric,
   GrowthUnitMetric,
 } from "@/lib/growth-types";
-import { canViewGrowth, canViewNetworkGrowth, type AuthSession, type UnitSummary } from "@/lib/auth-types";
+import {
+  canViewGrowth,
+  canViewNetworkGrowth,
+  type AuthSession,
+  type UnitSummary,
+} from "@/lib/auth-types";
 import { ensureCommercialSchema } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
@@ -20,7 +25,7 @@ const funnelStages: Array<LeadStage> = [
   "Proposta",
   "Pagamento pendente",
   "Confirmado",
-  "RecuperaÃ§Ã£o",
+  "Recuperação",
   "Matriculado",
 ];
 
@@ -96,7 +101,10 @@ function resolveScope(session: AuthSession, request: Request): GrowthScopeSelect
   const requestedUnitId = url.searchParams.get("unitId")?.trim();
   const availableUnits = session.units;
 
-  if (canViewNetwork && (requestedScope === "all" || requestedUnitId === "all" || !requestedUnitId)) {
+  if (
+    canViewNetwork &&
+    (requestedScope === "all" || requestedUnitId === "all" || !requestedUnitId)
+  ) {
     return {
       mode: "network",
       label: "Toda rede",
@@ -110,7 +118,7 @@ function resolveScope(session: AuthSession, request: Request): GrowthScopeSelect
   const unit = availableUnits.find((item) => item.id === selectedUnitId) ?? null;
 
   if (!unit) {
-    return Response.json({ ok: false, error: "Unidade indisponivel." }, { status: 403 });
+    return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
   }
 
   return {
@@ -186,7 +194,7 @@ export const Route = createFileRoute("/api/growth")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         const scope = resolveScope(session, request);
@@ -230,10 +238,17 @@ export const Route = createFileRoute("/api/growth")({
           );
         }
 
-        const [summaryResult, channelResult, sourceResult, courseResult, cityResult, funnelResult, unitResult] =
-          await Promise.all([
-            queryDb<SummaryRow>(
-              `
+        const [
+          summaryResult,
+          channelResult,
+          sourceResult,
+          courseResult,
+          cityResult,
+          funnelResult,
+          unitResult,
+        ] = await Promise.all([
+          queryDb<SummaryRow>(
+            `
                 select
                   count(*) as leads_received,
                   count(*) filter (
@@ -260,20 +275,20 @@ export const Route = createFileRoute("/api/growth")({
                 from app_leads
                 where unit_id = any($1::uuid[])
               `,
-              [unitIds],
-            ),
-            queryDb<ChannelSummaryRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<ChannelSummaryRow>(
+            `
                 select
                   count(*) filter (where status = 'active') as active_channels,
                   count(*) filter (where status = 'active' and lower(type) like '%pago%') as paid_channels
                 from app_acquisition_channels
                 where unit_id = any($1::uuid[])
               `,
-              [unitIds],
-            ),
-            queryDb<SourceRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<SourceRow>(
+            `
                 select
                   coalesce(nullif(acquisition_channel_name_snapshot, ''), 'Sem origem') as source,
                   count(*) as leads,
@@ -284,10 +299,10 @@ export const Route = createFileRoute("/api/growth")({
                 order by count(*) desc, source asc
                 limit 8
               `,
-              [unitIds],
-            ),
-            queryDb<CourseRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<CourseRow>(
+            `
                 select
                   coalesce(nullif(course_name_snapshot, ''), 'Sem curso') as course,
                   count(*) as leads,
@@ -298,10 +313,10 @@ export const Route = createFileRoute("/api/growth")({
                 order by count(*) filter (where stage = 'Matriculado') desc, count(*) desc, course asc
                 limit 8
               `,
-              [unitIds],
-            ),
-            queryDb<CityRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<CityRow>(
+            `
                 select
                   nullif(city, '') as city,
                   count(*) as leads,
@@ -313,19 +328,19 @@ export const Route = createFileRoute("/api/growth")({
                 order by count(*) desc, city asc
                 limit 8
               `,
-              [unitIds],
-            ),
-            queryDb<FunnelRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<FunnelRow>(
+            `
                 select stage, count(*) as leads
                 from app_leads
                 where unit_id = any($1::uuid[])
                 group by stage
               `,
-              [unitIds],
-            ),
-            queryDb<UnitRow>(
-              `
+            [unitIds],
+          ),
+          queryDb<UnitRow>(
+            `
                 select
                   u.id,
                   u.name,
@@ -337,9 +352,9 @@ export const Route = createFileRoute("/api/growth")({
                 group by u.id, u.name, selected.ord
                 order by selected.ord
               `,
-              [unitIds],
-            ),
-          ]);
+            [unitIds],
+          ),
+        ]);
 
         const summary = summaryResult.rows[0];
         const channelSummary = channelResult.rows[0];

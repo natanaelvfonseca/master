@@ -181,7 +181,7 @@ function CadastroPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            O cadastro de cursos e canais fica disponivel apenas para Master e CEO.
+            O cadastro de cursos e canais fica disponível apenas para Master e CEO.
           </p>
         </div>
       </div>

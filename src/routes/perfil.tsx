@@ -68,19 +68,19 @@ function ProfilePage() {
     }
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Selecione uma imagem valida.");
+      toast.error("Selecione uma imagem válida.");
       return;
     }
 
     if (file.size > MAX_AVATAR_UPLOAD_BYTES) {
-      toast.error("A imagem precisa ter ate 1 MB.");
+      toast.error("A imagem precisa ter até 1 MB.");
       return;
     }
 
     const avatarUrl = await readFileAsDataUrl(file).catch(() => "");
 
     if (!avatarUrl) {
-      toast.error("Nao foi possivel carregar a imagem.");
+      toast.error("Não foi possível carregar a imagem.");
       return;
     }
 
@@ -102,7 +102,7 @@ function ProfilePage() {
       }
 
       if (form.newPassword !== form.confirmPassword) {
-        toast.error("A confirmacao da senha nao confere.");
+        toast.error("A confirmação da senha não confere.");
         return;
       }
     }
@@ -128,7 +128,7 @@ function ProfilePage() {
       const data = (await response.json().catch(() => ({}))) as ProfileResponse;
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Nao foi possivel salvar o perfil.");
+        throw new Error(data.error ?? "Não foi possível salvar o perfil.");
       }
 
       await refreshSession();
@@ -151,7 +151,7 @@ function ProfilePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Configuracoes"
+        eyebrow="Configurações"
         title="Perfil"
         description="Dados da sua conta e acesso."
       />
@@ -170,13 +170,19 @@ function ProfilePage() {
           <CardContent className="space-y-5">
             <div className="flex flex-col items-center gap-4 rounded-lg border border-primary/10 bg-primary/5 px-5 py-6 text-center">
               <Avatar className="h-28 w-28 border-4 border-background shadow-[0_18px_40px_-24px_rgba(23,70,184,0.95)]">
-                <AvatarImage src={form.avatarUrl || undefined} alt={form.name || "Perfil"} className="object-cover" />
+                <AvatarImage
+                  src={form.avatarUrl || undefined}
+                  alt={form.name || "Perfil"}
+                  className="object-cover"
+                />
                 <AvatarFallback className="bg-gradient-primary text-2xl font-bold text-primary-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1">
-                <div className="text-sm font-semibold">{form.name || user?.name || "Plenarius"}</div>
+                <div className="text-sm font-semibold">
+                  {form.name || user?.name || "Plenarius"}
+                </div>
                 <div className="text-xs text-muted-foreground">{form.email || user?.email}</div>
               </div>
             </div>
@@ -228,7 +234,9 @@ function ProfilePage() {
                 <Input
                   id="profile-name"
                   value={form.name}
-                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, name: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -241,7 +249,9 @@ function ProfilePage() {
                     id="profile-email"
                     type="email"
                     value={form.email}
-                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, email: event.target.value }))
+                    }
                     className="pl-9"
                     required
                   />
@@ -271,7 +281,9 @@ function ProfilePage() {
                   id="new-password"
                   type="password"
                   value={form.newPassword}
-                  onChange={(event) => setForm((current) => ({ ...current, newPassword: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, newPassword: event.target.value }))
+                  }
                   autoComplete="new-password"
                   minLength={8}
                 />

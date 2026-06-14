@@ -65,18 +65,22 @@ export const Route = createFileRoute("/api/profile")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         const body = await request.json().catch(() => null);
         const name = typeof body?.name === "string" ? body.name.trim() : "";
         const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
-        const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
+        const currentPassword =
+          typeof body?.currentPassword === "string" ? body.currentPassword : "";
         const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
         const avatarUrl = parseAvatarUrl(body?.avatarUrl);
 
         if (!name || name.length > 140 || !email || !EMAIL_PATTERN.test(email)) {
-          return Response.json({ ok: false, error: "Informe nome e email validos." }, { status: 400 });
+          return Response.json(
+            { ok: false, error: "Informe nome e email válidos." },
+            { status: 400 },
+          );
         }
 
         if (avatarUrl === null) {
@@ -106,7 +110,7 @@ export const Route = createFileRoute("/api/profile")({
         const user = userResult.rows[0];
 
         if (!user) {
-          return Response.json({ ok: false, error: "Usuario nao encontrado." }, { status: 404 });
+          return Response.json({ ok: false, error: "Usuário não encontrado." }, { status: 404 });
         }
 
         let nextPasswordHash: string | null = null;
@@ -143,7 +147,7 @@ export const Route = createFileRoute("/api/profile")({
           );
         } catch (error) {
           if (isUniqueError(error)) {
-            return Response.json({ ok: false, error: "Email ja cadastrado." }, { status: 409 });
+            return Response.json({ ok: false, error: "Email já cadastrado." }, { status: 409 });
           }
 
           throw error;

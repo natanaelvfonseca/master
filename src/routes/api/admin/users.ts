@@ -45,7 +45,7 @@ export const Route = createFileRoute("/api/admin/users")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         if (!session.canRegisterUsers || !session.activeUnit) {
@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/admin/users")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         if (!session.canRegisterUsers || !session.activeUnit) {
@@ -104,21 +104,21 @@ export const Route = createFileRoute("/api/admin/users")({
         const unitId = typeof body?.unitId === "string" ? body.unitId : session.activeUnit.id;
 
         if (!name || !email || password.length < 8 || !isValidRole(role)) {
-          return Response.json({ ok: false, error: "Dados invalidos." }, { status: 400 });
+          return Response.json({ ok: false, error: "Dados inválidos." }, { status: 400 });
         }
 
         if (!canAssignRole(session.user.role, role)) {
-          return Response.json({ ok: false, error: "Funcao nao permitida." }, { status: 403 });
+          return Response.json({ ok: false, error: "Função não permitida." }, { status: 403 });
         }
 
         const selectedUnit = session.units.find((unit) => unit.id === unitId);
 
         if (!selectedUnit) {
-          return Response.json({ ok: false, error: "Unidade indisponivel." }, { status: 403 });
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
         }
 
         if (!["MASTER", "CEO"].includes(session.user.role) && unitId !== session.activeUnit.id) {
-          return Response.json({ ok: false, error: "Unidade nao permitida." }, { status: 403 });
+          return Response.json({ ok: false, error: "Unidade não permitida." }, { status: 403 });
         }
 
         try {
@@ -157,7 +157,7 @@ export const Route = createFileRoute("/api/admin/users")({
           return Response.json({ user: mapManagedUser(created) }, { status: 201 });
         } catch (error) {
           if (isUniqueError(error)) {
-            return Response.json({ ok: false, error: "Email ja cadastrado." }, { status: 409 });
+            return Response.json({ ok: false, error: "Email já cadastrado." }, { status: 409 });
           }
 
           throw error;

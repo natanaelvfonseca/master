@@ -47,13 +47,13 @@ export const Route = createFileRoute("/api/ranking")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         const unit = getUnitFromRequest(session, request);
 
         if (!unit) {
-          return Response.json({ ok: false, error: "Unidade indisponivel." }, { status: 403 });
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
         }
 
         await ensureCommercialSchema();

@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  getSessionFromRequest,
-  slugifyUnitName,
-} from "@/lib/server/auth";
+import { getSessionFromRequest, slugifyUnitName } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 
 type UnitRow = {
@@ -22,16 +19,19 @@ export const Route = createFileRoute("/api/admin/units")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
-        return Response.json({ units: session.units }, { headers: { "Cache-Control": "no-store" } });
+        return Response.json(
+          { units: session.units },
+          { headers: { "Cache-Control": "no-store" } },
+        );
       },
       POST: async ({ request }) => {
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         if (!session.canCreateUnits) {
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/admin/units")({
           return Response.json({ unit: result.rows[0] }, { status: 201 });
         } catch (error) {
           if (isUniqueError(error)) {
-            return Response.json({ ok: false, error: "Unidade ja cadastrada." }, { status: 409 });
+            return Response.json({ ok: false, error: "Unidade já cadastrada." }, { status: 409 });
           }
 
           throw error;

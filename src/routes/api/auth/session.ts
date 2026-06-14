@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/auth/session")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         return Response.json(session, {
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/api/auth/session")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         const body = await request.json().catch(() => null);
@@ -33,13 +33,13 @@ export const Route = createFileRoute("/api/auth/session")({
         const activeUnit = session.units.find((unit) => unit.id === activeUnitId);
 
         if (!activeUnit) {
-          return Response.json({ ok: false, error: "Unidade indisponivel." }, { status: 403 });
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
         }
 
         const token = getCookie(request, SESSION_COOKIE_NAME);
 
         if (!token) {
-          return Response.json({ ok: false, error: "Nao autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         await queryDb(

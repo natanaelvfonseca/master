@@ -240,7 +240,7 @@ function ElitePodium({
         <div>
           <div className="text-xs font-semibold uppercase text-gold">Top 3 consultores</div>
           <h2 className="mt-1 text-2xl font-extrabold leading-none text-white md:text-3xl">
-            Podium do mês
+            Pódio do mês
           </h2>
         </div>
         <div className="hidden items-center gap-2 text-sm text-white/60 md:flex">
@@ -315,7 +315,7 @@ function ChampionCard({ member, progress }: { member: RankingMember; progress: n
               <div className="text-sm font-bold text-white">
                 {formatPercent(member.conversionRate)}
               </div>
-              <div className="mt-1 text-xs text-white/50">conversao</div>
+              <div className="mt-1 text-xs text-white/50">conversão</div>
             </div>
           </div>
 

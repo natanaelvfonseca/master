@@ -8,15 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAuth } from "@/lib/auth";
 import {
-  getAssignableRoles,
-  ROLE_LABELS,
-  type ManagedUser,
-  type UserRole,
-} from "@/lib/auth-types";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useAuth } from "@/lib/auth";
+import { getAssignableRoles, ROLE_LABELS, type ManagedUser, type UserRole } from "@/lib/auth-types";
 
 type UsersResponse = {
   users: Array<ManagedUser>;
@@ -27,7 +35,7 @@ type UnitsResponse = {
 };
 
 export const Route = createFileRoute("/usuarios")({
-  head: () => ({ meta: [{ title: "Usuarios - Plenarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Usuários - Plenarius Growth Hub" }] }),
   component: UsersPage,
 });
 
@@ -83,7 +91,7 @@ function UsersPage() {
       ]);
 
       if (!usersResponse.ok || !unitsResponse.ok) {
-        throw new Error("Nao foi possivel carregar usuarios.");
+        throw new Error("Não foi possível carregar usuários.");
       }
 
       const usersData = (await usersResponse.json()) as UsersResponse;
@@ -91,7 +99,7 @@ function UsersPage() {
       setUsers(usersData.users);
       setUnits(unitsData.units);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao carregar usuarios.");
+      toast.error(error instanceof Error ? error.message : "Falha ao carregar usuários.");
     } finally {
       setLoading(false);
     }
@@ -110,7 +118,7 @@ function UsersPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Seu usuario nao tem permissao para cadastrar usuarios.
+            Seu usuário não tem permissão para cadastrar usuários.
           </p>
         </div>
       </div>
@@ -137,10 +145,10 @@ function UsersPage() {
       };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Nao foi possivel cadastrar usuario.");
+        throw new Error(data.error ?? "Não foi possível cadastrar usuário.");
       }
 
-      toast.success("Usuario cadastrado.");
+      toast.success("Usuário cadastrado.");
       setForm((current) => ({
         ...current,
         name: "",
@@ -149,7 +157,7 @@ function UsersPage() {
       }));
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao cadastrar usuario.");
+      toast.error(error instanceof Error ? error.message : "Falha ao cadastrar usuário.");
     } finally {
       setSavingUser(false);
     }
@@ -172,13 +180,15 @@ function UsersPage() {
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Nao foi possivel criar unidade.");
+        throw new Error(data.error ?? "Não foi possível criar unidade.");
       }
 
       toast.success("Unidade criada.");
       setUnitName("");
       if (data.unit) {
-        setUnits((current) => [...current, data.unit!].sort((a, b) => a.name.localeCompare(b.name)));
+        setUnits((current) =>
+          [...current, data.unit!].sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
       await refreshSession();
       await loadData();
@@ -192,9 +202,9 @@ function UsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Administracao"
-        title="Usuarios e unidades"
-        description="Cadastros internos vinculados a unidade ativa."
+        eyebrow="Administração"
+        title="Usuários e unidades"
+        description="Cadastros internos vinculados à unidade ativa."
         actions={
           <Badge variant="secondary" className="bg-primary/10 text-primary">
             {session.activeUnit?.name ?? "Sem unidade ativa"}
@@ -208,7 +218,7 @@ function UsersPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
               <UserPlus className="h-4 w-4" />
             </div>
-            <CardTitle className="text-base">Novo usuario</CardTitle>
+            <CardTitle className="text-base">Novo usuário</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-2">
@@ -217,7 +227,9 @@ function UsersPage() {
                 <Input
                   id="name"
                   value={form.name}
-                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, name: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -227,7 +239,9 @@ function UsersPage() {
                   id="email"
                   type="email"
                   value={form.email}
-                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, email: event.target.value }))
+                  }
                   required
                 />
               </div>
@@ -239,7 +253,9 @@ function UsersPage() {
                     id="password"
                     type="password"
                     value={form.password}
-                    onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, password: event.target.value }))
+                    }
                     className="pl-9"
                     minLength={8}
                     required
@@ -247,15 +263,21 @@ function UsersPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Funcao</Label>
+                <Label>Função</Label>
                 <Select
                   value={form.role}
-                  onValueChange={(value) => setForm((current) => ({ ...current, role: value as UserRole }))}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, role: value as UserRole }))
+                  }
                 >
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
                     {assignableRoles.map((role) => (
-                      <SelectItem key={role} value={role}>{ROLE_LABELS[role]}</SelectItem>
+                      <SelectItem key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -267,17 +289,21 @@ function UsersPage() {
                   onValueChange={(value) => setForm((current) => ({ ...current, unitId: value }))}
                   disabled={!["MASTER", "CEO"].includes(session.user.role)}
                 >
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
                     {(units.length ? units : session.units).map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="md:col-span-2">
                 <Button type="submit" disabled={savingUser || !form.role || !form.unitId}>
-                  {savingUser ? "Salvando..." : "Cadastrar usuario"}
+                  {savingUser ? "Salvando..." : "Cadastrar usuário"}
                 </Button>
               </div>
             </form>
@@ -289,7 +315,7 @@ function UsersPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-gold text-gold-foreground">
               <Users className="h-4 w-4" />
             </div>
-            <CardTitle className="text-base">Usuarios da unidade</CardTitle>
+            <CardTitle className="text-base">Usuários da unidade</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -297,7 +323,7 @@ function UsersPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Funcao</TableHead>
+                  <TableHead>Função</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -329,7 +355,7 @@ function UsersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                      Nenhum usuario nesta unidade.
+                      Nenhum usuário nesta unidade.
                     </TableCell>
                   </TableRow>
                 )}

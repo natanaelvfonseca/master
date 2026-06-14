@@ -86,7 +86,7 @@ function BI() {
       <PageHeader
         eyebrow="Crescimento"
         title="BI Comercial"
-        description="Indicadores comerciais consolidados por unidade, curso, cidade e estagio do funil."
+        description="Indicadores comerciais consolidados por unidade, curso, cidade e estágio do funil."
         actions={
           session ? (
             <GrowthScopeSelect session={session} value={scopeValue} onValueChange={setScopeValue} />
@@ -107,21 +107,21 @@ function BI() {
           value={metricValue(isLoading, metrics.qualifiedLeads)}
           icon={UserCheck}
           accent="primary"
-          hint="Funil avancado"
+          hint="Funil avançado"
         />
         <StatCard
-          label="Matriculas"
+          label="Matrículas"
           value={metricValue(isLoading, metrics.enrollments)}
           icon={GraduationCap}
           accent="gold"
           hint="Taxa feita"
         />
         <StatCard
-          label="Conversao"
+          label="Conversão"
           value={metricValue(isLoading, formatPercent(metrics.conversionRate))}
           icon={LineChart}
           accent="success"
-          hint="Matriculas/leads"
+          hint="Matrículas/leads"
         />
         <StatCard
           label="Follow-up"
@@ -131,7 +131,7 @@ function BI() {
           hint="Leads acionados"
         />
         <StatCard
-          label="Ticket medio"
+          label="Ticket médio"
           value={metricValue(isLoading, formatCurrency(metrics.averageTicket))}
           icon={Target}
           accent="primary"
@@ -155,7 +155,7 @@ function BI() {
                     label={unit.name}
                     value={unit.leads}
                     max={unitMax}
-                    detail={`${unit.enrollments} matriculas - ${formatPercent(unit.conversionRate)}`}
+                    detail={`${unit.enrollments} matrículas - ${formatPercent(unit.conversionRate)}`}
                     accent={unit.enrollments > 0 ? "gold" : "primary"}
                   />
                 ))}
@@ -187,7 +187,7 @@ function BI() {
                     label={course.course}
                     value={course.leads}
                     max={courseMax}
-                    detail={`${course.enrollments} matriculas - ${formatPercent(course.conversionRate)}`}
+                    detail={`${course.enrollments} matrículas - ${formatPercent(course.conversionRate)}`}
                     accent={course.enrollments > 0 ? "success" : "primary"}
                   />
                 ))}
@@ -196,7 +196,7 @@ function BI() {
               <GrowthEmptyPanel
                 icon={BarChart3}
                 title="Sem cursos com performance"
-                description="Os cursos aparecem quando os leads e matriculas tiverem curso vinculado."
+                description="Os cursos aparecem quando os leads e matrículas tiverem curso vinculado."
               />
             )}
           </CardContent>
@@ -226,7 +226,7 @@ function BI() {
               <GrowthEmptyPanel
                 icon={Radar}
                 title="Sem movimento no funil"
-                description="Os estagios serao preenchidos quando existirem leads na unidade."
+                description="Os estágios serão preenchidos quando existirem leads na unidade."
               />
             )}
           </CardContent>
@@ -235,7 +235,7 @@ function BI() {
 
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-base">Conversao por cidade</CardTitle>
+          <CardTitle className="text-base">Conversão por cidade</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -248,7 +248,7 @@ function BI() {
                   label={city.city}
                   value={city.leads}
                   max={cityMax}
-                  detail={`${city.enrollments} matriculas - ${formatPercent(city.conversionRate)}`}
+                  detail={`${city.enrollments} matrículas - ${formatPercent(city.conversionRate)}`}
                   accent="success"
                 />
               ))}
@@ -257,7 +257,7 @@ function BI() {
             <GrowthEmptyPanel
               icon={BarChart3}
               title="Sem dados de cidade"
-              description="A conversao por cidade aparece quando os leads tiverem cidade cadastrada."
+              description="A conversão por cidade aparece quando os leads tiverem cidade cadastrada."
             />
           )}
         </CardContent>

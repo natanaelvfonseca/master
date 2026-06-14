@@ -73,8 +73,8 @@ function Branding() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Crescimento"
-        title="Marketing e Aquisicao"
-        description="Leitura de fontes, canais e conversao de campanhas por unidade ou rede."
+        title="Marketing e Aquisição"
+        description="Leitura de fontes, canais e conversão de campanhas por unidade ou rede."
         actions={
           session ? (
             <GrowthScopeSelect session={session} value={scopeValue} onValueChange={setScopeValue} />
@@ -91,11 +91,11 @@ function Branding() {
           hint={scopeLabel}
         />
         <StatCard
-          label="Conversao por origem"
+          label="Conversão por origem"
           value={metricValue(isLoading, formatPercent(metrics.sourceConversionRate))}
           icon={Signal}
           accent="success"
-          hint="Matriculas/leads"
+          hint="Matrículas/leads"
         />
         <StatCard
           label="Canais ativos"
@@ -109,7 +109,7 @@ function Branding() {
           value={metricValue(isLoading, metrics.paidChannels)}
           icon={Heart}
           accent="primary"
-          hint="Midia paga"
+          hint="Mídia paga"
         />
       </div>
 
@@ -128,7 +128,7 @@ function Branding() {
                   label={source.source}
                   value={source.leads}
                   max={sourceMax}
-                  detail={`${source.enrollments} matriculas - ${formatPercent(source.conversionRate)}`}
+                  detail={`${source.enrollments} matrículas - ${formatPercent(source.conversionRate)}`}
                   accent={source.enrollments > 0 ? "success" : "primary"}
                 />
               ))}
@@ -137,7 +137,7 @@ function Branding() {
             <GrowthEmptyPanel
               icon={Megaphone}
               title="Nenhuma origem capturada"
-              description="As fontes aparecem quando os leads entram com canal de aquisicao."
+              description="As fontes aparecem quando os leads entram com canal de aquisição."
             />
           )}
         </CardContent>
@@ -146,7 +146,7 @@ function Branding() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Matriculas por fonte</CardTitle>
+            <CardTitle className="text-base">Matrículas por fonte</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -169,8 +169,8 @@ function Branding() {
             ) : (
               <GrowthEmptyPanel
                 icon={GraduationCap}
-                title="Sem matriculas por fonte"
-                description="As conversoes por origem aparecem quando leads com fonte virarem alunos."
+                title="Sem matrículas por fonte"
+                description="As conversões por origem aparecem quando leads com fonte virarem alunos."
               />
             )}
           </CardContent>
@@ -193,7 +193,7 @@ function Branding() {
                     label={unit.name}
                     value={unit.leads}
                     max={unitMax}
-                    detail={`${unit.enrollments} matriculas`}
+                    detail={`${unit.enrollments} matrículas`}
                     accent={unit.enrollments > 0 ? "gold" : "primary"}
                   />
                 ))}
@@ -201,7 +201,7 @@ function Branding() {
             ) : (
               <GrowthEmptyPanel
                 icon={BarChart3}
-                title="Visao de unidade ativa"
+                title="Visão de unidade ativa"
                 description="Use o seletor para alternar entre rede e unidades quando seu perfil permitir."
               />
             )}
