@@ -589,6 +589,13 @@ function Treinamentos() {
   const activeTrail = getTrail(selectedTrail);
   const activeTrailLessons = lessonsByTrail[selectedTrail] ?? [];
 
+  const selectTrail = (trailId: TrainingTrailId) => {
+    const firstLesson = lessonsByTrail[trailId]?.[0] ?? null;
+
+    setSelectedTrail(trailId);
+    setSelectedLessonId(firstLesson?.id ?? null);
+  };
+
   const loadTraining = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
       if (!activeUnitId) {
@@ -774,7 +781,7 @@ function Treinamentos() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
             {TRAINING_TRAILS.map((trail) => {
               const Icon = trailStyles[trail.id].icon;
               const trailLessons = lessonsByTrail[trail.id] ?? [];
@@ -785,37 +792,83 @@ function Treinamentos() {
                 <button
                   key={trail.id}
                   type="button"
-                  onClick={() => setSelectedTrail(trail.id)}
+                  onClick={() => selectTrail(trail.id)}
                   className={cn(
-                    "group relative overflow-hidden rounded-xl border bg-card p-4 text-left shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-elegant",
-                    active && "border-primary shadow-elegant",
+                    "group flex min-w-max items-center gap-2 rounded-full border bg-card px-3 py-2 text-left shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-elegant md:min-w-0 md:justify-between md:px-4",
+                    active && "border-primary bg-primary text-white shadow-elegant",
                   )}
                 >
-                  <div
-                    className={cn(
-                      "absolute inset-x-0 top-0 h-1 bg-gradient-to-r",
-                      trailStyles[trail.id].ring,
-                    )}
-                  />
-                  <div className="flex items-start justify-between gap-3">
-                    <div
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
                       className={cn(
-                        "flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white",
                         trailStyles[trail.id].ring,
                       )}
                     >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {completed}/{trailLessons.length}
-                    </Badge>
-                  </div>
-                  <div className="mt-4 text-sm font-black">{trail.title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{trail.subtitle}</div>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-black md:text-sm">
+                        {trail.title}
+                      </span>
+                      <span
+                        className={cn(
+                          "hidden truncate text-[11px] text-muted-foreground md:block",
+                          active && "text-white/70",
+                        )}
+                      >
+                        {trail.subtitle}
+                      </span>
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full bg-muted px-2 py-0.5 text-[10px] font-black text-muted-foreground",
+                      active && "bg-white/15 text-white",
+                    )}
+                  >
+                    {completed}/{trailLessons.length}
+                  </span>
                 </button>
               );
             })}
           </div>
+
+          <Card className="overflow-hidden border-primary/20 shadow-elegant">
+            {selectedLesson ? (
+              <>
+                <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))] p-4 md:p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-primary/10 text-primary">Assistindo agora</Badge>
+                    <Badge variant="secondary">{getTrail(selectedLesson.trail).title}</Badge>
+                  </div>
+                  <CardTitle className="mt-2 line-clamp-2 text-lg leading-tight md:text-2xl">
+                    {selectedLesson.title}
+                  </CardTitle>
+                </CardHeader>
+                <div className="relative bg-[#061B4D] p-2 md:p-3">
+                  <video
+                    key={selectedLesson.id}
+                    className="aspect-video w-full rounded-lg bg-black shadow-[0_24px_70px_-36px_rgba(0,0,0,0.85)]"
+                    controls
+                    poster={selectedLesson.thumbnailDataUrl ?? undefined}
+                    src={buildVideoSrc(selectedLesson, activeUnitId)}
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent" />
+                </div>
+              </>
+            ) : (
+              <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-6 text-center md:min-h-[430px]">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Play className="h-7 w-7" />
+                </div>
+                <div className="mt-4 text-base font-black">Player da trilha</div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Selecione uma aula para começar o treinamento.
+                </p>
+              </CardContent>
+            )}
+          </Card>
 
           <Card className="overflow-hidden shadow-card">
             <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))]">
@@ -931,92 +984,84 @@ function Treinamentos() {
 
         <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
           <Card className="overflow-hidden border-primary/20 shadow-elegant">
+            <CardHeader className="border-b bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_100%)] p-4 text-white">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Film className="h-4 w-4 text-gold" />
+                Informações da aula
+              </CardTitle>
+            </CardHeader>
             {selectedLesson ? (
-              <>
-                <div className="relative bg-[#061B4D]">
-                  <video
-                    key={selectedLesson.id}
-                    className="aspect-video w-full bg-black"
-                    controls
-                    poster={selectedLesson.thumbnailDataUrl ?? undefined}
-                    src={buildVideoSrc(selectedLesson, activeUnitId)}
-                  />
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent" />
+              <CardContent className="space-y-4 p-4">
+                <div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className="bg-primary/10 text-primary">
+                      {getTrail(selectedLesson.trail).title}
+                    </Badge>
+                    <Badge variant="secondary">{selectedLesson.durationLabel}</Badge>
+                  </div>
+                  <h2 className="mt-3 text-xl font-black leading-tight">{selectedLesson.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {selectedLesson.description}
+                  </p>
                 </div>
-                <CardContent className="space-y-4 p-4">
-                  <div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="bg-primary/10 text-primary">
-                        {getTrail(selectedLesson.trail).title}
-                      </Badge>
-                      <Badge variant="secondary">{selectedLesson.durationLabel}</Badge>
-                    </div>
-                    <h2 className="mt-3 text-xl font-black leading-tight">
-                      {selectedLesson.title}
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {selectedLesson.description}
-                    </p>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg bg-muted/40 p-3">
-                      <div className="text-muted-foreground">Status</div>
-                      <div className="mt-1 font-bold">
-                        {selectedLesson.completedAt ? "Concluída" : "Em andamento"}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-3">
-                      <div className="text-muted-foreground">Publicado</div>
-                      <div className="mt-1 font-bold">{formatDate(selectedLesson.createdAt)}</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-muted/40 p-3">
+                    <div className="text-muted-foreground">Status</div>
+                    <div className="mt-1 font-bold">
+                      {selectedLesson.completedAt ? "Concluída" : "Em andamento"}
                     </div>
                   </div>
+                  <div className="rounded-lg bg-muted/40 p-3">
+                    <div className="text-muted-foreground">Publicado</div>
+                    <div className="mt-1 font-bold">{formatDate(selectedLesson.createdAt)}</div>
+                  </div>
+                </div>
 
+                <Button
+                  className={cn(
+                    "w-full gap-2",
+                    selectedLesson.completedAt
+                      ? "bg-success text-white hover:bg-success/90"
+                      : "bg-primary text-white",
+                  )}
+                  onClick={() => updateProgress(selectedLesson, !selectedLesson.completedAt)}
+                  disabled={savingProgress}
+                >
+                  {savingProgress ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : selectedLesson.completedAt ? (
+                    <BadgeCheck className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  {selectedLesson.completedAt ? "Concluída" : "Marcar como concluída"}
+                </Button>
+
+                {canManage ? (
                   <Button
-                    className={cn(
-                      "w-full gap-2",
-                      selectedLesson.completedAt
-                        ? "bg-success text-white hover:bg-success/90"
-                        : "bg-primary text-white",
-                    )}
-                    onClick={() => updateProgress(selectedLesson, !selectedLesson.completedAt)}
-                    disabled={savingProgress}
+                    variant="outline"
+                    className="w-full gap-2 text-muted-foreground"
+                    onClick={() => archiveLesson(selectedLesson)}
+                    disabled={archivingId === selectedLesson.id}
                   >
-                    {savingProgress ? (
+                    {archivingId === selectedLesson.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : selectedLesson.completedAt ? (
-                      <BadgeCheck className="h-4 w-4" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     )}
-                    {selectedLesson.completedAt ? "Concluída" : "Marcar como concluída"}
+                    Arquivar aula
                   </Button>
-
-                  {canManage ? (
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2 text-muted-foreground"
-                      onClick={() => archiveLesson(selectedLesson)}
-                      disabled={archivingId === selectedLesson.id}
-                    >
-                      {archivingId === selectedLesson.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                      Arquivar aula
-                    </Button>
-                  ) : null}
-                </CardContent>
-              </>
+                ) : null}
+              </CardContent>
             ) : (
-              <CardContent className="flex min-h-[420px] flex-col items-center justify-center p-6 text-center">
+              <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-6 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Play className="h-7 w-7" />
+                  <PlayCircle className="h-7 w-7" />
                 </div>
-                <div className="mt-4 text-base font-black">Player da trilha</div>
+                <div className="mt-4 text-base font-black">Aula não selecionada</div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Selecione uma aula para começar o treinamento.
+                  Escolha uma aula da trilha para ver os detalhes.
                 </p>
               </CardContent>
             )}
