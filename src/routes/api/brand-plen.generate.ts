@@ -10,6 +10,8 @@ import {
 } from "@/lib/generateBrandImage";
 import { getUnitFromBody, getUnitFromRequest } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
+import { canViewBrandPlenHistory } from "@/lib/auth-types";
+import { getBrandPlenSettings } from "@/lib/server/brand-plen-settings";
 import { queryDb } from "@/lib/server/db";
 
 type OpenAiImage = {
@@ -51,6 +53,7 @@ type BrandPlenGenerationRow = QueryResultRow & {
   format: BrandImageOutputFormat;
   error_message: string | null;
   published_material_id: string | null;
+  created_by_name: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -155,10 +158,6 @@ function readString(value: unknown, maxLength = 500) {
   return value.trim().slice(0, maxLength);
 }
 
-function isQuality(value: unknown): value is BrandImageQuality {
-  return value === "low" || value === "medium" || value === "high";
-}
-
 function isDataImageUrl(value: unknown) {
   return (
     typeof value === "string" &&
@@ -212,6 +211,7 @@ function mapGeneration(row: BrandPlenGenerationRow): BrandPlenGeneration {
     format: row.format,
     errorMessage: row.error_message,
     publishedMaterialId: row.published_material_id,
+    createdByName: row.created_by_name ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -320,7 +320,15 @@ async function markGenerationFailed(id: string, errorMessage: string) {
   return result.rows[0] ? mapGeneration(result.rows[0]) : null;
 }
 
-async function listRecentGenerations(unitId: string, userId: string) {
+async function listRecentGenerations({
+  unitId,
+  userId,
+  scope = "user",
+}: {
+  unitId: string;
+  userId: string;
+  scope?: "user" | "unit";
+}) {
   await queryDb(
     `
       update app_brand_plen_generations
@@ -328,44 +336,47 @@ async function listRecentGenerations(unitId: string, userId: string) {
           error_message = 'A geração demorou mais que o esperado. Tente criar novamente.',
           updated_at = now()
       where unit_id = $1
-        and created_by = $2
+        and ($2::uuid is null or created_by = $2::uuid)
         and status = 'generating'
         and updated_at < now() - interval '20 minutes'
     `,
-    [unitId, userId],
+    [unitId, scope === "user" ? userId : null],
   );
 
+  const limit = scope === "unit" ? 120 : RECENT_GENERATIONS_LIMIT;
   const result = await queryDb<BrandPlenGenerationRow>(
     `
       select
-        id,
-        unit_id,
-        status,
-        data_url,
-        revised_prompt,
-        prompt,
-        piece_type,
-        objective,
-        course,
-        audience,
-        visual_style,
-        description,
-        overlay_text,
-        model,
-        size,
-        quality,
-        format,
-        error_message,
-        published_material_id,
-        created_at::text,
-        updated_at::text
-      from app_brand_plen_generations
-      where unit_id = $1
-        and created_by = $2
-      order by created_at desc
+        g.id,
+        g.unit_id,
+        g.status,
+        g.data_url,
+        g.revised_prompt,
+        g.prompt,
+        g.piece_type,
+        g.objective,
+        g.course,
+        g.audience,
+        g.visual_style,
+        g.description,
+        g.overlay_text,
+        g.model,
+        g.size,
+        g.quality,
+        g.format,
+        g.error_message,
+        g.published_material_id,
+        u.name as created_by_name,
+        g.created_at::text,
+        g.updated_at::text
+      from app_brand_plen_generations g
+      left join app_users u on u.id = g.created_by
+      where g.unit_id = $1
+        and ($2::uuid is null or g.created_by = $2::uuid)
+      order by g.created_at desc
       limit $3
     `,
-    [unitId, userId, RECENT_GENERATIONS_LIMIT],
+    [unitId, scope === "user" ? userId : null, limit],
   );
 
   return result.rows.map(mapGeneration);
@@ -387,10 +398,23 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
           return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
         }
 
+        const url = new URL(request.url);
+        const scope = url.searchParams.get("scope") === "unit" ? "unit" : "user";
+
+        if (scope === "unit" && !canViewBrandPlenHistory(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
         await ensureBrandPlenGenerationSchema();
 
         return Response.json(
-          { generations: await listRecentGenerations(unit.id, session.user.id) },
+          {
+            generations: await listRecentGenerations({
+              unitId: unit.id,
+              userId: session.user.id,
+              scope,
+            }),
+          },
           { headers: { "Cache-Control": "no-store" } },
         );
       },
@@ -427,12 +451,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const visualStyle = readString(body.visualStyle, 160);
         const description = readString(body.description, 1400);
         const overlayText = readString(body.overlayText, 140);
-        const applyLogo = body.applyLogo !== false;
-        const logoDataUrl = isDataImageUrl(body.logoDataUrl) ? body.logoDataUrl : "";
-        const referenceImageDataUrl = isDataImageUrl(body.referenceImageDataUrl)
-          ? body.referenceImageDataUrl
-          : "";
-        const quality = isQuality(body.quality) ? body.quality : "high";
+        const fallbackLogoDataUrl = isDataImageUrl(body.logoDataUrl) ? body.logoDataUrl : "";
         const outputFormat: BrandImageOutputFormat = "webp";
 
         if (!unit) {
@@ -446,14 +465,20 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
           );
         }
 
-        if (applyLogo && !logoDataUrl) {
+        await ensureBrandPlenGenerationSchema();
+        const settings = await getBrandPlenSettings(unit.id);
+        const logoDataUrl = settings.logoDataUrl || fallbackLogoDataUrl;
+        const quality = settings.defaultQuality;
+        const configuredReferenceImages = (settings.referencesByPieceType[pieceType] ?? [])
+          .map((reference) => reference.dataUrl)
+          .filter(Boolean);
+
+        if (!logoDataUrl) {
           return Response.json(
-            { ok: false, error: "Não foi possível carregar o logo da Plenarius." },
+            { ok: false, error: "Não foi possível carregar o logo obrigatório da Plenarius." },
             { status: 400 },
           );
         }
-
-        await ensureBrandPlenGenerationSchema();
 
         const prompt = buildBrandImagePrompt({
           pieceType,
@@ -463,8 +488,9 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
           description,
           visualStyle,
           overlayText,
-          applyLogo,
+          applyLogo: true,
           unitName: unit.name,
+          brandSettings: settings,
         }).slice(0, MAX_TEXT_LENGTH);
         const size = getBrandImageSize(pieceType);
         const model = process.env.OPENAI_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL;
@@ -531,9 +557,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const generation = generationResult.rows[0];
 
         try {
-          const referenceImages = [applyLogo ? logoDataUrl : "", referenceImageDataUrl].filter(
-            Boolean,
-          );
+          const referenceImages = [logoDataUrl, ...configuredReferenceImages].filter(Boolean);
           const openAiResponse = referenceImages.length
             ? await postImageEdit({
                 apiKey,

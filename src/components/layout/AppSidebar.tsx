@@ -34,6 +34,7 @@ import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import {
   canManageBrandPlen,
+  canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
   getInitials,
@@ -46,6 +47,7 @@ type NavigationItem = {
   url: string;
   icon: LucideIcon;
   brandAdminOnly?: boolean;
+  brandHistoryOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -80,7 +82,7 @@ const groups: Array<NavigationGroup> = [
       { title: "Nova Criação", url: "/brand-plen/nova", icon: Wand2 },
       { title: "Biblioteca", url: "/brand-plen/biblioteca", icon: Images },
       { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette, brandAdminOnly: true },
-      { title: "Histórico", url: "/brand-plen/historico", icon: History, brandAdminOnly: true },
+      { title: "Histórico", url: "/brand-plen/historico", icon: History, brandHistoryOnly: true },
     ],
   },
   {
@@ -98,6 +100,7 @@ export function AppSidebar() {
   const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
+  const canViewBrandHistory = user ? canViewBrandPlenHistory(user.role) : false;
   const visibleGroups = groups
     .filter(
       (group) =>
@@ -108,7 +111,11 @@ export function AppSidebar() {
       ...group,
       items:
         group.label === "Brand Plen"
-          ? group.items.filter((item) => !item.brandAdminOnly || canViewBrandAdmin)
+          ? group.items.filter(
+              (item) =>
+                (!item.brandAdminOnly || canViewBrandAdmin) &&
+                (!item.brandHistoryOnly || canViewBrandHistory),
+            )
           : group.items,
     }))
     .filter((group) => group.items.length > 0);

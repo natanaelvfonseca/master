@@ -26,6 +26,7 @@ export type BrandPlenGeneration = {
   format: BrandImageOutputFormat;
   errorMessage: string | null;
   publishedMaterialId: string | null;
+  createdByName?: string | null;
   createdAt: string;
   updatedAt: string;
 };

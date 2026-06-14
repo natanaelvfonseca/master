@@ -36,6 +36,7 @@ import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
+import { Route as ApiBrandPlenSettingsRouteImport } from './routes/api/brand-plen.settings'
 import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-plen.generate'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
@@ -181,6 +182,11 @@ const ApiCrmLeadsRoute = ApiCrmLeadsRouteImport.update({
   path: '/api/crm/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBrandPlenSettingsRoute = ApiBrandPlenSettingsRouteImport.update({
+  id: '/api/brand-plen/settings',
+  path: '/api/brand-plen/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrandPlenGenerateRoute = ApiBrandPlenGenerateRouteImport.update({
   id: '/api/brand-plen/generate',
   path: '/api/brand-plen/generate',
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
+  '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
+  '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
+  '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/api/auth/logout'
     | '/api/auth/session'
     | '/api/brand-plen/generate'
+    | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/api/auth/logout'
     | '/api/auth/session'
     | '/api/brand-plen/generate'
+    | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/api/auth/logout'
     | '/api/auth/session'
     | '/api/brand-plen/generate'
+    | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -489,6 +501,7 @@ export interface RootRouteChildren {
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiBrandPlenGenerateRoute: typeof ApiBrandPlenGenerateRoute
+  ApiBrandPlenSettingsRoute: typeof ApiBrandPlenSettingsRoute
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
@@ -686,6 +699,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCrmLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/brand-plen/settings': {
+      id: '/api/brand-plen/settings'
+      path: '/api/brand-plen/settings'
+      fullPath: '/api/brand-plen/settings'
+      preLoaderRoute: typeof ApiBrandPlenSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/brand-plen/generate': {
       id: '/api/brand-plen/generate'
       path: '/api/brand-plen/generate'
@@ -816,6 +836,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiBrandPlenGenerateRoute: ApiBrandPlenGenerateRoute,
+  ApiBrandPlenSettingsRoute: ApiBrandPlenSettingsRoute,
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
