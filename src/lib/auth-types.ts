@@ -79,6 +79,18 @@ export function canManageTraining(role: UserRole) {
   return role === "MASTER" || role === "CEO";
 }
 
+export function canSubmitSystemFeedback(role: UserRole) {
+  return role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+}
+
+export function canManageSystemFeedback(role: UserRole) {
+  return role === "MASTER";
+}
+
+export function canAccessSystemFeedback(role: UserRole) {
+  return canSubmitSystemFeedback(role) || canManageSystemFeedback(role);
+}
+
 export function getAssignableRoles(role: UserRole): Array<UserRole> {
   if (role === "MASTER") {
     return ["CEO", "DIRETOR", "GERENTE", "CONSULTOR"];

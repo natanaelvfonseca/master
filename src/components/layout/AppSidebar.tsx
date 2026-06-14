@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  MessageSquarePlus,
   Palette,
   Trophy,
   UserCog,
@@ -34,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import {
+  canAccessSystemFeedback,
   canManageBrandPlen,
   canViewBrandPlenHistory,
   canViewGrowth,
@@ -51,6 +53,7 @@ type NavigationItem = {
   brandAdminOnly?: boolean;
   brandHistoryOnly?: boolean;
   studentViewOnly?: boolean;
+  systemFeedbackOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -93,6 +96,17 @@ const groups: Array<NavigationGroup> = [
     items: [{ title: "Treinamentos", url: "/treinamentos", icon: BookOpenCheck }],
   },
   {
+    label: "Sistema",
+    items: [
+      {
+        title: "Feedback",
+        url: "/feedback",
+        icon: MessageSquarePlus,
+        systemFeedbackOnly: true,
+      },
+    ],
+  },
+  {
     label: "Gestão",
     items: [{ title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList }],
   },
@@ -109,6 +123,7 @@ export function AppSidebar() {
   const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
   const canViewBrandHistory = user ? canViewBrandPlenHistory(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
+  const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -126,7 +141,8 @@ export function AppSidebar() {
         (item) =>
           (!item.brandAdminOnly || canViewBrandAdmin) &&
           (!item.brandHistoryOnly || canViewBrandHistory) &&
-          (!item.studentViewOnly || canViewStudentList),
+          (!item.studentViewOnly || canViewStudentList) &&
+          (!item.systemFeedbackOnly || canViewSystemFeedback),
       ),
     }))
     .filter((group) => group.items.length > 0);

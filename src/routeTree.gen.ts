@@ -15,6 +15,7 @@ import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as ConversasRouteImport } from './routes/conversas'
@@ -29,6 +30,7 @@ import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 import { Route as ApiTrainingRouteImport } from './routes/api/training'
+import { Route as ApiSystemFeedbackRouteImport } from './routes/api/system-feedback'
 import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
@@ -79,6 +81,11 @@ const PerfilRoute = PerfilRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackRoute = FeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EstrategiaRoute = EstrategiaRouteImport.update({
@@ -149,6 +156,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
 const ApiTrainingRoute = ApiTrainingRouteImport.update({
   id: '/api/training',
   path: '/api/training',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemFeedbackRoute = ApiSystemFeedbackRouteImport.update({
+  id: '/api/system-feedback',
+  path: '/api/system-feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRankingRoute = ApiRankingRouteImport.update({
@@ -264,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
+  '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -275,6 +288,7 @@ export interface FileRoutesByFullPath {
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/system-feedback': typeof ApiSystemFeedbackRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -307,6 +321,7 @@ export interface FileRoutesByTo {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
+  '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -318,6 +333,7 @@ export interface FileRoutesByTo {
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/system-feedback': typeof ApiSystemFeedbackRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -351,6 +367,7 @@ export interface FileRoutesById {
   '/conversas': typeof ConversasRoute
   '/crm': typeof CrmRoute
   '/estrategia': typeof EstrategiaRoute
+  '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
@@ -362,6 +379,7 @@ export interface FileRoutesById {
   '/api/growth': typeof ApiGrowthRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
+  '/api/system-feedback': typeof ApiSystemFeedbackRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -396,6 +414,7 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
+    | '/feedback'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -407,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/system-feedback'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -439,6 +459,7 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
+    | '/feedback'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -450,6 +471,7 @@ export interface FileRouteTypes {
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/system-feedback'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -482,6 +504,7 @@ export interface FileRouteTypes {
     | '/conversas'
     | '/crm'
     | '/estrategia'
+    | '/feedback'
     | '/login'
     | '/perfil'
     | '/ranking'
@@ -493,6 +516,7 @@ export interface FileRouteTypes {
     | '/api/growth'
     | '/api/profile'
     | '/api/ranking'
+    | '/api/system-feedback'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -526,6 +550,7 @@ export interface RootRouteChildren {
   ConversasRoute: typeof ConversasRoute
   CrmRoute: typeof CrmRoute
   EstrategiaRoute: typeof EstrategiaRoute
+  FeedbackRoute: typeof FeedbackRoute
   LoginRoute: typeof LoginRoute
   PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
@@ -537,6 +562,7 @@ export interface RootRouteChildren {
   ApiGrowthRoute: typeof ApiGrowthRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiRankingRoute: typeof ApiRankingRoute
+  ApiSystemFeedbackRoute: typeof ApiSystemFeedbackRoute
   ApiTrainingRoute: typeof ApiTrainingRouteWithChildren
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
@@ -600,6 +626,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feedback': {
+      id: '/feedback'
+      path: '/feedback'
+      fullPath: '/feedback'
+      preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/estrategia': {
@@ -698,6 +731,13 @@ declare module '@tanstack/react-router' {
       path: '/api/training'
       fullPath: '/api/training'
       preLoaderRoute: typeof ApiTrainingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system-feedback': {
+      id: '/api/system-feedback'
+      path: '/api/system-feedback'
+      fullPath: '/api/system-feedback'
+      preLoaderRoute: typeof ApiSystemFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ranking': {
@@ -905,6 +945,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConversasRoute: ConversasRoute,
   CrmRoute: CrmRoute,
   EstrategiaRoute: EstrategiaRoute,
+  FeedbackRoute: FeedbackRoute,
   LoginRoute: LoginRoute,
   PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,
@@ -916,6 +957,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGrowthRoute: ApiGrowthRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiRankingRoute: ApiRankingRoute,
+  ApiSystemFeedbackRoute: ApiSystemFeedbackRoute,
   ApiTrainingRoute: ApiTrainingRouteWithChildren,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,
