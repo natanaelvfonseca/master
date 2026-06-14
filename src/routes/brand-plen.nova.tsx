@@ -1,6 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type ChangeEvent, type ReactNode, useState } from "react";
-import { Download, ImagePlus, Info, Loader2, Sparkles, Trash2, Upload, Wand2 } from "lucide-react";
+import { type ChangeEvent, type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  ImagePlus,
+  Info,
+  Loader2,
+  RefreshCw,
+  Share2,
+  Sparkles,
+  Trash2,
+  Upload,
+  Wand2,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,27 +30,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import type { BrandPlenGeneration } from "@/lib/brand-plen-types";
 import { useAuth } from "@/lib/auth";
 import { canManageBrandPlen } from "@/lib/auth-types";
 import { audiences, brandColors, courses, objectives, pieceTypes, visualStyles } from "@/lib/brand";
 import { toast } from "sonner";
 
-type GeneratedBrandImage = {
-  id: string;
-  dataUrl: string;
-  revisedPrompt: string | null;
-  prompt: string;
-  pieceType: string;
-  objective: string;
-  course: string;
-  size: string;
-  quality: "low" | "medium" | "high";
-  format: "png" | "jpeg" | "webp";
-  createdAt: string;
-};
-
 type GenerateResponse = {
-  images?: Array<GeneratedBrandImage>;
+  generations?: Array<BrandPlenGeneration>;
+  generation?: BrandPlenGeneration;
+  images?: Array<BrandPlenGeneration>;
   error?: string;
   model?: string;
 };
@@ -51,6 +53,12 @@ const qualityLabels = {
   high: "Alta",
   medium: "Média",
   low: "Rápida",
+} as const;
+
+const statusLabels = {
+  generating: "Gerando",
+  ready: "Pronta",
+  failed: "Erro",
 } as const;
 
 export const Route = createFileRoute("/brand-plen/nova")({
@@ -72,6 +80,20 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       <CardContent>{children}</CardContent>
     </Card>
   );
+}
+
+async function readJson<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Não foi possível concluir a ação.");
+  }
+
+  return data;
+}
+
+function unitQuery(unitId: string) {
+  return `?unitId=${encodeURIComponent(unitId)}`;
 }
 
 function slugifyFileName(value: string) {
@@ -103,7 +125,11 @@ async function loadAssetAsDataUrl(src: string) {
   return readBlobAsDataUrl(await response.blob());
 }
 
-function downloadGeneratedImage(image: GeneratedBrandImage) {
+function downloadGeneratedImage(image: BrandPlenGeneration) {
+  if (!image.dataUrl) {
+    return;
+  }
+
   const link = document.createElement("a");
   const courseSlug = slugifyFileName(image.course) || "arte";
 
@@ -114,8 +140,66 @@ function downloadGeneratedImage(image: GeneratedBrandImage) {
   link.remove();
 }
 
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function upsertGeneration(
+  generations: Array<BrandPlenGeneration>,
+  generation: BrandPlenGeneration,
+) {
+  return [generation, ...generations.filter((item) => item.id !== generation.id)].slice(0, 12);
+}
+
+function CreationPreview({ creation }: { creation: BrandPlenGeneration }) {
+  if (creation.status === "generating") {
+    return (
+      <div className="relative flex aspect-[4/5] min-h-[260px] overflow-hidden rounded-lg bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_48%,#3F73D8_100%)] text-white">
+        <div className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.18)_42%,transparent_72%)]" />
+        <div className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+          <Loader2 className="h-9 w-9 animate-spin text-gold" />
+          <div className="text-sm font-bold">Gerando sua arte</div>
+          <div className="max-w-[210px] text-xs text-white/75">
+            O Brand Plen está criando a imagem com as diretrizes da marca.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (creation.status === "failed") {
+    return (
+      <div className="flex aspect-[4/5] min-h-[260px] flex-col items-center justify-center rounded-lg border border-dashed bg-destructive/5 p-6 text-center">
+        <AlertCircle className="h-9 w-9 text-destructive" />
+        <div className="mt-3 text-sm font-bold text-destructive">Não foi possível gerar</div>
+        <div className="mt-1 max-w-[220px] text-xs text-muted-foreground">
+          {creation.errorMessage ?? "Tente criar novamente com outro briefing."}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex aspect-[4/5] min-h-[260px] items-center justify-center overflow-hidden rounded-lg border bg-muted">
+      {creation.dataUrl ? (
+        <img
+          src={creation.dataUrl}
+          alt={`Arte ${creation.course}`}
+          className="h-full w-full object-contain"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function NovaCriacao() {
   const { session } = useAuth();
+  const activeUnitId = session?.activeUnit?.id ?? "";
   const [piece, setPiece] = useState(pieceTypes[0]?.id ?? "post");
   const [objective, setObjective] = useState(objectives[0] ?? "");
   const [course, setCourse] = useState(courses[0] ?? "");
@@ -127,12 +211,71 @@ function NovaCriacao() {
   const [overlayText, setOverlayText] = useState("Transforme sua profissão. Matrículas abertas.");
   const [showText, setShowText] = useState(true);
   const [applyLogo, setApplyLogo] = useState(true);
-  const [quality, setQuality] = useState<GeneratedBrandImage["quality"]>("high");
+  const [quality, setQuality] = useState<BrandPlenGeneration["quality"]>("high");
   const [referenceUpload, setReferenceUpload] = useState<ReferenceUpload | null>(null);
-  const [results, setResults] = useState<Array<GeneratedBrandImage>>([]);
+  const [creations, setCreations] = useState<Array<BrandPlenGeneration>>([]);
+  const [pendingPreview, setPendingPreview] = useState<BrandPlenGeneration | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingCreations, setLoadingCreations] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const canViewBrandKit = session ? canManageBrandPlen(session.user.role) : false;
-  const selectedPiece = pieceTypes.find((p) => p.id === piece);
+
+  const hasPersistedGenerationRunning = creations.some(
+    (creation) => creation.status === "generating",
+  );
+  const visibleCreations =
+    pendingPreview && !hasPersistedGenerationRunning ? [pendingPreview, ...creations] : creations;
+  const shouldPoll =
+    loading || visibleCreations.some((creation) => creation.status === "generating");
+
+  const loadCreations = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!activeUnitId) {
+        setCreations([]);
+        return;
+      }
+
+      if (!silent) {
+        setLoadingCreations(true);
+      }
+
+      try {
+        const data = await readJson<GenerateResponse>(
+          await fetch(`/api/brand-plen/generate${unitQuery(activeUnitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        );
+
+        setCreations(data.generations ?? []);
+      } catch (error) {
+        if (!silent) {
+          toast.error(error instanceof Error ? error.message : "Falha ao carregar criações.");
+        }
+      } finally {
+        if (!silent) {
+          setLoadingCreations(false);
+        }
+      }
+    },
+    [activeUnitId],
+  );
+
+  useEffect(() => {
+    void loadCreations();
+  }, [loadCreations]);
+
+  useEffect(() => {
+    if (!shouldPoll) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void loadCreations({ silent: true });
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, [loadCreations, shouldPoll]);
 
   const handleReferenceUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -165,14 +308,47 @@ function NovaCriacao() {
       return;
     }
 
+    if (!activeUnitId) {
+      toast.error("Selecione uma unidade ativa antes de gerar a imagem.");
+      return;
+    }
+
     setLoading(true);
+    setPendingPreview({
+      id: `pending-${Date.now()}`,
+      unitId: activeUnitId,
+      status: "generating",
+      dataUrl: null,
+      revisedPrompt: null,
+      prompt: "",
+      pieceType: piece,
+      objective,
+      course,
+      audience,
+      visualStyle,
+      description,
+      overlayText: showText ? overlayText : null,
+      model: "",
+      size: "1024x1024",
+      quality,
+      format: "webp",
+      errorMessage: null,
+      publishedMaterialId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
     try {
       const logoDataUrl = applyLogo ? await loadAssetAsDataUrl(plenariusLogo) : undefined;
       const response = await fetch("/api/brand-plen/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
+          unitId: activeUnitId,
           pieceType: piece,
           objective,
           course,
@@ -189,15 +365,63 @@ function NovaCriacao() {
       const data = (await response.json().catch(() => null)) as GenerateResponse | null;
 
       if (!response.ok) {
+        if (data?.generation) {
+          setCreations((current) =>
+            upsertGeneration(current, data.generation as BrandPlenGeneration),
+          );
+        }
+
         throw new Error(data?.error ?? "Não foi possível gerar a imagem agora.");
       }
 
-      setResults(data?.images ?? []);
-      toast.success(`Imagem gerada com IA${data?.model ? ` usando ${data.model}` : ""}.`);
+      if (data?.generation) {
+        setCreations((current) =>
+          upsertGeneration(current, data.generation as BrandPlenGeneration),
+        );
+      }
+
+      toast.success("Imagem criada e salva nas suas últimas criações.");
+      void loadCreations({ silent: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível gerar a imagem.");
+      void loadCreations({ silent: true });
     } finally {
+      setPendingPreview(null);
       setLoading(false);
+    }
+  };
+
+  const publishToLibrary = async (creation: BrandPlenGeneration) => {
+    if (!activeUnitId || creation.status !== "ready" || !creation.dataUrl) {
+      return;
+    }
+
+    setPublishingId(creation.id);
+
+    try {
+      const data = await readJson<GenerateResponse>(
+        await fetch("/api/brand-plen/generate", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: creation.id, unitId: activeUnitId }),
+        }),
+      );
+
+      if (data.generation) {
+        setCreations((current) =>
+          upsertGeneration(current, data.generation as BrandPlenGeneration),
+        );
+      }
+
+      toast.success("Imagem enviada para a biblioteca.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao enviar para a biblioteca.");
+    } finally {
+      setPublishingId(null);
     }
   };
 
@@ -400,60 +624,127 @@ function NovaCriacao() {
               {loading ? "Gerando imagem..." : "Gerar imagem com IA"}
             </Button>
             <p className="text-xs text-muted-foreground">
-              A imagem será criada com as diretrizes do Brand Kit e o logo oficial da Plenarius.
+              A criação fica salva para você. Só vai para a biblioteca quando você enviar.
             </p>
           </div>
 
-          {results.length > 0 && (
-            <Step n={4} title="Resultado gerado">
-              <div className="space-y-5">
-                {results.map((result) => (
-                  <div key={result.id} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
-                    <div className="overflow-hidden rounded-lg border bg-muted">
-                      <img
-                        src={result.dataUrl}
-                        alt={`Arte ${result.course}`}
-                        className="max-h-[680px] w-full object-contain"
-                      />
-                    </div>
+          <Step n={4} title="Últimas criações">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                {visibleCreations.length
+                  ? `${visibleCreations.length} criações recentes`
+                  : "Nenhuma criação recente"}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-2"
+                onClick={() => loadCreations()}
+                disabled={loadingCreations}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingCreations ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+            </div>
 
-                    <div className="space-y-3">
-                      <div className="rounded-lg border bg-card p-3">
-                        <div className="text-xs uppercase text-muted-foreground">Peça</div>
-                        <div className="font-semibold">
-                          {selectedPiece?.label ?? result.pieceType}
+            {visibleCreations.length ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {visibleCreations.map((creation) => (
+                  <div
+                    key={creation.id}
+                    className="overflow-hidden rounded-lg border bg-card shadow-sm"
+                  >
+                    <CreationPreview creation={creation} />
+
+                    <div className="space-y-3 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold">
+                            {pieceTypes.find((p) => p.id === creation.pieceType)?.label ??
+                              creation.pieceType}
+                          </div>
+                          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {creation.course} · {creation.objective}
+                          </div>
                         </div>
-                        <div className="mt-3 text-xs uppercase text-muted-foreground">Curso</div>
-                        <div className="font-semibold">{result.course}</div>
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <div className="uppercase text-muted-foreground">Tamanho</div>
-                            <div className="font-semibold">{result.size}</div>
-                          </div>
-                          <div>
-                            <div className="uppercase text-muted-foreground">Qualidade</div>
-                            <div className="font-semibold">{qualityLabels[result.quality]}</div>
-                          </div>
+                        <Badge
+                          className={
+                            creation.status === "ready"
+                              ? "bg-success/10 text-success"
+                              : creation.status === "failed"
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-primary/10 text-primary"
+                          }
+                        >
+                          {creation.status === "ready" ? (
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                          ) : creation.status === "failed" ? (
+                            <AlertCircle className="mr-1 h-3 w-3" />
+                          ) : (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          )}
+                          {creation.publishedMaterialId
+                            ? "Biblioteca"
+                            : statusLabels[creation.status]}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-md bg-muted/40 p-2">
+                          <div className="text-muted-foreground">Qualidade</div>
+                          <div className="font-semibold">{qualityLabels[creation.quality]}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/40 p-2">
+                          <div className="text-muted-foreground">Criada em</div>
+                          <div className="font-semibold">{formatDate(creation.createdAt)}</div>
                         </div>
                       </div>
 
-                      <Button
-                        className="w-full gap-2 bg-primary text-primary-foreground"
-                        onClick={() => downloadGeneratedImage(result)}
-                      >
-                        <Download className="h-4 w-4" /> Baixar imagem
-                      </Button>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Prompt aplicado</Label>
-                        <Textarea readOnly rows={7} value={result.prompt} className="text-xs" />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 flex-1 gap-1.5"
+                          disabled={creation.status !== "ready" || !creation.dataUrl}
+                          onClick={() => downloadGeneratedImage(creation)}
+                        >
+                          <Download className="h-3.5 w-3.5" /> Baixar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 flex-1 gap-1.5 bg-primary text-primary-foreground"
+                          disabled={
+                            creation.status !== "ready" ||
+                            !creation.dataUrl ||
+                            Boolean(creation.publishedMaterialId) ||
+                            publishingId === creation.id
+                          }
+                          onClick={() => publishToLibrary(creation)}
+                        >
+                          {publishingId === creation.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Share2 className="h-3.5 w-3.5" />
+                          )}
+                          {creation.publishedMaterialId ? "Enviada" : "Biblioteca"}
+                        </Button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </Step>
-          )}
+            ) : (
+              <div className="flex min-h-[260px] flex-col items-center justify-center rounded-lg border border-dashed bg-accent/20 p-6 text-center">
+                <ImagePlus className="h-9 w-9 text-muted-foreground" />
+                <div className="mt-3 text-sm font-semibold">
+                  {loadingCreations ? "Carregando criações..." : "Nenhuma imagem criada ainda"}
+                </div>
+                <p className="mt-1 max-w-[260px] text-xs text-muted-foreground">
+                  As próximas imagens geradas aparecem aqui automaticamente.
+                </p>
+              </div>
+            )}
+          </Step>
         </div>
 
         <aside className="space-y-4">
@@ -522,7 +813,7 @@ function NovaCriacao() {
                 <Label className="text-xs">Qualidade</Label>
                 <Select
                   value={quality}
-                  onValueChange={(value) => setQuality(value as GeneratedBrandImage["quality"])}
+                  onValueChange={(value) => setQuality(value as BrandPlenGeneration["quality"])}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue />
@@ -549,8 +840,7 @@ function NovaCriacao() {
 
       <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
         <Info className="h-3.5 w-3.5" />
-        Todas as imagens geradas passam por aprovação humana antes de serem disponibilizadas na
-        biblioteca da marca.
+        As criações ficam privadas para o usuário até serem enviadas para a biblioteca da marca.
       </div>
     </div>
   );
