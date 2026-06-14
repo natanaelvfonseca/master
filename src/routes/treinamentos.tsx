@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { upload } from "@vercel/blob/client";
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   BookOpenCheck,
@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Layers3,
   Loader2,
-  Lock,
   Play,
   PlayCircle,
   Plus,
@@ -570,10 +569,15 @@ function Treinamentos() {
   const [savingProgress, setSavingProgress] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const selectedLessonIdRef = useRef<string | null>(null);
+  const hasInitializedTrainingRef = useRef(false);
 
   const selectedLesson = useMemo(
-    () => lessons.find((lesson) => lesson.id === selectedLessonId) ?? lessons[0] ?? null,
-    [lessons, selectedLessonId],
+    () =>
+      (selectedLessonId ? lessons.find((lesson) => lesson.id === selectedLessonId) : null) ??
+      lessons.find((lesson) => lesson.trail === selectedTrail) ??
+      null,
+    [lessons, selectedLessonId, selectedTrail],
   );
   const lessonsByTrail = useMemo(
     () =>
@@ -592,9 +596,21 @@ function Treinamentos() {
   const selectTrail = (trailId: TrainingTrailId) => {
     const firstLesson = lessonsByTrail[trailId]?.[0] ?? null;
 
+    selectedLessonIdRef.current = firstLesson?.id ?? null;
     setSelectedTrail(trailId);
     setSelectedLessonId(firstLesson?.id ?? null);
   };
+
+  useEffect(() => {
+    selectedLessonIdRef.current = selectedLessonId;
+  }, [selectedLessonId]);
+
+  useEffect(() => {
+    hasInitializedTrainingRef.current = false;
+    selectedLessonIdRef.current = null;
+    setSelectedLessonId(null);
+    setSelectedTrail("plataforma");
+  }, [activeUnitId]);
 
   const loadTraining = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -625,9 +641,18 @@ function Treinamentos() {
           },
         );
 
-        if (!selectedLessonId && nextLessons[0]) {
+        const selectedStillExists = nextLessons.some(
+          (lesson) => lesson.id === selectedLessonIdRef.current,
+        );
+
+        if (!hasInitializedTrainingRef.current && nextLessons[0]) {
+          selectedLessonIdRef.current = nextLessons[0].id;
           setSelectedLessonId(nextLessons[0].id);
           setSelectedTrail(nextLessons[0].trail);
+          hasInitializedTrainingRef.current = true;
+        } else if (selectedLessonIdRef.current && !selectedStillExists) {
+          selectedLessonIdRef.current = null;
+          setSelectedLessonId(null);
         }
       } catch (error) {
         if (!silent) {
@@ -639,7 +664,7 @@ function Treinamentos() {
         }
       }
     },
-    [activeUnitId, selectedLessonId],
+    [activeUnitId],
   );
 
   useEffect(() => {
@@ -704,20 +729,21 @@ function Treinamentos() {
 
   const handleUploaded = (lesson: TrainingLesson) => {
     setLessons((current) => [lesson, ...current]);
+    selectedLessonIdRef.current = lesson.id;
     setSelectedLessonId(lesson.id);
     setSelectedTrail(lesson.trail);
     void loadTraining({ silent: true });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#0B2A6F_38%,#1746B8_74%,#3F73D8_100%)] p-5 text-white shadow-[0_30px_90px_-50px_rgba(11,42,111,0.95)] md:p-7">
         <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,.1)_1px,transparent_1px)] [background-size:34px_34px]" />
         <div className="absolute left-0 top-0 h-px w-full animate-pulse bg-gradient-to-r from-transparent via-gold to-transparent" />
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl" />
 
-        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
-          <div className="max-w-3xl">
+        <div className="relative grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
+          <div className="min-w-0 max-w-3xl">
             <Badge className="border-white/20 bg-white/10 text-white">
               <BookOpenCheck className="mr-1 h-3.5 w-3.5" /> Área de Membros
             </Badge>
@@ -736,7 +762,7 @@ function Treinamentos() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+          <div className="min-w-0 rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.18em] text-white/60">Progresso</div>
@@ -757,10 +783,10 @@ function Treinamentos() {
               value={summary.progressPercent}
               className="mt-4 bg-white/15 [&>div]:bg-gold"
             />
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex min-w-0 flex-wrap gap-2">
               <Button
                 variant="secondary"
-                className="flex-1 gap-2 bg-white text-[#0B2A6F] hover:bg-white/90"
+                className="min-w-0 flex-1 gap-2 bg-white text-[#0B2A6F] hover:bg-white/90"
                 onClick={() => loadTraining()}
                 disabled={loading}
               >
@@ -779,9 +805,9 @@ function Treinamentos() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="space-y-5">
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="min-w-0 space-y-5">
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
             {TRAINING_TRAILS.map((trail) => {
               const Icon = trailStyles[trail.id].icon;
               const trailLessons = lessonsByTrail[trail.id] ?? [];
@@ -794,7 +820,7 @@ function Treinamentos() {
                   type="button"
                   onClick={() => selectTrail(trail.id)}
                   className={cn(
-                    "group flex min-w-max items-center gap-2 rounded-full border bg-card px-3 py-2 text-left shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-elegant md:min-w-0 md:justify-between md:px-4",
+                    "group flex min-w-0 items-center gap-2 rounded-full border bg-card px-2.5 py-2 text-left shadow-card transition duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-elegant sm:px-3 md:justify-between md:px-4",
                     active && "border-primary bg-primary text-white shadow-elegant",
                   )}
                 >
@@ -834,7 +860,7 @@ function Treinamentos() {
             })}
           </div>
 
-          <Card className="overflow-hidden border-primary/20 shadow-elegant">
+          <Card className="min-w-0 overflow-hidden border-primary/20 shadow-elegant">
             {selectedLesson ? (
               <>
                 <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))] p-4 md:p-5">
@@ -846,10 +872,10 @@ function Treinamentos() {
                     {selectedLesson.title}
                   </CardTitle>
                 </CardHeader>
-                <div className="relative bg-[#061B4D] p-2 md:p-3">
+                <div className="relative min-w-0 bg-[#061B4D] p-2 md:p-3">
                   <video
                     key={selectedLesson.id}
-                    className="aspect-video w-full rounded-lg bg-black shadow-[0_24px_70px_-36px_rgba(0,0,0,0.85)]"
+                    className="aspect-video w-full max-w-full rounded-lg bg-black shadow-[0_24px_70px_-36px_rgba(0,0,0,0.85)]"
                     controls
                     poster={selectedLesson.thumbnailDataUrl ?? undefined}
                     src={buildVideoSrc(selectedLesson, activeUnitId)}
@@ -870,7 +896,7 @@ function Treinamentos() {
             )}
           </Card>
 
-          <Card className="overflow-hidden shadow-card">
+          <Card className="min-w-0 overflow-hidden shadow-card">
             <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))]">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -887,7 +913,7 @@ function Treinamentos() {
             </CardHeader>
             <CardContent className="p-4">
               {activeTrailLessons.length ? (
-                <div className="relative space-y-3 before:absolute before:bottom-5 before:left-[29px] before:top-5 before:w-px before:bg-gradient-to-b before:from-primary before:via-primary/30 before:to-transparent">
+                <div className="relative min-w-0 space-y-3 before:absolute before:bottom-5 before:left-[29px] before:top-5 before:w-px before:bg-gradient-to-b before:from-primary before:via-primary/30 before:to-transparent">
                   {activeTrailLessons.map((lesson, index) => {
                     const selected = selectedLesson?.id === lesson.id;
                     const completed = Boolean(lesson.completedAt);
@@ -898,7 +924,7 @@ function Treinamentos() {
                         type="button"
                         onClick={() => setSelectedLessonId(lesson.id)}
                         className={cn(
-                          "group relative grid w-full grid-cols-[58px_minmax(0,1fr)] gap-3 rounded-xl border bg-card p-3 text-left transition duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant",
+                          "group relative grid w-full min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-2 rounded-xl border bg-card p-3 text-left transition duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant sm:grid-cols-[58px_minmax(0,1fr)] sm:gap-3",
                           selected && "border-primary shadow-elegant",
                         )}
                       >
@@ -916,7 +942,7 @@ function Treinamentos() {
                             {completed ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
                           </div>
                         </div>
-                        <div className="grid gap-3 md:grid-cols-[150px_minmax(0,1fr)]">
+                        <div className="grid min-w-0 gap-3 md:grid-cols-[150px_minmax(0,1fr)]">
                           {lesson.thumbnailDataUrl ? (
                             <div className="aspect-video overflow-hidden rounded-lg bg-muted">
                               <img
@@ -982,8 +1008,8 @@ function Treinamentos() {
           </Card>
         </section>
 
-        <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
-          <Card className="overflow-hidden border-primary/20 shadow-elegant">
+        <aside className="min-w-0 space-y-4 xl:sticky xl:top-5 xl:self-start">
+          <Card className="min-w-0 overflow-hidden border-primary/20 shadow-elegant">
             <CardHeader className="border-b bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_100%)] p-4 text-white">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Film className="h-4 w-4 text-gold" />
@@ -999,7 +1025,9 @@ function Treinamentos() {
                     </Badge>
                     <Badge variant="secondary">{selectedLesson.durationLabel}</Badge>
                   </div>
-                  <h2 className="mt-3 text-xl font-black leading-tight">{selectedLesson.title}</h2>
+                  <h2 className="mt-3 break-words text-xl font-black leading-tight">
+                    {selectedLesson.title}
+                  </h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {selectedLesson.description}
                   </p>
@@ -1065,18 +1093,6 @@ function Treinamentos() {
                 </p>
               </CardContent>
             )}
-          </Card>
-
-          <Card className="border-gold/30 bg-gold/5 shadow-card">
-            <CardContent className="flex items-start gap-3 p-4 text-sm">
-              <Lock className="mt-0.5 h-4 w-4 text-gold" />
-              <div>
-                <div className="font-bold">Curadoria da liderança</div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Master e CEO publicam aulas. A equipe acompanha a trilha e registra o avanço.
-                </p>
-              </div>
-            </CardContent>
           </Card>
         </aside>
       </div>
