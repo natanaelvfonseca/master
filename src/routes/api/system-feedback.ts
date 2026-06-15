@@ -361,6 +361,35 @@ export const Route = createFileRoute("/api/system-feedback")({
 
         return Response.json({ ticket });
       },
+      DELETE: async ({ request }) => {
+        const session = await getSessionFromRequest(request);
+
+        if (!session) {
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canManageSystemFeedback(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+        const ticketId = readString(body?.ticketId, 80);
+
+        if (!ticketId || !isUuid(ticketId)) {
+          return Response.json({ ok: false, error: "Ticket inválido." }, { status: 400 });
+        }
+
+        await ensureFeedbackSchema();
+        await queryDb(
+          `
+            delete from app_system_feedback_tickets
+            where id = $1
+          `,
+          [ticketId],
+        );
+
+        return Response.json({ ok: true });
+      },
     },
   },
 });

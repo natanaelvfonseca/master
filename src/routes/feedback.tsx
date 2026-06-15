@@ -13,6 +13,7 @@ import {
   Send,
   Settings2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -137,6 +138,7 @@ function FeedbackPage() {
   const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [canSubmit, setCanSubmit] = React.useState(canSubmitByRole);
   const [canManage, setCanManage] = React.useState(canManageByRole);
   const [form, setForm] = React.useState<FeedbackFormState>(initialForm);
@@ -288,6 +290,40 @@ function FeedbackPage() {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar ticket.");
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(ticket: SystemFeedbackTicket) {
+    if (!window.confirm(`Remover o ticket "${ticket.title}"?`)) {
+      return;
+    }
+
+    setDeletingId(ticket.id);
+
+    try {
+      await readJson<{ ok: true }>(
+        await fetch("/api/system-feedback", {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ticketId: ticket.id }),
+        }),
+      );
+
+      setTickets((current) => current.filter((item) => item.id !== ticket.id));
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[ticket.id];
+        return next;
+      });
+      toast.success("Ticket removido.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao remover ticket.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -489,6 +525,7 @@ function FeedbackPage() {
                   draft={drafts[ticket.id]}
                   canManage={canManage}
                   updating={updatingId === ticket.id}
+                  deleting={deletingId === ticket.id}
                   onDraftChange={(draft) =>
                     setDrafts((current) => ({
                       ...current,
@@ -501,6 +538,7 @@ function FeedbackPage() {
                     }))
                   }
                   onUpdate={() => handleUpdate(ticket)}
+                  onDelete={() => handleDelete(ticket)}
                 />
               ))}
             </div>
@@ -546,15 +584,19 @@ function TicketCard({
   draft,
   canManage,
   updating,
+  deleting,
   onDraftChange,
   onUpdate,
+  onDelete,
 }: {
   ticket: SystemFeedbackTicket;
   draft?: TicketDraft;
   canManage: boolean;
   updating: boolean;
+  deleting: boolean;
   onDraftChange: (draft: Partial<TicketDraft>) => void;
   onUpdate: () => void;
+  onDelete: () => void;
 }) {
   const Icon = categoryIcon[ticket.category];
   const effectiveDraft = draft ?? {
@@ -679,7 +721,7 @@ function TicketCard({
               <Button
                 type="button"
                 onClick={onUpdate}
-                disabled={updating}
+                disabled={updating || deleting}
                 className="mt-3 w-full gap-2 bg-gradient-primary"
               >
                 {updating ? (
@@ -688,6 +730,20 @@ function TicketCard({
                   <CheckCircle2 className="h-4 w-4" />
                 )}
                 {updating ? "Salvando..." : "Salvar ticket"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onDelete}
+                disabled={updating || deleting}
+                className="mt-2 w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {deleting ? "Removendo..." : "Remover ticket"}
               </Button>
             </div>
           ) : null}

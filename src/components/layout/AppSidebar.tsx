@@ -52,6 +52,7 @@ type NavigationItem = {
   icon: LucideIcon;
   brandAdminOnly?: boolean;
   brandHistoryOnly?: boolean;
+  managementOnly?: boolean;
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
 };
@@ -96,8 +97,9 @@ const groups: Array<NavigationGroup> = [
     items: [{ title: "Treinamentos", url: "/treinamentos", icon: BookOpenCheck }],
   },
   {
-    label: "Sistema",
+    label: "Gestão",
     items: [
+      { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList, managementOnly: true },
       {
         title: "Feedback",
         url: "/feedback",
@@ -105,10 +107,6 @@ const groups: Array<NavigationGroup> = [
         systemFeedbackOnly: true,
       },
     ],
-  },
-  {
-    label: "Gestão",
-    items: [{ title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList }],
   },
 ];
 
@@ -122,6 +120,7 @@ export function AppSidebar() {
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
   const canViewBrandHistory = user ? canViewBrandPlenHistory(user.role) : false;
+  const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const closeMobileSidebar = () => {
@@ -133,7 +132,7 @@ export function AppSidebar() {
     .filter(
       (group) =>
         (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
-        (group.label !== "Gestão" || (user ? canViewManagement(user.role) : false)),
+        (group.label !== "Gestão" || canViewManagementArea || canViewSystemFeedback),
     )
     .map((group) => ({
       ...group,
@@ -141,6 +140,7 @@ export function AppSidebar() {
         (item) =>
           (!item.brandAdminOnly || canViewBrandAdmin) &&
           (!item.brandHistoryOnly || canViewBrandHistory) &&
+          (!item.managementOnly || canViewManagementArea) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback),
       ),

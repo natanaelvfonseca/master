@@ -41,6 +41,7 @@ import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upl
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
+import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
 import { Route as ApiBrandPlenSettingsRouteImport } from './routes/api/brand-plen.settings'
 import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-plen.generate'
@@ -213,6 +214,11 @@ const ApiGestaoChannelsRoute = ApiGestaoChannelsRouteImport.update({
   path: '/api/gestao/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrmTasksRoute = ApiCrmTasksRouteImport.update({
+  id: '/api/crm/tasks',
+  path: '/api/crm/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrmLeadsRoute = ApiCrmLeadsRouteImport.update({
   id: '/api/crm/leads',
   path: '/api/crm/leads',
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -396,6 +404,7 @@ export interface FileRoutesById {
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
+  '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -443,6 +452,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
+    | '/api/crm/tasks'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
+    | '/api/crm/tasks'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -533,6 +544,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
+    | '/api/crm/tasks'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -579,6 +591,7 @@ export interface RootRouteChildren {
   ApiBrandPlenGenerateRoute: typeof ApiBrandPlenGenerateRoute
   ApiBrandPlenSettingsRoute: typeof ApiBrandPlenSettingsRoute
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
+  ApiCrmTasksRoute: typeof ApiCrmTasksRoute
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
   ApiHealthDbRoute: typeof ApiHealthDbRoute
@@ -810,6 +823,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGestaoChannelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crm/tasks': {
+      id: '/api/crm/tasks'
+      path: '/api/crm/tasks'
+      fullPath: '/api/crm/tasks'
+      preLoaderRoute: typeof ApiCrmTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crm/leads': {
       id: '/api/crm/leads'
       path: '/api/crm/leads'
@@ -974,6 +994,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBrandPlenGenerateRoute: ApiBrandPlenGenerateRoute,
   ApiBrandPlenSettingsRoute: ApiBrandPlenSettingsRoute,
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
+  ApiCrmTasksRoute: ApiCrmTasksRoute,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
   ApiHealthDbRoute: ApiHealthDbRoute,

@@ -2,9 +2,12 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpenCheck,
+  CalendarClock,
   CheckCircle2,
+  Clock3,
   Filter,
   KanbanSquare,
+  Loader2,
   Mail,
   Phone,
   Plus,
@@ -18,6 +21,7 @@ import type {
   LeadRecord,
   LeadStage,
 } from "@/lib/commercial-types";
+import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -55,6 +59,12 @@ type LeadFormState = {
   stage: LeadStage;
 };
 
+type LeadTaskFormState = {
+  title: string;
+  dueAt: string;
+  notes: string;
+};
+
 type LeadDialogMode = "create" | "edit";
 
 type LeadsResponse = {
@@ -67,6 +77,14 @@ type CoursesResponse = {
 
 type ChannelsResponse = {
   channels: Array<AcquisitionChannelRecord>;
+};
+
+type TasksResponse = {
+  tasks: Array<CrmLeadTask>;
+};
+
+type TaskResponse = {
+  task: CrmLeadTask;
 };
 
 const NO_SELECTION = "__none__";
@@ -126,6 +144,14 @@ function emptyLeadForm(unitId = ""): LeadFormState {
   };
 }
 
+function emptyTaskForm(): LeadTaskFormState {
+  return {
+    title: "",
+    dueAt: "",
+    notes: "",
+  };
+}
+
 function leadFormFromLead(lead: LeadRecord): LeadFormState {
   return {
     fullName: lead.fullName,
@@ -138,6 +164,25 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
     observations: lead.observations ?? "",
     stage: lead.stage,
   };
+}
+
+function localDateTimeToIso(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatTaskDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -171,6 +216,12 @@ function CRM() {
   const [form, setForm] = React.useState<LeadFormState>(() => emptyLeadForm(activeUnitId));
   const [loadingLeads, setLoadingLeads] = React.useState(true);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
+  const [leadTasks, setLeadTasks] = React.useState<Array<CrmLeadTask>>([]);
+  const [loadingTasks, setLoadingTasks] = React.useState(false);
+  const [taskForm, setTaskForm] = React.useState<LeadTaskFormState>(() => emptyTaskForm());
+  const [savingTask, setSavingTask] = React.useState(false);
+  const [updatingTaskId, setUpdatingTaskId] = React.useState<string | null>(null);
+  const [removingTaskId, setRemovingTaskId] = React.useState<string | null>(null);
   const [savingLead, setSavingLead] = React.useState(false);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
   const [convertingLeadId, setConvertingLeadId] = React.useState<string | null>(null);
@@ -247,6 +298,39 @@ function CRM() {
     }
   }, []);
 
+  const loadLeadTasks = React.useCallback(
+    async (leadId: string, options?: { silent?: boolean }) => {
+      if (!leadId) {
+        setLeadTasks([]);
+        return;
+      }
+
+      if (!options?.silent) {
+        setLoadingTasks(true);
+      }
+
+      try {
+        const data = await readJson<TasksResponse>(
+          await fetch(`/api/crm/tasks?leadId=${encodeURIComponent(leadId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        );
+
+        setLeadTasks(data.tasks);
+      } catch (error) {
+        if (!options?.silent) {
+          toast.error(error instanceof Error ? error.message : "Falha ao carregar tarefas.");
+        }
+      } finally {
+        if (!options?.silent) {
+          setLoadingTasks(false);
+        }
+      }
+    },
+    [],
+  );
+
   React.useEffect(() => {
     void loadLeads();
   }, [loadLeads]);
@@ -314,6 +398,8 @@ function CRM() {
     setLeadDialogMode("create");
     setEditingLead(null);
     setForm(emptyLeadForm(unitId));
+    setLeadTasks([]);
+    setTaskForm(emptyTaskForm());
     setLeadDialogOpen(true);
   }
 
@@ -321,6 +407,8 @@ function CRM() {
     setLeadDialogMode("edit");
     setEditingLead(lead);
     setForm(leadFormFromLead(lead));
+    setTaskForm(emptyTaskForm());
+    void loadLeadTasks(lead.id);
     setLeadDialogOpen(true);
   }
 
@@ -407,6 +495,108 @@ function CRM() {
       toast.error(error instanceof Error ? error.message : "Falha ao salvar lead.");
     } finally {
       setSavingLead(false);
+    }
+  }
+
+  async function handleCreateTask() {
+    if (!editingLead) {
+      return;
+    }
+
+    const dueAt = localDateTimeToIso(taskForm.dueAt);
+
+    if (!taskForm.title.trim() || !dueAt) {
+      toast.error("Preencha o título e o horário da tarefa.");
+      return;
+    }
+
+    setSavingTask(true);
+
+    try {
+      const data = await readJson<TaskResponse>(
+        await fetch("/api/crm/tasks", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            leadId: editingLead.id,
+            title: taskForm.title,
+            dueAt,
+            notes: taskForm.notes,
+          }),
+        }),
+      );
+
+      setLeadTasks((current) =>
+        [data.task, ...current].sort(
+          (a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime(),
+        ),
+      );
+      setTaskForm(emptyTaskForm());
+      toast.success("Tarefa agendada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao criar tarefa.");
+    } finally {
+      setSavingTask(false);
+    }
+  }
+
+  async function updateTaskStatus(task: CrmLeadTask, status: "pending" | "done") {
+    setUpdatingTaskId(task.id);
+
+    try {
+      const data = await readJson<TaskResponse>(
+        await fetch("/api/crm/tasks", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ taskId: task.id, status }),
+        }),
+      );
+
+      setLeadTasks((current) =>
+        current.map((item) => (item.id === data.task.id ? data.task : item)),
+      );
+      toast.success(status === "done" ? "Tarefa concluída." : "Tarefa reaberta.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar tarefa.");
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  }
+
+  async function handleRemoveTask(task: CrmLeadTask) {
+    if (!window.confirm(`Remover a tarefa "${task.title}"?`)) {
+      return;
+    }
+
+    setRemovingTaskId(task.id);
+
+    try {
+      await readJson<{ ok: true }>(
+        await fetch("/api/crm/tasks", {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ taskId: task.id }),
+        }),
+      );
+
+      setLeadTasks((current) => current.filter((item) => item.id !== task.id));
+      toast.success("Tarefa removida.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao remover tarefa.");
+    } finally {
+      setRemovingTaskId(null);
     }
   }
 
@@ -654,6 +844,12 @@ function CRM() {
         units={session?.units ?? []}
         selectedCourse={selectedCourse}
         loadingOptions={loadingOptions}
+        tasks={leadTasks}
+        taskForm={taskForm}
+        loadingTasks={loadingTasks}
+        savingTask={savingTask}
+        updatingTaskId={updatingTaskId}
+        removingTaskId={removingTaskId}
         saving={savingLead}
         converting={editingLead ? convertingLeadId === editingLead.id : false}
         onOpenChange={(open) => {
@@ -661,10 +857,16 @@ function CRM() {
           if (!open) {
             setEditingLead(null);
             setLeadDialogMode("create");
+            setLeadTasks([]);
+            setTaskForm(emptyTaskForm());
           }
         }}
         onFormChange={setForm}
+        onTaskFormChange={setTaskForm}
         onSubmit={handleSubmitLead}
+        onTaskSubmit={() => void handleCreateTask()}
+        onTaskStatusChange={(task, status) => void updateTaskStatus(task, status)}
+        onTaskRemove={(task) => void handleRemoveTask(task)}
         onConvertToStudent={() => void handleConvertLeadToStudent()}
         onResetNewLead={() => {
           setEditingLead(null);
@@ -801,11 +1003,21 @@ function CreateLeadDialog({
   units,
   selectedCourse,
   loadingOptions,
+  tasks,
+  taskForm,
+  loadingTasks,
+  savingTask,
+  updatingTaskId,
+  removingTaskId,
   saving,
   converting,
   onOpenChange,
   onFormChange,
+  onTaskFormChange,
   onSubmit,
+  onTaskSubmit,
+  onTaskStatusChange,
+  onTaskRemove,
   onConvertToStudent,
   onResetNewLead,
 }: {
@@ -817,11 +1029,21 @@ function CreateLeadDialog({
   units: Array<{ id: string; name: string; slug: string }>;
   selectedCourse: CourseRecord | null;
   loadingOptions: boolean;
+  tasks: Array<CrmLeadTask>;
+  taskForm: LeadTaskFormState;
+  loadingTasks: boolean;
+  savingTask: boolean;
+  updatingTaskId: string | null;
+  removingTaskId: string | null;
   saving: boolean;
   converting: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  onTaskFormChange: React.Dispatch<React.SetStateAction<LeadTaskFormState>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onTaskSubmit: () => void;
+  onTaskStatusChange: (task: CrmLeadTask, status: "pending" | "done") => void;
+  onTaskRemove: (task: CrmLeadTask) => void;
   onConvertToStudent: () => void;
   onResetNewLead: () => void;
 }) {
@@ -1031,6 +1253,170 @@ function CreateLeadDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            ) : null}
+
+            {isEditMode ? (
+              <div className="space-y-4 rounded-xl border border-primary/15 bg-[linear-gradient(135deg,rgba(11,42,111,.05),rgba(63,115,216,.09),rgba(227,170,43,.08))] p-4 md:col-span-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                      <CalendarClock className="h-4 w-4" />
+                      Tarefas do lead
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Agende um próximo passo e o sistema avisa 15 minutos antes.
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="w-fit bg-primary/10 text-primary">
+                    {tasks.filter((task) => task.status === "pending").length} pendentes
+                  </Badge>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
+                  <div className="space-y-2">
+                    <Label htmlFor="lead-task-title">Tarefa</Label>
+                    <Input
+                      id="lead-task-title"
+                      value={taskForm.title}
+                      onChange={(event) =>
+                        onTaskFormChange((current) => ({
+                          ...current,
+                          title: event.target.value,
+                        }))
+                      }
+                      placeholder="Ex.: Ligar para confirmar documentação"
+                      maxLength={140}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lead-task-due">Data e hora</Label>
+                    <Input
+                      id="lead-task-due"
+                      type="datetime-local"
+                      value={taskForm.dueAt}
+                      onChange={(event) =>
+                        onTaskFormChange((current) => ({
+                          ...current,
+                          dueAt: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="lead-task-notes">Observação</Label>
+                    <Textarea
+                      id="lead-task-notes"
+                      value={taskForm.notes}
+                      onChange={(event) =>
+                        onTaskFormChange((current) => ({
+                          ...current,
+                          notes: event.target.value,
+                        }))
+                      }
+                      placeholder="Contexto da tarefa, combinado com o lead ou próximos passos."
+                      className="min-h-20 bg-white/75"
+                      maxLength={1200}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={onTaskSubmit}
+                    disabled={savingTask || !taskForm.title || !taskForm.dueAt}
+                    className="gap-2 bg-gradient-primary"
+                  >
+                    {savingTask ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CalendarClock className="h-4 w-4" />
+                    )}
+                    {savingTask ? "Agendando..." : "Agendar tarefa"}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {loadingTasks ? (
+                    <div className="flex h-20 items-center justify-center rounded-lg border bg-white/60">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  ) : tasks.length ? (
+                    tasks.map((task) => {
+                      const pending = task.status === "pending";
+                      const busy = updatingTaskId === task.id || removingTaskId === task.id;
+
+                      return (
+                        <div
+                          key={task.id}
+                          className="grid gap-3 rounded-lg border bg-white/80 p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto]"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  pending
+                                    ? "border-gold/30 bg-gold/15 text-gold-foreground"
+                                    : "border-success/25 bg-success/10 text-success"
+                                }
+                              >
+                                {pending ? "Pendente" : "Concluída"}
+                              </Badge>
+                              <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                {formatTaskDate(task.dueAt)}
+                              </span>
+                            </div>
+                            <div className="mt-2 break-words text-sm font-bold">{task.title}</div>
+                            {task.notes ? (
+                              <p className="mt-1 whitespace-pre-line break-words text-xs text-muted-foreground">
+                                {task.notes}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:justify-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={pending ? "default" : "outline"}
+                              className={pending ? "gap-1.5 bg-gradient-primary" : "gap-1.5"}
+                              onClick={() => onTaskStatusChange(task, pending ? "done" : "pending")}
+                              disabled={busy}
+                            >
+                              {updatingTaskId === task.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                              {pending ? "Concluir" : "Reabrir"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => onTaskRemove(task)}
+                              disabled={busy}
+                              aria-label={`Remover tarefa ${task.title}`}
+                            >
+                              {removingTaskId === task.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-lg border border-dashed bg-white/50 p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma tarefa agendada para este lead.
+                    </div>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>
