@@ -452,6 +452,9 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const description = readString(body.description, 1400);
         const overlayText = readString(body.overlayText, 140);
         const fallbackLogoDataUrl = isDataImageUrl(body.logoDataUrl) ? body.logoDataUrl : "";
+        const subjectPhotoDataUrl = isDataImageUrl(body.subjectPhotoDataUrl)
+          ? body.subjectPhotoDataUrl
+          : "";
         const outputFormat: BrandImageOutputFormat = "webp";
 
         if (!unit) {
@@ -489,6 +492,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
           visualStyle,
           overlayText,
           applyLogo: true,
+          hasSubjectPhoto: Boolean(subjectPhotoDataUrl),
           unitName: unit.name,
           brandSettings: settings,
         }).slice(0, MAX_TEXT_LENGTH);
@@ -557,7 +561,11 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const generation = generationResult.rows[0];
 
         try {
-          const referenceImages = [logoDataUrl, ...configuredReferenceImages].filter(Boolean);
+          const referenceImages = [
+            logoDataUrl,
+            subjectPhotoDataUrl,
+            ...configuredReferenceImages,
+          ].filter(Boolean);
           const openAiResponse = referenceImages.length
             ? await postImageEdit({
                 apiKey,

@@ -15,6 +15,7 @@ export type BrandImageInput = {
   overlayText?: string;
   unitName?: string;
   applyLogo?: boolean;
+  hasSubjectPhoto?: boolean;
   referenceImageUrl?: string;
   brandSettings?: Pick<
     BrandPlenSettings,
@@ -67,6 +68,9 @@ export function buildBrandImagePrompt(input: BrandImageInput) {
     input.overlayText
       ? `Texto exato na arte, em português e com alta legibilidade: "${input.overlayText}".`
       : "Não renderize textos adicionais na imagem além de elementos visuais da campanha.",
+    input.hasSubjectPhoto
+      ? "Uma foto base da pessoa/aluno foi enviada como referência. Use essa pessoa como base visual principal da arte, preservando identidade, rosto e características principais com tratamento profissional e institucional. Não troque a pessoa por modelo genérico."
+      : "",
     input.referenceImageUrl ? `Referência visual: ${input.referenceImageUrl}.` : "",
     "Composição limpa, premium e institucional, com contraste forte, pessoas profissionais e diversas quando fizer sentido, sem aparência genérica de banco de imagens.",
     "Resultado final: imagem pronta para campanha, com identidade Plenarius preservada e qualidade visual alta.",

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ChangeEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -10,7 +10,9 @@ import {
   RefreshCw,
   Share2,
   Sparkles,
+  UploadCloud,
   Wand2,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +47,9 @@ const statusLabels = {
   ready: "Pronta",
   failed: "Erro",
 } as const;
+
+const MAX_SUBJECT_PHOTO_BYTES = 12 * 1024 * 1024;
+const MAX_SUBJECT_PHOTO_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 export const Route = createFileRoute("/brand-plen/nova")({
   head: () => ({ meta: [{ title: "Nova Criação · Brand Plen" }] }),
@@ -98,6 +103,86 @@ function readBlobAsDataUrl(blob: Blob) {
     reader.onload = () => resolve(String(reader.result));
     reader.readAsDataURL(blob);
   });
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onerror = () => reject(new Error("Não foi possível ler a foto enviada."));
+    image.onload = () => resolve(image);
+    image.src = src;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error("Não foi possível preparar a foto enviada."));
+      },
+      type,
+      quality,
+    );
+  });
+}
+
+async function compressSubjectPhoto(file: File) {
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    throw new Error("Envie uma foto em PNG, JPG ou WebP.");
+  }
+
+  if (file.size > MAX_SUBJECT_PHOTO_BYTES) {
+    throw new Error("A foto precisa ter até 12MB.");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImage(objectUrl);
+    const dimensions = [1600, 1200, 900];
+    const qualities = [0.9, 0.82, 0.74, 0.66];
+    let fallbackBlob: Blob | null = null;
+
+    for (const maxDimension of dimensions) {
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Não foi possível preparar a foto enviada.");
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(image, 0, 0, width, height);
+
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, "image/webp", quality);
+
+        fallbackBlob = blob;
+
+        if (blob.size <= MAX_SUBJECT_PHOTO_UPLOAD_BYTES) {
+          return readBlobAsDataUrl(blob);
+        }
+      }
+    }
+
+    if (fallbackBlob && fallbackBlob.size <= MAX_SUBJECT_PHOTO_UPLOAD_BYTES) {
+      return readBlobAsDataUrl(fallbackBlob);
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  throw new Error("A foto ficou grande demais para enviar. Tente uma imagem menor.");
 }
 
 async function loadAssetAsDataUrl(src: string) {
@@ -194,9 +279,12 @@ function NovaCriacao() {
     "Imagem institucional para o curso, destacando ambiente profissional, alunos em prática real e a marca Plenarius como referência em educação profissionalizante.",
   );
   const [overlayText, setOverlayText] = useState("Transforme sua profissão. Matrículas abertas.");
+  const [subjectPhotoDataUrl, setSubjectPhotoDataUrl] = useState<string | null>(null);
+  const [subjectPhotoName, setSubjectPhotoName] = useState<string | null>(null);
   const [creations, setCreations] = useState<Array<BrandPlenGeneration>>([]);
   const [pendingPreview, setPendingPreview] = useState<BrandPlenGeneration | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preparingSubjectPhoto, setPreparingSubjectPhoto] = useState(false);
   const [loadingCreations, setLoadingCreations] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
@@ -257,8 +345,39 @@ function NovaCriacao() {
     return () => window.clearInterval(timer);
   }, [loadCreations, shouldPoll]);
 
+  const handleSubjectPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setPreparingSubjectPhoto(true);
+
+    try {
+      const dataUrl = await compressSubjectPhoto(file);
+
+      setSubjectPhotoDataUrl(dataUrl);
+      setSubjectPhotoName(file.name);
+      toast.success("Foto base carregada.");
+    } catch (error) {
+      setSubjectPhotoDataUrl(null);
+      setSubjectPhotoName(null);
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar a foto.");
+    } finally {
+      setPreparingSubjectPhoto(false);
+    }
+  };
+
+  const removeSubjectPhoto = () => {
+    setSubjectPhotoDataUrl(null);
+    setSubjectPhotoName(null);
+  };
+
   const generate = async () => {
-    if (loading) {
+    if (loading || preparingSubjectPhoto) {
       return;
     }
 
@@ -311,6 +430,7 @@ function NovaCriacao() {
           description,
           overlayText,
           logoDataUrl,
+          subjectPhotoDataUrl,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResponse | null;
@@ -499,6 +619,65 @@ function NovaCriacao() {
                 placeholder='Ex: "Transforme sua profissão. Matrículas abertas."'
               />
             </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Foto base opcional</Label>
+              {subjectPhotoDataUrl ? (
+                <div className="grid gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-center">
+                  <div className="h-32 overflow-hidden rounded-md border bg-white sm:h-28">
+                    <img
+                      src={subjectPhotoDataUrl}
+                      alt="Foto base enviada"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-bold text-primary">
+                      {subjectPhotoName ?? "Foto base carregada"}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      A IA usará esta foto como referência principal da pessoa na arte.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={removeSubjectPhoto}
+                    className="justify-self-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:justify-self-end"
+                    aria-label="Remover foto base"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="subject-photo"
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-primary/25 bg-[linear-gradient(135deg,rgba(11,42,111,.04),rgba(63,115,216,.09))] p-5 text-center transition hover:border-primary/45 hover:bg-primary/5"
+                >
+                  <input
+                    id="subject-photo"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr-only"
+                    onChange={handleSubjectPhotoChange}
+                    disabled={loading || preparingSubjectPhoto}
+                  />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-card">
+                    {preparingSubjectPhoto ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="mt-3 text-sm font-bold text-primary">
+                    {preparingSubjectPhoto ? "Preparando foto..." : "Carregar foto"}
+                  </div>
+                  <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                    Use uma foto do aluno quando a arte precisar manter a pessoa como base visual.
+                  </p>
+                </label>
+              )}
+            </div>
           </div>
         </Step>
 
@@ -506,7 +685,7 @@ function NovaCriacao() {
           <Button
             size="lg"
             onClick={generate}
-            disabled={loading}
+            disabled={loading || preparingSubjectPhoto}
             className="h-12 min-w-[280px] gap-2 bg-primary text-primary-foreground shadow-elegant"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
