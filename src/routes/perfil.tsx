@@ -1,6 +1,16 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { KeyRound, Mail, Save, Trash2, Upload, UserRound } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  KeyRound,
+  Mail,
+  Save,
+  Smartphone,
+  Trash2,
+  Upload,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +21,14 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { getInitials } from "@/lib/auth-types";
+import {
+  consumeDeferredInstallPrompt,
+  getDeferredInstallPrompt,
+  isInstalledAsApp,
+  isIosDevice,
+  subscribeInstallPrompt,
+  type BeforeInstallPromptEvent,
+} from "@/lib/pwa-install";
 
 const MAX_AVATAR_UPLOAD_BYTES = 1_000_000;
 
@@ -33,6 +51,8 @@ function ProfilePage() {
   const { session, refreshSession } = useAuth();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [saving, setSaving] = React.useState(false);
+  const [installPrompt, setInstallPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
+  const [appInstalled, setAppInstalled] = React.useState(false);
   const [form, setForm] = React.useState({
     name: "",
     email: "",
@@ -42,22 +62,51 @@ function ProfilePage() {
     confirmPassword: "",
   });
   const user = session?.user;
+  const userId = user?.id;
+  const userName = user?.name;
+  const userEmail = user?.email;
+  const userAvatarUrl = user?.avatarUrl;
 
   React.useEffect(() => {
-    if (!user) {
+    if (!userId || !userName || !userEmail) {
       return;
     }
 
     setForm((current) => ({
       ...current,
-      name: user.name,
-      email: user.email,
-      avatarUrl: user.avatarUrl ?? "",
+      name: userName,
+      email: userEmail,
+      avatarUrl: userAvatarUrl ?? "",
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     }));
-  }, [user?.id, user?.name, user?.email, user?.avatarUrl]);
+  }, [userId, userName, userEmail, userAvatarUrl]);
+
+  React.useEffect(() => {
+    setAppInstalled(isInstalledAsApp());
+    setInstallPrompt(getDeferredInstallPrompt());
+
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const refreshInstalledState = () => setAppInstalled(isInstalledAsApp());
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setAppInstalled(true);
+      toast.success("Aplicativo criado na tela inicial.");
+    };
+    const unsubscribePrompt = subscribeInstallPrompt(() =>
+      setInstallPrompt(getDeferredInstallPrompt()),
+    );
+
+    window.addEventListener("appinstalled", handleAppInstalled);
+    standaloneQuery.addEventListener("change", refreshInstalledState);
+
+    return () => {
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      standaloneQuery.removeEventListener("change", refreshInstalledState);
+      unsubscribePrompt();
+    };
+  }, []);
 
   async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -146,6 +195,41 @@ function ProfilePage() {
     }
   }
 
+  async function handleInstallApp() {
+    if (appInstalled) {
+      toast.success("O aplicativo já está instalado neste dispositivo.");
+      return;
+    }
+
+    const prompt = consumeDeferredInstallPrompt();
+
+    if (prompt) {
+      try {
+        await prompt.prompt();
+        const choice = await prompt.userChoice;
+
+        if (choice.outcome === "accepted") {
+          setAppInstalled(true);
+          toast.success("Aplicativo criado na tela inicial.");
+        } else {
+          toast("Instalação cancelada.");
+        }
+      } catch {
+        toast("Não foi possível abrir a instalação agora.", {
+          description: "Use o menu do navegador e escolha Instalar app.",
+        });
+      }
+
+      return;
+    }
+
+    toast("Instalação pelo navegador", {
+      description: isIosDevice()
+        ? "No iPhone, toque em Compartilhar e depois em Adicionar à Tela de Início."
+        : "Abra o menu do navegador e escolha Instalar app ou Adicionar à tela inicial.",
+    });
+  }
+
   const initials = user ? getInitials(form.name || user.name) : "PG";
 
   return (
@@ -160,65 +244,108 @@ function ProfilePage() {
         onSubmit={handleSubmit}
         className="grid gap-4 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.28fr)]"
       >
-        <Card className="shadow-card">
-          <CardHeader className="flex-row items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
-              <UserRound className="h-4 w-4" />
-            </div>
-            <CardTitle className="text-base">Foto do perfil</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="flex flex-col items-center gap-4 rounded-lg border border-primary/10 bg-primary/5 px-5 py-6 text-center">
-              <Avatar className="h-28 w-28 border-4 border-background shadow-[0_18px_40px_-24px_rgba(23,70,184,0.95)]">
-                <AvatarImage
-                  src={form.avatarUrl || undefined}
-                  alt={form.name || "Perfil"}
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-gradient-primary text-2xl font-bold text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">
-                  {form.name || user?.name || "Plenarius"}
-                </div>
-                <div className="text-xs text-muted-foreground">{form.email || user?.email}</div>
+        <div className="space-y-4">
+          <Card className="shadow-card">
+            <CardHeader className="flex-row items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
+                <UserRound className="h-4 w-4" />
               </div>
-            </div>
+              <CardTitle className="text-base">Foto do perfil</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex flex-col items-center gap-4 rounded-lg border border-primary/10 bg-primary/5 px-5 py-6 text-center">
+                <Avatar className="h-28 w-28 border-4 border-background shadow-[0_18px_40px_-24px_rgba(23,70,184,0.95)]">
+                  <AvatarImage
+                    src={form.avatarUrl || undefined}
+                    alt={form.name || "Perfil"}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-gradient-primary text-2xl font-bold text-primary-foreground">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold">
+                    {form.name || user?.name || "Plenarius"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{form.email || user?.email}</div>
+                </div>
+              </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="sr-only"
-              onChange={(event) => void handleAvatarChange(event)}
-            />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                onChange={(event) => void handleAvatarChange(event)}
+              />
 
-            <div className="flex flex-col gap-2 sm:flex-row xl:flex-col 2xl:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1"
-              >
-                <Upload className="h-4 w-4" />
-                Trocar imagem
-              </Button>
-              {form.avatarUrl ? (
+              <div className="flex flex-col gap-2 sm:flex-row xl:flex-col 2xl:flex-row">
                 <Button
                   type="button"
-                  variant="ghost"
-                  onClick={() => setForm((current) => ({ ...current, avatarUrl: "" }))}
-                  className="flex-1 text-destructive hover:text-destructive"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1"
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Remover
+                  <Upload className="h-4 w-4" />
+                  Trocar imagem
                 </Button>
+                {form.avatarUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setForm((current) => ({ ...current, avatarUrl: "" }))}
+                    className="flex-1 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remover
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border-primary/20 bg-[linear-gradient(145deg,#0B2A6F_0%,#1746B8_58%,#071A42_100%)] text-white shadow-card">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-center gap-4">
+                <img
+                  src="/iconplen-192.png"
+                  alt="Growth Hub"
+                  className="h-16 w-16 rounded-2xl shadow-[0_18px_38px_-18px_rgba(0,0,0,0.72)] ring-1 ring-white/15"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-gold">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    Aplicativo
+                  </div>
+                  <div className="mt-1 text-lg font-bold leading-tight">Growth Hub no celular</div>
+                  <p className="mt-1 text-sm text-white/70">
+                    Crie o atalho com ícone na tela inicial.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => void handleInstallApp()}
+                className="w-full gap-2 bg-gradient-gold font-bold text-gold-foreground hover:opacity-95"
+              >
+                {appInstalled ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {appInstalled ? "Aplicativo instalado" : "Criar aplicativo"}
+              </Button>
+
+              {!installPrompt && !appInstalled ? (
+                <p className="text-center text-xs text-white/62">
+                  No iPhone, use Compartilhar e Adicionar à Tela de Início.
+                </p>
               ) : null}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card className="shadow-card">
           <CardHeader className="flex-row items-center gap-3">
