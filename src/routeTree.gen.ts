@@ -41,6 +41,7 @@ import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upl
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
+import { Route as ApiCrmTransferRouteImport } from './routes/api/crm/transfer'
 import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
 import { Route as ApiBrandPlenSettingsRouteImport } from './routes/api/brand-plen.settings'
@@ -214,6 +215,11 @@ const ApiGestaoChannelsRoute = ApiGestaoChannelsRouteImport.update({
   path: '/api/gestao/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrmTransferRoute = ApiCrmTransferRouteImport.update({
+  id: '/api/crm/transfer',
+  path: '/api/crm/transfer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrmTasksRoute = ApiCrmTasksRouteImport.update({
   id: '/api/crm/tasks',
   path: '/api/crm/tasks',
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
+  '/api/crm/transfer': typeof ApiCrmTransferRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -358,6 +365,7 @@ export interface FileRoutesByTo {
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
+  '/api/crm/transfer': typeof ApiCrmTransferRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
+  '/api/crm/transfer': typeof ApiCrmTransferRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
@@ -453,6 +462,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/crm/tasks'
+    | '/api/crm/transfer'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -499,6 +509,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/crm/tasks'
+    | '/api/crm/transfer'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -545,6 +556,7 @@ export interface FileRouteTypes {
     | '/api/brand-plen/settings'
     | '/api/crm/leads'
     | '/api/crm/tasks'
+    | '/api/crm/transfer'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
@@ -592,6 +604,7 @@ export interface RootRouteChildren {
   ApiBrandPlenSettingsRoute: typeof ApiBrandPlenSettingsRoute
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiCrmTasksRoute: typeof ApiCrmTasksRoute
+  ApiCrmTransferRoute: typeof ApiCrmTransferRoute
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
   ApiHealthDbRoute: typeof ApiHealthDbRoute
@@ -823,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGestaoChannelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crm/transfer': {
+      id: '/api/crm/transfer'
+      path: '/api/crm/transfer'
+      fullPath: '/api/crm/transfer'
+      preLoaderRoute: typeof ApiCrmTransferRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crm/tasks': {
       id: '/api/crm/tasks'
       path: '/api/crm/tasks'
@@ -995,6 +1015,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBrandPlenSettingsRoute: ApiBrandPlenSettingsRoute,
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiCrmTasksRoute: ApiCrmTasksRoute,
+  ApiCrmTransferRoute: ApiCrmTransferRoute,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
   ApiHealthDbRoute: ApiHealthDbRoute,

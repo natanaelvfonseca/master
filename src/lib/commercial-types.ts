@@ -42,6 +42,8 @@ export type LeadRecord = {
   courseValue: number | null;
   acquisitionChannelId: string | null;
   acquisitionChannelName: string | null;
+  createdById: string | null;
+  createdByName: string | null;
   observations: string | null;
   stage: LeadStage;
   createdAt: string;

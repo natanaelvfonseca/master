@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
 import type { LeadStage } from "@/lib/commercial-types";
+import { canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
@@ -19,6 +20,7 @@ type LeadEditableRow = QueryResultRow & {
   city: string | null;
   course_id: string | null;
   acquisition_channel_id: string | null;
+  acquisition_channel_name_snapshot: string | null;
   observations: string | null;
   stage: LeadStage;
 };
@@ -197,6 +199,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               city,
               course_id,
               acquisition_channel_id,
+              acquisition_channel_name_snapshot,
               observations,
               stage
             from app_leads
@@ -216,7 +219,9 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        if (lead.created_by !== session.user.id) {
+        const canManageUnitLeads = canTransferLeads(session.user.role);
+
+        if (!canManageUnitLeads && lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
@@ -257,12 +262,12 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             );
           }
 
-          const channelResult = await getChannelSnapshot(
-            payload.acquisitionChannelId,
-            lead.unit_id,
-          );
+          const consultantEditingOwnLead = session.user.role === "CONSULTOR";
+          const channelResult = consultantEditingOwnLead
+            ? { channel: null }
+            : await getChannelSnapshot(payload.acquisitionChannelId, lead.unit_id);
 
-          if (channelResult.error) {
+          if ("error" in channelResult && channelResult.error) {
             return Response.json(
               { ok: false, error: channelResult.error },
               { status: channelResult.status },
@@ -324,8 +329,12 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               courseResult.course?.id ?? null,
               courseResult.course?.name ?? null,
               courseResult.course ? Number(courseResult.course.value) : null,
-              channelResult.channel?.id ?? null,
-              channelResult.channel?.name ?? null,
+              consultantEditingOwnLead
+                ? lead.acquisition_channel_id
+                : (channelResult.channel?.id ?? null),
+              consultantEditingOwnLead
+                ? lead.acquisition_channel_name_snapshot
+                : (channelResult.channel?.name ?? null),
               payload.observations,
               resolvedStage,
               session.user.id,
@@ -420,7 +429,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        if (lead.created_by !== session.user.id) {
+        if (!canTransferLeads(session.user.role) && lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 

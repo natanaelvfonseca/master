@@ -1,8 +1,10 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   BookOpenCheck,
   CalendarClock,
+  CheckSquare2,
   CheckCircle2,
   Clock3,
   Filter,
@@ -12,6 +14,7 @@ import {
   Phone,
   Plus,
   Trash2,
+  UserCheck,
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,11 +26,13 @@ import type {
 } from "@/lib/commercial-types";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { useAuth } from "@/lib/auth";
+import { canTransferLeads } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +90,34 @@ type TasksResponse = {
 
 type TaskResponse = {
   task: CrmLeadTask;
+};
+
+type TransferConsultant = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type TransferLead = {
+  id: string;
+  fullName: string;
+  phone: string;
+  courseName: string | null;
+  stage: LeadStage;
+  createdAt: string;
+  createdById: string | null;
+  createdByName: string | null;
+  ageHours: number;
+  transferable: boolean;
+};
+
+type TransferDataResponse = {
+  consultants: Array<TransferConsultant>;
+  leads: Array<TransferLead>;
+};
+
+type TransferSubmitResponse = {
+  transferredIds: Array<string>;
 };
 
 const NO_SELECTION = "__none__";
@@ -185,6 +218,44 @@ function formatTaskDate(value: string) {
   }).format(new Date(value));
 }
 
+function getAgeHours(value: string) {
+  const createdAt = new Date(value).getTime();
+
+  if (Number.isNaN(createdAt)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor((Date.now() - createdAt) / 3_600_000));
+}
+
+function formatLeadAge(value: string) {
+  const ageHours = getAgeHours(value);
+
+  if (ageHours < 1) {
+    return "Criado agora";
+  }
+
+  if (ageHours < 24) {
+    return `Criado há ${ageHours}h`;
+  }
+
+  const days = Math.floor(ageHours / 24);
+  const hours = ageHours % 24;
+
+  return hours ? `Criado há ${days}d ${hours}h` : `Criado há ${days}d`;
+}
+
+function formatTransferLeadAge(lead: TransferLead) {
+  if (lead.ageHours < 24) {
+    return `${lead.ageHours}h`;
+  }
+
+  const days = Math.floor(lead.ageHours / 24);
+  const hours = lead.ageHours % 24;
+
+  return hours ? `${days}d ${hours}h` : `${days}d`;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
 
@@ -229,9 +300,23 @@ function CRM() {
   const [draggingLeadId, setDraggingLeadId] = React.useState<string | null>(null);
   const [dropTargetStage, setDropTargetStage] = React.useState<LeadStage | null>(null);
   const [syncingLeadId, setSyncingLeadId] = React.useState<string | null>(null);
+  const [transferDialogOpen, setTransferDialogOpen] = React.useState(false);
+  const [transferLeads, setTransferLeads] = React.useState<Array<TransferLead>>([]);
+  const [transferConsultants, setTransferConsultants] = React.useState<Array<TransferConsultant>>(
+    [],
+  );
+  const [selectedTransferLeadIds, setSelectedTransferLeadIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+  const [transferTargetUserId, setTransferTargetUserId] = React.useState("");
+  const [loadingTransferData, setLoadingTransferData] = React.useState(false);
+  const [transferringLeads, setTransferringLeads] = React.useState(false);
   const formUnitId = form.unitId || activeUnitId;
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const canTransferUnitLeads = session ? canTransferLeads(session.user.role) : false;
+  const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
+  const selectedTransferCount = selectedTransferLeadIds.size;
 
   const loadLeads = React.useCallback(
     async (options?: { silent?: boolean }) => {
@@ -331,6 +416,39 @@ function CRM() {
     [],
   );
 
+  const loadTransferData = React.useCallback(async () => {
+    if (!activeUnitId || !canTransferUnitLeads) {
+      setTransferLeads([]);
+      setTransferConsultants([]);
+      return;
+    }
+
+    setLoadingTransferData(true);
+
+    try {
+      const data = await readJson<TransferDataResponse>(
+        await fetch(`/api/crm/transfer${unitQuery(activeUnitId)}`, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        }),
+      );
+
+      setTransferLeads(data.leads);
+      setTransferConsultants(data.consultants);
+      setSelectedTransferLeadIds((current) => {
+        const availableIds = new Set(data.leads.map((lead) => lead.id));
+
+        return new Set(Array.from(current).filter((id) => availableIds.has(id)));
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao carregar transferência de leads.",
+      );
+    } finally {
+      setLoadingTransferData(false);
+    }
+  }, [activeUnitId, canTransferUnitLeads]);
+
   React.useEffect(() => {
     void loadLeads();
   }, [loadLeads]);
@@ -356,7 +474,7 @@ function CRM() {
 
     if (channel) {
       channel.onmessage = (event) => {
-        if (event.data?.type === "lead-stage-updated") {
+        if (event.data?.type === "lead-stage-updated" || event.data?.type === "lead-transferred") {
           void loadLeads({ silent: true });
         }
       };
@@ -735,6 +853,94 @@ function CRM() {
     void updateLeadStage(lead, stage);
   }
 
+  function openTransferDialog() {
+    setTransferDialogOpen(true);
+    setSelectedTransferLeadIds(new Set());
+    setTransferTargetUserId("");
+    void loadTransferData();
+  }
+
+  function toggleTransferLead(lead: TransferLead, checked: boolean | "indeterminate") {
+    if (!lead.transferable) {
+      return;
+    }
+
+    setSelectedTransferLeadIds((current) => {
+      const next = new Set(current);
+
+      if (checked) {
+        next.add(lead.id);
+      } else {
+        next.delete(lead.id);
+      }
+
+      return next;
+    });
+  }
+
+  function toggleAllTransferableLeads(checked: boolean | "indeterminate") {
+    if (!checked) {
+      setSelectedTransferLeadIds(new Set());
+      return;
+    }
+
+    setSelectedTransferLeadIds(
+      new Set(transferLeads.filter((lead) => lead.transferable).map((lead) => lead.id)),
+    );
+  }
+
+  async function handleTransferLeads() {
+    if (!activeUnitId) {
+      return;
+    }
+
+    const leadIds = Array.from(selectedTransferLeadIds);
+
+    if (!leadIds.length) {
+      toast.error("Selecione ao menos um lead com mais de 48 horas.");
+      return;
+    }
+
+    if (!transferTargetUserId) {
+      toast.error("Escolha o consultor de destino.");
+      return;
+    }
+
+    setTransferringLeads(true);
+
+    try {
+      const data = await readJson<TransferSubmitResponse>(
+        await fetch("/api/crm/transfer", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            unitId: activeUnitId,
+            leadIds,
+            targetUserId: transferTargetUserId,
+          }),
+        }),
+      );
+
+      toast.success(`${data.transferredIds.length} lead(s) transferido(s).`);
+      setSelectedTransferLeadIds(new Set());
+      setTransferTargetUserId("");
+      broadcastChannelRef.current?.postMessage({
+        type: "lead-transferred",
+        leadIds: data.transferredIds,
+      });
+      void loadLeads({ silent: true });
+      void loadTransferData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao transferir leads.");
+    } finally {
+      setTransferringLeads(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <ConversionConfetti runId={confettiRunId} />
@@ -748,6 +954,12 @@ function CRM() {
               <Filter className="mr-2 h-4 w-4" />
               Filtros
             </Button>
+            {canTransferUnitLeads ? (
+              <Button type="button" variant="outline" onClick={openTransferDialog}>
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Transferência de Lead
+              </Button>
+            ) : null}
             <Button
               className="bg-gradient-primary text-primary-foreground"
               onClick={openLeadDialog}
@@ -815,6 +1027,8 @@ function CRM() {
                         removing={removingLeadId === lead.id}
                         dragging={draggingLeadId === lead.id}
                         syncing={syncingLeadId === lead.id}
+                        canViewAcquisitionChannel={canViewAcquisitionChannel}
+                        canViewOwner={canTransferUnitLeads}
                         onRemove={() => void handleRemoveLead(lead)}
                         onEdit={() => openEditLeadDialog(lead)}
                         onDragStart={(event) => handleDragStart(event, lead)}
@@ -844,6 +1058,7 @@ function CRM() {
         units={session?.units ?? []}
         selectedCourse={selectedCourse}
         loadingOptions={loadingOptions}
+        canViewAcquisitionChannel={canViewAcquisitionChannel}
         tasks={leadTasks}
         taskForm={taskForm}
         loadingTasks={loadingTasks}
@@ -873,6 +1088,22 @@ function CRM() {
           setLeadDialogMode("create");
           setForm(emptyLeadForm(activeUnitId));
         }}
+      />
+      <TransferLeadDialog
+        open={transferDialogOpen}
+        leads={transferLeads}
+        consultants={transferConsultants}
+        selectedLeadIds={selectedTransferLeadIds}
+        targetUserId={transferTargetUserId}
+        loading={loadingTransferData}
+        transferring={transferringLeads}
+        selectedCount={selectedTransferCount}
+        onOpenChange={setTransferDialogOpen}
+        onRefresh={() => void loadTransferData()}
+        onToggleLead={toggleTransferLead}
+        onToggleAll={toggleAllTransferableLeads}
+        onTargetChange={setTransferTargetUserId}
+        onSubmit={() => void handleTransferLeads()}
       />
     </div>
   );
@@ -916,6 +1147,8 @@ function LeadPipelineCard({
   removing,
   dragging,
   syncing,
+  canViewAcquisitionChannel,
+  canViewOwner,
   onRemove,
   onEdit,
   onDragStart,
@@ -925,6 +1158,8 @@ function LeadPipelineCard({
   removing: boolean;
   dragging: boolean;
   syncing: boolean;
+  canViewAcquisitionChannel: boolean;
+  canViewOwner: boolean;
   onRemove: () => void;
   onEdit: () => void;
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -960,6 +1195,16 @@ function LeadPipelineCard({
               <span className="truncate">{lead.email}</span>
             </div>
           ) : null}
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-primary">
+            <Clock3 className="h-3.5 w-3.5" />
+            <span className="truncate">{formatLeadAge(lead.createdAt)}</span>
+          </div>
+          {canViewOwner && lead.createdByName ? (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <UserCheck className="h-3.5 w-3.5" />
+              <span className="truncate">{lead.createdByName}</span>
+            </div>
+          ) : null}
         </div>
         <Button
           type="button"
@@ -979,7 +1224,7 @@ function LeadPipelineCard({
             {lead.courseName}
           </Badge>
         ) : null}
-        {lead.acquisitionChannelName ? (
+        {canViewAcquisitionChannel && lead.acquisitionChannelName ? (
           <Badge variant="secondary" className="bg-gold/15 text-gold-foreground">
             {lead.acquisitionChannelName}
           </Badge>
@@ -994,6 +1239,219 @@ function LeadPipelineCard({
   );
 }
 
+function TransferLeadDialog({
+  open,
+  leads,
+  consultants,
+  selectedLeadIds,
+  targetUserId,
+  loading,
+  transferring,
+  selectedCount,
+  onOpenChange,
+  onRefresh,
+  onToggleLead,
+  onToggleAll,
+  onTargetChange,
+  onSubmit,
+}: {
+  open: boolean;
+  leads: Array<TransferLead>;
+  consultants: Array<TransferConsultant>;
+  selectedLeadIds: Set<string>;
+  targetUserId: string;
+  loading: boolean;
+  transferring: boolean;
+  selectedCount: number;
+  onOpenChange: (open: boolean) => void;
+  onRefresh: () => void;
+  onToggleLead: (lead: TransferLead, checked: boolean | "indeterminate") => void;
+  onToggleAll: (checked: boolean | "indeterminate") => void;
+  onTargetChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const transferableLeads = leads.filter((lead) => lead.transferable);
+  const allTransferableSelected =
+    transferableLeads.length > 0 && transferableLeads.every((lead) => selectedLeadIds.has(lead.id));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] overflow-hidden border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(11,42,111,0.85)] sm:max-w-4xl">
+        <div className="relative overflow-hidden bg-gradient-hero p-6 text-white">
+          <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <DialogHeader className="space-y-2 text-left">
+              <DialogTitle className="flex items-center gap-2 text-xl text-white">
+                <ArrowRightLeft className="h-5 w-5 text-gold" />
+                Transferência de Lead
+              </DialogTitle>
+              <DialogDescription className="max-w-2xl text-white/72">
+                Mova leads com mais de 48 horas de criação para outro consultor da unidade.
+              </DialogDescription>
+            </DialogHeader>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onRefresh}
+              disabled={loading}
+              className="w-fit text-white hover:bg-white/10 hover:text-white"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Atualizar
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid max-h-[calc(92vh-176px)] gap-4 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-primary">
+                <Checkbox
+                  checked={allTransferableSelected}
+                  onCheckedChange={onToggleAll}
+                  disabled={!transferableLeads.length || loading}
+                />
+                Selecionar todos com mais de 48h
+              </label>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  {transferableLeads.length} elegíveis
+                </Badge>
+                <Badge variant="secondary" className="bg-gold/15 text-gold-foreground">
+                  {selectedCount} selecionados
+                </Badge>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {loading ? (
+                <div className="flex h-56 items-center justify-center rounded-lg border bg-white/70">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : leads.length ? (
+                leads.map((lead) => {
+                  const selected = selectedLeadIds.has(lead.id);
+
+                  return (
+                    <div
+                      key={lead.id}
+                      className={`grid gap-3 rounded-lg border p-3 transition ${
+                        lead.transferable
+                          ? selected
+                            ? "border-primary/45 bg-primary/10 shadow-card"
+                            : "border-primary/15 bg-white/85"
+                          : "border-border bg-muted/45 opacity-75"
+                      } sm:grid-cols-[auto_minmax(0,1fr)_auto]`}
+                    >
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={(checked) => onToggleLead(lead, checked)}
+                        disabled={!lead.transferable || loading}
+                        className="mt-1"
+                        aria-label={`Selecionar ${lead.fullName}`}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="break-words text-sm font-bold">{lead.fullName}</div>
+                          <Badge
+                            variant="outline"
+                            className={
+                              lead.transferable
+                                ? "border-success/25 bg-success/10 text-success"
+                                : "border-warning/25 bg-warning/10 text-warning-foreground"
+                            }
+                          >
+                            {lead.transferable ? "Pode transferir" : "Aguardando 48h"}
+                          </Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span>{lead.phone}</span>
+                          {lead.courseName ? <span>{lead.courseName}</span> : null}
+                          <span>{lead.stage}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                          <span className="flex items-center gap-1 text-primary">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            Criado há {formatTransferLeadAge(lead)}
+                          </span>
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <UserCheck className="h-3.5 w-3.5" />
+                            {lead.createdByName ?? "Sem consultor"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        {lead.transferable
+                          ? "48h liberado"
+                          : `Faltam ${Math.max(0, 48 - lead.ageHours)}h`}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  icon={ArrowRightLeft}
+                  title="Nenhum lead no pipeline"
+                  description="Leads da unidade aparecem aqui quando ainda não foram matriculados."
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-lg border border-primary/15 bg-[linear-gradient(135deg,rgba(11,42,111,.05),rgba(63,115,216,.08))] p-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                <UserCheck className="h-4 w-4" />
+                Destino
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Escolha o consultor que receberá os leads selecionados.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Consultor</Label>
+              <Select value={targetUserId} onValueChange={onTargetChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o consultor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {consultants.map((consultant) => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="rounded-lg border bg-white/80 p-3 text-sm">
+              <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Resumo
+              </div>
+              <div className="mt-2 text-2xl font-black text-primary">{selectedCount}</div>
+              <div className="text-xs text-muted-foreground">lead(s) selecionado(s)</div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={loading || transferring || !selectedCount || !targetUserId}
+              className="w-full gap-2 bg-gradient-primary"
+            >
+              {transferring ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckSquare2 className="h-4 w-4" />
+              )}
+              {transferring ? "Transferindo..." : "Transferir leads"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateLeadDialog({
   open,
   mode,
@@ -1003,6 +1461,7 @@ function CreateLeadDialog({
   units,
   selectedCourse,
   loadingOptions,
+  canViewAcquisitionChannel,
   tasks,
   taskForm,
   loadingTasks,
@@ -1029,6 +1488,7 @@ function CreateLeadDialog({
   units: Array<{ id: string; name: string; slug: string }>;
   selectedCourse: CourseRecord | null;
   loadingOptions: boolean;
+  canViewAcquisitionChannel: boolean;
   tasks: Array<CrmLeadTask>;
   taskForm: LeadTaskFormState;
   loadingTasks: boolean;
@@ -1048,6 +1508,7 @@ function CreateLeadDialog({
   onResetNewLead: () => void;
 }) {
   const isEditMode = mode === "edit";
+  const showAcquisitionChannelField = !isEditMode || canViewAcquisitionChannel;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1167,30 +1628,32 @@ function CreateLeadDialog({
               ) : null}
             </div>
 
-            <div className="space-y-2">
-              <Label>Canal de Aquisição</Label>
-              <Select
-                value={form.acquisitionChannelId || NO_SELECTION}
-                onValueChange={(value) =>
-                  onFormChange((current) => ({
-                    ...current,
-                    acquisitionChannelId: value === NO_SELECTION ? "" : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingOptions ? "Carregando..." : "Selecione"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_SELECTION}>Sem canal definido</SelectItem>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {showAcquisitionChannelField ? (
+              <div className="space-y-2">
+                <Label>Canal de Aquisição</Label>
+                <Select
+                  value={form.acquisitionChannelId || NO_SELECTION}
+                  onValueChange={(value) =>
+                    onFormChange((current) => ({
+                      ...current,
+                      acquisitionChannelId: value === NO_SELECTION ? "" : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingOptions ? "Carregando..." : "Selecione"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_SELECTION}>Sem canal definido</SelectItem>
+                    {channels.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             {!isEditMode ? (
               <div className="space-y-2 md:col-span-2">

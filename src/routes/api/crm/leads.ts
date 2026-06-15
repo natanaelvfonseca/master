@@ -7,7 +7,7 @@ import {
   getUnitFromRequest,
   isUuid,
 } from "@/lib/server/commercial-schema";
-import { canViewStudents } from "@/lib/auth-types";
+import { canTransferLeads, canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 
@@ -24,6 +24,8 @@ type LeadRow = QueryResultRow & {
   course_value_snapshot: string | null;
   acquisition_channel_id: string | null;
   acquisition_channel_name_snapshot: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
   observations: string | null;
   stage: LeadStage;
   created_at: string;
@@ -40,7 +42,7 @@ type ChannelSnapshotRow = QueryResultRow & {
   name: string;
 };
 
-function mapLead(row: LeadRow): LeadRecord {
+function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
   return {
     id: row.id,
     unitId: row.unit_id,
@@ -52,8 +54,10 @@ function mapLead(row: LeadRow): LeadRecord {
     courseId: row.course_id,
     courseName: row.course_name_snapshot,
     courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
-    acquisitionChannelId: row.acquisition_channel_id,
-    acquisitionChannelName: row.acquisition_channel_name_snapshot,
+    acquisitionChannelId: exposeAcquisitionChannel ? row.acquisition_channel_id : null,
+    acquisitionChannelName: exposeAcquisitionChannel ? row.acquisition_channel_name_snapshot : null,
+    createdById: row.created_by,
+    createdByName: row.created_by_name,
     observations: row.observations,
     stage: row.stage,
     createdAt: row.created_at,
@@ -169,12 +173,14 @@ export const Route = createFileRoute("/api/crm/leads")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
+        const canManageUnitLeads = canTransferLeads(session.user.role);
+        const exposeAcquisitionChannel = session.user.role !== "CONSULTOR";
         const result = await queryDb<LeadRow>(
           `
             select
               l.id,
               l.unit_id,
-              u.name as unit_name,
+              un.name as unit_name,
               l.full_name,
               l.phone,
               l.email,
@@ -184,24 +190,27 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.course_value_snapshot::text,
               l.acquisition_channel_id,
               l.acquisition_channel_name_snapshot,
+              l.created_by,
+              owner.name as created_by_name,
               l.observations,
               l.stage,
               l.created_at::text
             from app_leads l
-            inner join app_units u on u.id = l.unit_id
+            inner join app_units un on un.id = l.unit_id
+            left join app_users owner on owner.id = l.created_by
             where l.unit_id = $1
-              and l.created_by = $2
+              and ($4::boolean or l.created_by = $2)
               and (
                 ($3 = 'students' and l.stage = 'Matriculado')
                 or ($3 = 'pipeline' and l.stage <> 'Matriculado')
               )
             order by l.created_at desc
           `,
-          [unit.id, session.user.id, listView],
+          [unit.id, session.user.id, listView, canManageUnitLeads],
         );
 
         return Response.json(
-          { leads: result.rows.map(mapLead) },
+          { leads: result.rows.map((row) => mapLead(row, exposeAcquisitionChannel)) },
           { headers: { "Cache-Control": "no-store" } },
         );
       },
@@ -279,6 +288,8 @@ export const Route = createFileRoute("/api/crm/leads")({
               course_value_snapshot::text,
               acquisition_channel_id,
               acquisition_channel_name_snapshot,
+              created_by,
+              $13::text as created_by_name,
               observations,
               stage,
               created_at::text
@@ -296,10 +307,14 @@ export const Route = createFileRoute("/api/crm/leads")({
             channel?.name ?? null,
             payload.observations,
             session.user.id,
+            session.user.name,
           ],
         );
 
-        return Response.json({ lead: mapLead(result.rows[0]) }, { status: 201 });
+        return Response.json(
+          { lead: mapLead(result.rows[0], session.user.role !== "CONSULTOR") },
+          { status: 201 },
+        );
       },
     },
   },

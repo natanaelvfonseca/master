@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
 import { CRM_TASK_STATUSES, type CrmLeadTask, type CrmTaskStatus } from "@/lib/crm-task-types";
+import { canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
@@ -28,6 +29,7 @@ type LeadAccessRow = QueryResultRow & {
 
 type TaskAccessRow = QueryResultRow & {
   id: string;
+  unit_id: string;
   created_by: string | null;
 };
 
@@ -102,7 +104,12 @@ function mapTask(row: TaskRow): CrmLeadTask {
   };
 }
 
-async function getLeadForUser(leadId: string, userId: string, unitIds: Array<string>) {
+async function getLeadForUser(
+  leadId: string,
+  userId: string,
+  unitIds: Array<string>,
+  canManageUnitLeads: boolean,
+) {
   const result = await queryDb<LeadAccessRow>(
     `
       select id, unit_id, created_by, full_name
@@ -118,17 +125,22 @@ async function getLeadForUser(leadId: string, userId: string, unitIds: Array<str
     return { error: "Lead não encontrado.", status: 404 } as const;
   }
 
-  if (!unitIds.includes(lead.unit_id) || lead.created_by !== userId) {
+  if (!unitIds.includes(lead.unit_id) || (!canManageUnitLeads && lead.created_by !== userId)) {
     return { error: "Acesso negado.", status: 403 } as const;
   }
 
   return { lead } as const;
 }
 
-async function assertTaskForUser(taskId: string, userId: string) {
+async function assertTaskForUser(
+  taskId: string,
+  userId: string,
+  unitIds: Array<string>,
+  canManageUnitLeads: boolean,
+) {
   const result = await queryDb<TaskAccessRow>(
     `
-      select id, created_by
+      select id, unit_id, created_by
       from app_crm_tasks
       where id = $1
       limit 1
@@ -141,7 +153,7 @@ async function assertTaskForUser(taskId: string, userId: string) {
     return { error: "Tarefa não encontrada.", status: 404 } as const;
   }
 
-  if (task.created_by !== userId) {
+  if (!unitIds.includes(task.unit_id) || (!canManageUnitLeads && task.created_by !== userId)) {
     return { error: "Acesso negado.", status: 403 } as const;
   }
 
@@ -247,6 +259,7 @@ export const Route = createFileRoute("/api/crm/tasks")({
 
         await ensureCommercialSchema();
         await ensureCrmTaskSchema();
+        const canManageUnitLeads = canTransferLeads(session.user.role);
 
         const url = new URL(request.url);
         const view = url.searchParams.get("view");
@@ -268,6 +281,7 @@ export const Route = createFileRoute("/api/crm/tasks")({
           leadId,
           session.user.id,
           session.units.map((unit) => unit.id),
+          canManageUnitLeads,
         );
 
         if ("error" in leadAccess) {
@@ -309,11 +323,13 @@ export const Route = createFileRoute("/api/crm/tasks")({
 
         await ensureCommercialSchema();
         await ensureCrmTaskSchema();
+        const canManageUnitLeads = canTransferLeads(session.user.role);
 
         const leadAccess = await getLeadForUser(
           leadId,
           session.user.id,
           session.units.map((unit) => unit.id),
+          canManageUnitLeads,
         );
 
         if ("error" in leadAccess) {
@@ -380,8 +396,14 @@ export const Route = createFileRoute("/api/crm/tasks")({
         }
 
         await ensureCrmTaskSchema();
+        const canManageUnitLeads = canTransferLeads(session.user.role);
 
-        const taskAccess = await assertTaskForUser(taskId, session.user.id);
+        const taskAccess = await assertTaskForUser(
+          taskId,
+          session.user.id,
+          session.units.map((unit) => unit.id),
+          canManageUnitLeads,
+        );
 
         if ("error" in taskAccess) {
           return Response.json(
@@ -425,8 +447,14 @@ export const Route = createFileRoute("/api/crm/tasks")({
         }
 
         await ensureCrmTaskSchema();
+        const canManageUnitLeads = canTransferLeads(session.user.role);
 
-        const taskAccess = await assertTaskForUser(taskId, session.user.id);
+        const taskAccess = await assertTaskForUser(
+          taskId,
+          session.user.id,
+          session.units.map((unit) => unit.id),
+          canManageUnitLeads,
+        );
 
         if ("error" in taskAccess) {
           return Response.json(
