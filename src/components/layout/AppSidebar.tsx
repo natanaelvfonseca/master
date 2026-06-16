@@ -7,6 +7,7 @@ import {
   GraduationCap,
   History,
   Images,
+  Infinity as InfinityIcon,
   KanbanSquare,
   LayoutDashboard,
   LogOut,
@@ -36,6 +37,7 @@ import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import {
   canAccessSystemFeedback,
+  canManageMetaAds,
   canManageBrandPlen,
   canViewBrandPlenHistory,
   canViewGrowth,
@@ -53,6 +55,7 @@ type NavigationItem = {
   brandAdminOnly?: boolean;
   brandHistoryOnly?: boolean;
   managementOnly?: boolean;
+  metaAdsOnly?: boolean;
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
 };
@@ -71,6 +74,7 @@ const groups: Array<NavigationGroup> = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
+      { title: "Meta Ads", url: "/meta-ads", icon: InfinityIcon, metaAdsOnly: true },
       { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
@@ -123,6 +127,7 @@ export function AppSidebar() {
   const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
+  const canViewMetaAds = user ? canManageMetaAds(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -141,6 +146,7 @@ export function AppSidebar() {
           (!item.brandAdminOnly || canViewBrandAdmin) &&
           (!item.brandHistoryOnly || canViewBrandHistory) &&
           (!item.managementOnly || canViewManagementArea) &&
+          (!item.metaAdsOnly || canViewMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback),
       ),

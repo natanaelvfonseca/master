@@ -79,6 +79,10 @@ export function canManageBrandPlen(role: UserRole) {
   return role === "MASTER";
 }
 
+export function canManageMetaAds(role: UserRole) {
+  return role === "MASTER";
+}
+
 export function canViewBrandPlenHistory(role: UserRole) {
   return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
