@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, KeyRound, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Building2, KeyRound, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +23,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
-import { getAssignableRoles, ROLE_LABELS, type ManagedUser, type UserRole } from "@/lib/auth-types";
+import {
+  canDeleteManagedUser,
+  canDeleteUsers,
+  getAssignableRoles,
+  ROLE_LABELS,
+  type ManagedUser,
+  type UserRole,
+} from "@/lib/auth-types";
 
 type UsersResponse = {
   users: Array<ManagedUser>;
@@ -32,6 +49,12 @@ type UsersResponse = {
 
 type UnitsResponse = {
   units: Array<{ id: string; name: string; slug: string }>;
+};
+
+type DeleteTarget = {
+  id: string;
+  name: string;
+  role: UserRole;
 };
 
 export const Route = createFileRoute("/usuarios")({
@@ -46,10 +69,13 @@ function UsersPage() {
   const [loading, setLoading] = React.useState(true);
   const [savingUser, setSavingUser] = React.useState(false);
   const [savingUnit, setSavingUnit] = React.useState(false);
+  const [deletingUser, setDeletingUser] = React.useState(false);
   const [unitName, setUnitName] = React.useState("");
+  const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
+  const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
-    () => (session ? getAssignableRoles(session.user.role) : []),
-    [session?.user.role],
+    () => (userRole ? getAssignableRoles(userRole) : []),
+    [userRole],
   );
   const [form, setForm] = React.useState({
     name: "",
@@ -58,6 +84,16 @@ function UsersPage() {
     role: "" as UserRole | "",
     unitId: "",
   });
+  const canChooseUnit = userRole ? ["MASTER", "CEO"].includes(userRole) : false;
+  const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
+  const defaultUnit = session?.activeUnit ?? session?.units[0] ?? null;
+  const defaultUnitId = defaultUnit?.id ?? "";
+  const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
+  const unitOptionsBase = units.length ? units : (session?.units ?? []);
+  const unitOptions =
+    defaultUnit && !unitOptionsBase.some((unit) => unit.id === defaultUnit.id)
+      ? [defaultUnit, ...unitOptionsBase]
+      : unitOptionsBase;
 
   React.useEffect(() => {
     if (!session) {
@@ -66,7 +102,10 @@ function UsersPage() {
 
     setForm((current) => {
       const nextRole = current.role || assignableRoles[0] || "";
-      const nextUnitId = current.unitId || session.activeUnit?.id || "";
+      const sessionDefaultUnitId = session.activeUnit?.id || session.units[0]?.id || "";
+      const nextUnitId = ["MASTER", "CEO"].includes(session.user.role)
+        ? current.unitId || sessionDefaultUnitId
+        : sessionDefaultUnitId;
 
       if (current.role === nextRole && current.unitId === nextUnitId) {
         return current;
@@ -77,7 +116,7 @@ function UsersPage() {
   }, [assignableRoles, session]);
 
   const loadData = React.useCallback(async () => {
-    if (!session?.canRegisterUsers) {
+    if (!session?.canRegisterUsers || !defaultUnitId) {
       setLoading(false);
       return;
     }
@@ -103,7 +142,7 @@ function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [session?.activeUnit?.id, session?.canRegisterUsers]);
+  }, [defaultUnitId, session?.canRegisterUsers]);
 
   React.useEffect(() => {
     void loadData();
@@ -127,6 +166,12 @@ function UsersPage() {
 
   async function handleCreateUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!effectiveUnitId) {
+      toast.error("Unidade indisponível para o cadastro.");
+      return;
+    }
+
     setSavingUser(true);
 
     try {
@@ -137,7 +182,7 @@ function UsersPage() {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, unitId: effectiveUnitId }),
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -196,6 +241,39 @@ function UsersPage() {
       toast.error(error instanceof Error ? error.message : "Falha ao criar unidade.");
     } finally {
       setSavingUnit(false);
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setDeletingUser(true);
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "NÃ£o foi possÃ­vel excluir usuÃ¡rio.");
+      }
+
+      toast.success("UsuÃ¡rio excluÃ­do.");
+      setDeleteTarget(null);
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao excluir usuÃ¡rio.");
+    } finally {
+      setDeletingUser(false);
     }
   }
 
@@ -285,15 +363,15 @@ function UsersPage() {
               <div className="space-y-2">
                 <Label>Unidade</Label>
                 <Select
-                  value={form.unitId}
+                  value={effectiveUnitId}
                   onValueChange={(value) => setForm((current) => ({ ...current, unitId: value }))}
-                  disabled={!["MASTER", "CEO"].includes(session.user.role)}
+                  disabled={!canChooseUnit}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(units.length ? units : session.units).map((unit) => (
+                    {unitOptions.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name}
                       </SelectItem>
@@ -302,7 +380,7 @@ function UsersPage() {
                 </Select>
               </div>
               <div className="md:col-span-2">
-                <Button type="submit" disabled={savingUser || !form.role || !form.unitId}>
+                <Button type="submit" disabled={savingUser || !form.role || !effectiveUnitId}>
                   {savingUser ? "Salvando..." : "Cadastrar usuário"}
                 </Button>
               </div>
@@ -325,12 +403,13 @@ function UsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Função</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-[96px] text-right">AÃ§Ãµes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
                       Carregando...
                     </TableCell>
                   </TableRow>
@@ -350,11 +429,35 @@ function UsersPage() {
                           {user.status === "active" ? "Ativo" : "Inativo"}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end">
+                          {canDeleteUserRecords &&
+                          user.id !== session.user.id &&
+                          canDeleteManagedUser(session.user.role, user.role) ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() =>
+                                setDeleteTarget({
+                                  id: user.id,
+                                  name: user.name,
+                                  role: user.role,
+                                })
+                              }
+                              aria-label={`Excluir ${user.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
                       Nenhum usuário nesta unidade.
                     </TableCell>
                   </TableRow>
@@ -389,6 +492,34 @@ function UsersPage() {
           </CardContent>
         </Card>
       ) : null}
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && !deletingUser && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuÃ¡rio</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `Deseja excluir "${deleteTarget.name}"? O usuÃ¡rio serÃ¡ desativado e perderÃ¡ o acesso ao sistema.`
+                : "Deseja excluir este usuÃ¡rio?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingUser}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingUser}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteUser();
+              }}
+            >
+              {deletingUser ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -47,6 +47,10 @@ export function canRegisterUsers(role: UserRole) {
   return ["MASTER", "CEO", "DIRETOR", "GERENTE"].includes(role);
 }
 
+export function canDeleteUsers(role: UserRole) {
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR";
+}
+
 export function canCreateUnits(role: UserRole) {
   return role === "MASTER";
 }
@@ -113,6 +117,22 @@ export function getAssignableRoles(role: UserRole): Array<UserRole> {
   }
 
   return [];
+}
+
+export function canDeleteManagedUser(actorRole: UserRole, targetRole: UserRole) {
+  if (actorRole === "MASTER") {
+    return true;
+  }
+
+  if (actorRole === "CEO") {
+    return targetRole === "DIRETOR" || targetRole === "GERENTE" || targetRole === "CONSULTOR";
+  }
+
+  if (actorRole === "DIRETOR") {
+    return targetRole === "GERENTE" || targetRole === "CONSULTOR";
+  }
+
+  return false;
 }
 
 export function getInitials(name: string) {

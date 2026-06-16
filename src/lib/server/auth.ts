@@ -1,9 +1,4 @@
-import {
-  createHash,
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { QueryResultRow } from "pg";
 import {
@@ -198,10 +193,7 @@ export async function checkLoginRateLimit(
   };
 }
 
-export async function recordLoginAttempt(
-  identifiers: LoginIdentifiers,
-  successful: boolean,
-) {
+export async function recordLoginAttempt(identifiers: LoginIdentifiers, successful: boolean) {
   await queryDb(
     `
       insert into app_login_attempts (email_hash, ip_hash, successful)
@@ -288,10 +280,12 @@ export async function getAccessibleUnits(userId: string, role: UserRole) {
 
   const result = await queryDb<UserUnitRow>(
     `
-      select u.id, u.name, u.slug
+      select distinct u.id, u.name, u.slug
       from app_units u
-      inner join app_user_units uu on uu.unit_id = u.id
-      where uu.user_id = $1 and u.status = 'active'
+      left join app_user_units uu on uu.unit_id = u.id and uu.user_id = $1
+      left join app_users au on au.id = $1 and au.primary_unit_id = u.id
+      where u.status = 'active'
+        and (uu.user_id is not null or au.id is not null)
       order by u.name asc
     `,
     [userId],
@@ -300,7 +294,11 @@ export async function getAccessibleUnits(userId: string, role: UserRole) {
   return result.rows;
 }
 
-function buildSession(row: SessionRow, units: Array<UnitSummary>, activeUnit: UnitSummary | null): AuthSession {
+function buildSession(
+  row: SessionRow,
+  units: Array<UnitSummary>,
+  activeUnit: UnitSummary | null,
+): AuthSession {
   return {
     user: {
       id: row.user_id,
@@ -368,7 +366,11 @@ export async function getSessionFromRequest(request: Request): Promise<AuthSessi
   return buildSession(row, units, activeUnit);
 }
 
-export async function createSessionForUser(userId: string, role: UserRole, preferredUnitId: string) {
+export async function createSessionForUser(
+  userId: string,
+  role: UserRole,
+  preferredUnitId: string,
+) {
   const units = await getAccessibleUnits(userId, role);
   const activeUnit = units.find((unit) => unit.id === preferredUnitId) ?? units[0] ?? null;
 

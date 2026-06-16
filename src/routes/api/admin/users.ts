@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import type { ManagedUser, UserRole } from "@/lib/auth-types";
+import {
+  canDeleteManagedUser,
+  canDeleteUsers,
+  type ManagedUser,
+  type UserRole,
+} from "@/lib/auth-types";
 import {
   canAssignRole,
   getSessionFromRequest,
@@ -101,7 +106,11 @@ export const Route = createFileRoute("/api/admin/users")({
         const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
         const password = typeof body?.password === "string" ? body.password : "";
         const role = typeof body?.role === "string" ? body.role : "";
-        const unitId = typeof body?.unitId === "string" ? body.unitId : session.activeUnit.id;
+        const requestedUnitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
+        const canChooseUnit = ["MASTER", "CEO"].includes(session.user.role);
+        const unitId = canChooseUnit
+          ? requestedUnitId || session.activeUnit.id
+          : session.activeUnit.id;
 
         if (!name || !email || password.length < 8 || !isValidRole(role)) {
           return Response.json({ ok: false, error: "Dados inválidos." }, { status: 400 });
@@ -117,7 +126,7 @@ export const Route = createFileRoute("/api/admin/users")({
           return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
         }
 
-        if (!["MASTER", "CEO"].includes(session.user.role) && unitId !== session.activeUnit.id) {
+        if (!canChooseUnit && unitId !== session.activeUnit.id) {
           return Response.json({ ok: false, error: "Unidade não permitida." }, { status: 403 });
         }
 
@@ -162,6 +171,96 @@ export const Route = createFileRoute("/api/admin/users")({
 
           throw error;
         }
+      },
+      DELETE: async ({ request }) => {
+        const session = await getSessionFromRequest(request);
+
+        if (!session) {
+          return Response.json({ ok: false, error: "NÃ£o autenticado." }, { status: 401 });
+        }
+
+        if (!session.activeUnit || !canDeleteUsers(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        const body = await request.json().catch(() => null);
+        const userId = typeof body?.userId === "string" ? body.userId.trim() : "";
+
+        if (!userId) {
+          return Response.json({ ok: false, error: "UsuÃ¡rio invÃ¡lido." }, { status: 400 });
+        }
+
+        if (userId === session.user.id) {
+          return Response.json(
+            { ok: false, error: "VocÃª nÃ£o pode excluir o prÃ³prio usuÃ¡rio." },
+            { status: 403 },
+          );
+        }
+
+        const targetResult = await queryDb<ManagedUserRow>(
+          `
+            select
+              u.id,
+              u.email,
+              u.name,
+              u.role,
+              u.status,
+              au.id as unit_id,
+              au.name as unit_name,
+              u.created_at::text
+            from app_users u
+            inner join app_units au on au.id = u.primary_unit_id
+            where u.id = $1
+            limit 1
+          `,
+          [userId],
+        );
+
+        const target = targetResult.rows[0];
+
+        if (!target) {
+          return Response.json({ ok: false, error: "UsuÃ¡rio nÃ£o encontrado." }, { status: 404 });
+        }
+
+        if (target.unit_id !== session.activeUnit.id) {
+          return Response.json(
+            { ok: false, error: "UsuÃ¡rio fora da unidade ativa." },
+            { status: 403 },
+          );
+        }
+
+        if (!canDeleteManagedUser(session.user.role, target.role)) {
+          return Response.json(
+            { ok: false, error: "VocÃª nÃ£o pode excluir este usuÃ¡rio." },
+            { status: 403 },
+          );
+        }
+
+        if (target.status === "inactive") {
+          return Response.json({ ok: true }, { status: 200 });
+        }
+
+        await withTransaction(async (client) => {
+          await client.query(
+            `
+              update app_users
+              set status = 'inactive', updated_at = now()
+              where id = $1
+            `,
+            [target.id],
+          );
+
+          await client.query(
+            `
+              update app_sessions
+              set revoked_at = now()
+              where user_id = $1 and revoked_at is null
+            `,
+            [target.id],
+          );
+        });
+
+        return Response.json({ ok: true });
       },
     },
   },
