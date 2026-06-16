@@ -71,6 +71,7 @@ export const Route = createFileRoute("/api/admin/users")({
             from app_users u
             inner join app_units au on au.id = u.primary_unit_id
             where u.primary_unit_id = $1
+              and u.status = 'active'
               and ($2::boolean or u.role <> 'MASTER')
             order by
               case u.role

@@ -268,6 +268,7 @@ function UsersPage() {
       }
 
       toast.success("Usuário excluído.");
+      setUsers((current) => current.filter((user) => user.id !== deleteTarget.id));
       setDeleteTarget(null);
       await loadData();
     } catch (error) {
