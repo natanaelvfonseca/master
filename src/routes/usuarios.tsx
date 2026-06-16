@@ -264,14 +264,14 @@ function UsersPage() {
       const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "NÃ£o foi possÃ­vel excluir usuÃ¡rio.");
+        throw new Error(data.error ?? "Não foi possível excluir usuário.");
       }
 
-      toast.success("UsuÃ¡rio excluÃ­do.");
+      toast.success("Usuário excluído.");
       setDeleteTarget(null);
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao excluir usuÃ¡rio.");
+      toast.error(error instanceof Error ? error.message : "Falha ao excluir usuário.");
     } finally {
       setDeletingUser(false);
     }
@@ -403,7 +403,7 @@ function UsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Função</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[96px] text-right">AÃ§Ãµes</TableHead>
+                  <TableHead className="w-[96px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -498,11 +498,11 @@ function UsersPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir usuÃ¡rio</AlertDialogTitle>
+            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `Deseja excluir "${deleteTarget.name}"? O usuÃ¡rio serÃ¡ desativado e perderÃ¡ o acesso ao sistema.`
-                : "Deseja excluir este usuÃ¡rio?"}
+                ? `Deseja excluir "${deleteTarget.name}"? O usuário será desativado e perderá o acesso ao sistema.`
+                : "Deseja excluir este usuário?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

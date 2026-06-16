@@ -176,7 +176,7 @@ export const Route = createFileRoute("/api/admin/users")({
         const session = await getSessionFromRequest(request);
 
         if (!session) {
-          return Response.json({ ok: false, error: "NÃ£o autenticado." }, { status: 401 });
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
         if (!session.activeUnit || !canDeleteUsers(session.user.role)) {
@@ -187,12 +187,12 @@ export const Route = createFileRoute("/api/admin/users")({
         const userId = typeof body?.userId === "string" ? body.userId.trim() : "";
 
         if (!userId) {
-          return Response.json({ ok: false, error: "UsuÃ¡rio invÃ¡lido." }, { status: 400 });
+          return Response.json({ ok: false, error: "Usuário inválido." }, { status: 400 });
         }
 
         if (userId === session.user.id) {
           return Response.json(
-            { ok: false, error: "VocÃª nÃ£o pode excluir o prÃ³prio usuÃ¡rio." },
+            { ok: false, error: "Você não pode excluir o próprio usuário." },
             { status: 403 },
           );
         }
@@ -219,19 +219,19 @@ export const Route = createFileRoute("/api/admin/users")({
         const target = targetResult.rows[0];
 
         if (!target) {
-          return Response.json({ ok: false, error: "UsuÃ¡rio nÃ£o encontrado." }, { status: 404 });
+          return Response.json({ ok: false, error: "Usuário não encontrado." }, { status: 404 });
         }
 
         if (target.unit_id !== session.activeUnit.id) {
           return Response.json(
-            { ok: false, error: "UsuÃ¡rio fora da unidade ativa." },
+            { ok: false, error: "Usuário fora da unidade ativa." },
             { status: 403 },
           );
         }
 
         if (!canDeleteManagedUser(session.user.role, target.role)) {
           return Response.json(
-            { ok: false, error: "VocÃª nÃ£o pode excluir este usuÃ¡rio." },
+            { ok: false, error: "Você não pode excluir este usuário." },
             { status: 403 },
           );
         }
