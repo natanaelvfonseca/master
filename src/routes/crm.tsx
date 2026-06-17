@@ -315,6 +315,7 @@ function CRM() {
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
   const canTransferUnitLeads = session ? canTransferLeads(session.user.role) : false;
+  const canRemoveLeads = canTransferUnitLeads;
   const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
   const selectedTransferCount = selectedTransferLeadIds.size;
 
@@ -719,6 +720,11 @@ function CRM() {
   }
 
   async function handleRemoveLead(lead: LeadRecord) {
+    if (!canRemoveLeads) {
+      toast.error("Seu perfil nÃ£o permite excluir leads.");
+      return;
+    }
+
     if (!window.confirm(`Remover o lead "${lead.fullName}" do banco de dados?`)) {
       return;
     }
@@ -1029,6 +1035,7 @@ function CRM() {
                         syncing={syncingLeadId === lead.id}
                         canViewAcquisitionChannel={canViewAcquisitionChannel}
                         canViewOwner={canTransferUnitLeads}
+                        canRemove={canRemoveLeads}
                         onRemove={() => void handleRemoveLead(lead)}
                         onEdit={() => openEditLeadDialog(lead)}
                         onDragStart={(event) => handleDragStart(event, lead)}
@@ -1149,6 +1156,7 @@ function LeadPipelineCard({
   syncing,
   canViewAcquisitionChannel,
   canViewOwner,
+  canRemove,
   onRemove,
   onEdit,
   onDragStart,
@@ -1160,6 +1168,7 @@ function LeadPipelineCard({
   syncing: boolean;
   canViewAcquisitionChannel: boolean;
   canViewOwner: boolean;
+  canRemove: boolean;
   onRemove: () => void;
   onEdit: () => void;
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -1206,17 +1215,19 @@ function LeadPipelineCard({
             </div>
           ) : null}
         </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 text-destructive opacity-70 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-          onClick={onRemove}
-          disabled={removing}
-          aria-label={`Remover ${lead.fullName}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {canRemove ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-destructive opacity-70 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            onClick={onRemove}
+            disabled={removing}
+            aria-label={`Remover ${lead.fullName}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {lead.courseName ? (

@@ -124,17 +124,19 @@ function UsersPage() {
     setLoading(true);
 
     try {
-      const [usersResponse, unitsResponse] = await Promise.all([
-        fetch("/api/admin/users", { credentials: "same-origin" }),
-        fetch("/api/admin/units", { credentials: "same-origin" }),
-      ]);
+      const usersResponse = await fetch("/api/admin/users", { credentials: "same-origin" });
+      const unitsResponse = canChooseUnit
+        ? await fetch("/api/admin/units", { credentials: "same-origin" })
+        : null;
 
-      if (!usersResponse.ok || !unitsResponse.ok) {
+      if (!usersResponse.ok || (unitsResponse && !unitsResponse.ok)) {
         throw new Error("Não foi possível carregar usuários.");
       }
 
       const usersData = (await usersResponse.json()) as UsersResponse;
-      const unitsData = (await unitsResponse.json()) as UnitsResponse;
+      const unitsData = unitsResponse
+        ? ((await unitsResponse.json()) as UnitsResponse)
+        : { units: session.units };
       setUsers(usersData.users);
       setUnits(unitsData.units);
     } catch (error) {
@@ -142,7 +144,7 @@ function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [defaultUnitId, session?.canRegisterUsers]);
+  }, [canChooseUnit, defaultUnitId, session]);
 
   React.useEffect(() => {
     void loadData();
@@ -363,22 +365,27 @@ function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label>Unidade</Label>
-                <Select
-                  value={effectiveUnitId}
-                  onValueChange={(value) => setForm((current) => ({ ...current, unitId: value }))}
-                  disabled={!canChooseUnit}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unitOptions.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {canChooseUnit ? (
+                  <Select
+                    value={effectiveUnitId}
+                    onValueChange={(value) =>
+                      setForm((current) => ({ ...current, unitId: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unitOptions.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={defaultUnit?.name ?? ""} disabled readOnly />
+                )}
               </div>
               <div className="md:col-span-2">
                 <Button type="submit" disabled={savingUser || !form.role || !effectiveUnitId}>

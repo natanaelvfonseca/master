@@ -64,7 +64,7 @@ export function canViewNetworkGrowth(role: UserRole) {
 }
 
 export function canViewManagement(role: UserRole) {
-  return role === "MASTER" || role === "CEO";
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canViewStudents(role: UserRole) {

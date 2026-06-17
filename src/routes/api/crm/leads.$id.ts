@@ -429,7 +429,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        if (!canTransferLeads(session.user.role) && lead.created_by !== session.user.id) {
+        if (!canTransferLeads(session.user.role)) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
