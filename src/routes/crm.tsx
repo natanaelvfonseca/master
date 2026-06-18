@@ -128,7 +128,6 @@ const stages: Array<LeadStage> = [
   "Qualificado",
   "Proposta",
   "Pagamento pendente",
-  "Confirmado",
   "Recuperação",
 ];
 
@@ -195,8 +194,12 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
     acquisitionChannelId: lead.acquisitionChannelId ?? "",
     unitId: lead.unitId,
     observations: lead.observations ?? "",
-    stage: lead.stage,
+    stage: lead.stage === "Confirmado" ? "Pagamento pendente" : lead.stage,
   };
+}
+
+function pipelineStage(stage: LeadStage): LeadStage {
+  return stage === "Confirmado" ? "Pagamento pendente" : stage;
 }
 
 function localDateTimeToIso(value: string) {
@@ -980,7 +983,7 @@ function CRM() {
       <div className="overflow-x-auto pb-4">
         <div className="flex min-w-max gap-4">
           {stages.map((stage) => {
-            const stageLeads = leads.filter((lead) => lead.stage === stage);
+            const stageLeads = leads.filter((lead) => pipelineStage(lead.stage) === stage);
             const stageValue = stageLeads.reduce((sum, lead) => sum + (lead.courseValue ?? 0), 0);
             const isDropTarget = dropTargetStage === stage;
 
