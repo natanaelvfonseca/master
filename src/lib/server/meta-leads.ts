@@ -467,6 +467,28 @@ function leadFieldsFromMeta(lead: MetaLeadPayload) {
   return fields;
 }
 
+function normalizeMetaFieldName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function sourceFieldValue(fields: Record<string, string>, name: string) {
+  if (fields[name]) {
+    return fields[name];
+  }
+
+  const normalizedName = normalizeMetaFieldName(name);
+  const matchingEntry = Object.entries(fields).find(
+    ([fieldName]) => normalizeMetaFieldName(fieldName) === normalizedName,
+  );
+
+  return matchingEntry?.[1] ?? "";
+}
+
 function transformValue(value: string, transform: MetaFieldMapping["transform"]) {
   if (transform === "lowercase") {
     return value.toLowerCase();
@@ -485,7 +507,7 @@ function transformValue(value: string, transform: MetaFieldMapping["transform"])
 
 function firstField(fields: Record<string, string>, names: Array<string>) {
   for (const name of names) {
-    const value = fields[name];
+    const value = sourceFieldValue(fields, name);
 
     if (value) {
       return value;
@@ -511,8 +533,22 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
   const rules = normalizeMapping(mapping);
 
   if (!rules.length) {
-    mapped.fullName = firstField(sourceFields, ["full_name", "nome", "name"]);
-    mapped.phone = firstField(sourceFields, ["phone_number", "telefone", "phone", "whatsapp"]);
+    mapped.fullName = firstField(sourceFields, [
+      "full_name",
+      "nome_completo",
+      "nome_e_sobrenome",
+      "nome",
+      "name",
+    ]);
+    mapped.phone = firstField(sourceFields, [
+      "phone_number",
+      "numero_de_telefone",
+      "telefone_celular",
+      "telefone",
+      "celular",
+      "phone",
+      "whatsapp",
+    ]);
     mapped.email = firstField(sourceFields, ["email", "e-mail"]);
     mapped.city = firstField(sourceFields, ["city", "cidade", "qual_sua_cidade"]);
     mapped.courseName = firstField(sourceFields, [
@@ -524,7 +560,30 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
   }
 
   for (const rule of rules) {
-    const rawValue = sourceFields[rule.source] || rule.defaultValue || "";
+    let rawValue = sourceFieldValue(sourceFields, rule.source) || rule.defaultValue || "";
+
+    if (!rawValue && rule.target === "fullName") {
+      rawValue = firstField(sourceFields, [
+        "full_name",
+        "nome_completo",
+        "nome_e_sobrenome",
+        "nome",
+        "name",
+      ]);
+    } else if (!rawValue && rule.target === "phone") {
+      rawValue = firstField(sourceFields, [
+        "phone_number",
+        "numero_de_telefone",
+        "telefone_celular",
+        "telefone",
+        "celular",
+        "phone",
+        "whatsapp",
+      ]);
+    } else if (!rawValue && rule.target === "email") {
+      rawValue = firstField(sourceFields, ["email", "e_mail"]);
+    }
+
     const value = transformValue(rawValue.trim(), rule.transform);
 
     if (rule.required && !value) {
@@ -610,6 +669,54 @@ export async function fetchMetaLeadDetails(
   }
 
   return data;
+}
+
+async function fetchMetaLeadDetailsWithRetry(
+  leadgenId: string,
+  token: string,
+  integration: MetaIntegrationRow,
+) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await fetchMetaLeadDetails(leadgenId, token, integration);
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha ao consultar os dados do lead na Graph API.");
+}
+
+function leadPayloadFromWebhookValue(
+  value: Record<string, unknown>,
+  parsed: ReturnType<typeof parseMetaEntry>,
+): MetaLeadPayload | null {
+  const fieldData = Array.isArray(value.field_data)
+    ? (value.field_data as MetaLeadPayload["field_data"])
+    : null;
+
+  if (!fieldData?.length) {
+    return null;
+  }
+
+  return {
+    id: parsed.leadgenId,
+    field_data: fieldData,
+    campaign_id: parsed.campaignId ?? undefined,
+    adset_id: parsed.adsetId ?? undefined,
+    ad_id: parsed.adId ?? undefined,
+    form_id: parsed.formId,
+    page_id: parsed.pageId,
+    created_time: parsed.createdTime ?? undefined,
+  };
 }
 
 export function verifyMetaSignature(rawBody: string, signature: string | null, appSecret: string | null) {
@@ -1292,6 +1399,65 @@ async function getChannelByName(client: PoolClient, channelName: string | null, 
   return result.rows[0] ?? null;
 }
 
+async function refreshMetaEventLeadPayload(eventId: string) {
+  const integration = await ensureMetaIntegration();
+  const result = await queryDb<
+    QueryResultRow & {
+      leadgen_id: string;
+      page_access_token_encrypted: string | null;
+    }
+  >(
+    `
+      select e.leadgen_id, p.page_access_token_encrypted
+      from app_meta_lead_events e
+      left join app_meta_pages p on p.page_id = e.page_id
+      where e.id = $1
+      limit 1
+    `,
+    [eventId],
+  );
+  const event = result.rows[0];
+  const token = decryptPageToken(event?.page_access_token_encrypted ?? null);
+
+  if (!event || !token) {
+    throw new Error("Token da Página ausente. Valide a Página antes de reprocessar.");
+  }
+
+  const leadPayload = await fetchMetaLeadDetailsWithRetry(event.leadgen_id, token, integration);
+
+  await queryDb(
+    `
+      update app_meta_lead_events
+      set campaign_id = coalesce($2, campaign_id),
+          campaign_name = coalesce($3, campaign_name),
+          adset_id = coalesce($4, adset_id),
+          adset_name = coalesce($5, adset_name),
+          ad_id = coalesce($6, ad_id),
+          ad_name = coalesce($7, ad_name),
+          form_name = coalesce($8, form_name),
+          page_name = coalesce($9, page_name),
+          meta_created_time = coalesce(nullif($10, '')::timestamptz, meta_created_time),
+          lead_payload = $11::jsonb,
+          error_message = null,
+          updated_at = now()
+      where id = $1
+    `,
+    [
+      eventId,
+      leadPayload.campaign_id ?? null,
+      leadPayload.campaign_name ?? null,
+      leadPayload.adset_id ?? null,
+      leadPayload.adset_name ?? null,
+      leadPayload.ad_id ?? null,
+      leadPayload.ad_name ?? null,
+      leadPayload.form_name ?? null,
+      leadPayload.page_name ?? null,
+      leadPayload.created_time ?? "",
+      JSON.stringify(leadPayload),
+    ],
+  );
+}
+
 async function processEventById(eventId: string) {
   const integration = await ensureMetaIntegration();
 
@@ -1367,6 +1533,7 @@ async function processEventById(eventId: string) {
     const mapped = mapMetaLead(leadPayload, form.field_mapping);
 
     if (!mapped.fullName || !mapped.phone || mapped.missingRequiredFields.length) {
+      const detailsUnavailable = !Object.keys(mapped.sourceFields).length;
       await client.query(
         `
           update app_meta_lead_events
@@ -1378,9 +1545,13 @@ async function processEventById(eventId: string) {
         `,
         [
           event.id,
-          mapped.missingRequiredFields.length
-            ? `Campos obrigatórios ausentes: ${mapped.missingRequiredFields.join(", ")}`
-            : "Nome e telefone são obrigatórios após o mapeamento.",
+          detailsUnavailable && event.error_message
+            ? event.error_message
+            : detailsUnavailable
+              ? "A Meta não entregou os dados do lead. Valide o token da Página e reprocesse o evento."
+              : mapped.missingRequiredFields.length
+                ? `Campos obrigatórios ausentes: ${mapped.missingRequiredFields.join(", ")}`
+                : "Nome e telefone são obrigatórios após o mapeamento.",
           JSON.stringify(mapped),
         ],
       );
@@ -1474,6 +1645,7 @@ async function processEventById(eventId: string) {
           form_db_id = $4,
           status = 'processed',
           processed_at = now(),
+          error_message = null,
           distribution_reason = $5,
           mapped_payload = $6::jsonb,
           attendance_id = $7,
@@ -1537,6 +1709,7 @@ export async function reprocessMetaEvent(eventId: string) {
     throw new Error("Evento inválido.");
   }
 
+  await refreshMetaEventLeadPayload(eventId);
   return processEventById(eventId);
 }
 
@@ -1585,14 +1758,24 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
     [parsed.pageId],
   );
   const page = pageResult.rows[0] ?? null;
-  let leadPayload: MetaLeadPayload | null = null;
+  let leadPayload = leadPayloadFromWebhookValue(parsed.value, parsed);
+  let leadFetchError: string | null = null;
 
   if (page?.page_access_token_encrypted) {
     try {
-      leadPayload = await fetchMetaLeadDetails(parsed.leadgenId, decryptPageToken(page.page_access_token_encrypted), integration);
-    } catch {
-      leadPayload = null;
+      leadPayload = await fetchMetaLeadDetailsWithRetry(
+        parsed.leadgenId,
+        decryptPageToken(page.page_access_token_encrypted),
+        integration,
+      );
+    } catch (error) {
+      leadFetchError =
+        error instanceof Error
+          ? `Não foi possível buscar os dados do lead na Meta: ${error.message}`
+          : "Não foi possível buscar os dados do lead na Meta.";
     }
+  } else {
+    leadFetchError = "A Página não possui token para consultar os dados do lead na Meta.";
   }
 
   const eventResult = await queryDb<{ id: string; lead_id: string | null; status: string }>(
@@ -1614,6 +1797,7 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
         page_name,
         meta_created_time,
         status,
+        error_message,
         payload,
         lead_payload
       )
@@ -1624,21 +1808,32 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
         $4,
         $3,
         $5,
-        coalesce($6, $16),
+        coalesce($6, $17),
         $7,
-        coalesce($8, $17),
+        coalesce($8, $18),
         $9,
-        coalesce($10, $18),
+        coalesce($10, $19),
         $11,
         $12,
         $13,
         nullif($14, '')::timestamptz,
         'received',
-        $15::jsonb,
-        $19::jsonb
+        $15,
+        $16::jsonb,
+        $20::jsonb
       )
       on conflict (leadgen_id) do update
-      set updated_at = now()
+      set campaign_id = coalesce(excluded.campaign_id, app_meta_lead_events.campaign_id),
+          campaign_name = coalesce(excluded.campaign_name, app_meta_lead_events.campaign_name),
+          adset_id = coalesce(excluded.adset_id, app_meta_lead_events.adset_id),
+          adset_name = coalesce(excluded.adset_name, app_meta_lead_events.adset_name),
+          ad_id = coalesce(excluded.ad_id, app_meta_lead_events.ad_id),
+          ad_name = coalesce(excluded.ad_name, app_meta_lead_events.ad_name),
+          form_name = coalesce(excluded.form_name, app_meta_lead_events.form_name),
+          page_name = coalesce(excluded.page_name, app_meta_lead_events.page_name),
+          lead_payload = coalesce(excluded.lead_payload, app_meta_lead_events.lead_payload),
+          error_message = excluded.error_message,
+          updated_at = now()
       returning id, lead_id, status
     `,
     [
@@ -1656,6 +1851,7 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
       leadPayload?.form_name ?? null,
       leadPayload?.page_name ?? page?.page_name ?? null,
       leadPayload?.created_time ?? parsed.createdTime ?? "",
+      leadFetchError,
       JSON.stringify(payload),
       parsed.campaignId,
       parsed.adsetId,

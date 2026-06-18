@@ -1154,7 +1154,7 @@ function FormDialog({
             <Field label="Nome">
               <Input value={form.formName} onChange={(event) => onFormChange((current) => ({ ...current, formName: event.target.value }))} required />
             </Field>
-            <Field label="Unidade">
+            <Field label="Unidade de fallback">
               <Select value={form.unitId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, unitId: value === NO_SELECTION ? "" : value, courseId: "", acquisitionChannelId: "" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1163,7 +1163,7 @@ function FormDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Curso padrão">
+            <Field label="Curso de fallback">
               <Select value={form.courseId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, courseId: value === NO_SELECTION ? "" : value }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1194,9 +1194,6 @@ function FormDialog({
             </Field>
             <Field label="Mapeamento de campos">
               <Textarea className="min-h-56 font-mono text-xs" value={form.fieldMapping} onChange={(event) => onFormChange((current) => ({ ...current, fieldMapping: event.target.value }))} />
-            </Field>
-            <Field label="Configurações adicionais">
-              <Textarea className="min-h-56 font-mono text-xs" value={form.settings} onChange={(event) => onFormChange((current) => ({ ...current, settings: event.target.value }))} />
             </Field>
             <Field label="Status">
               <Select value={form.status} onValueChange={(value) => onFormChange((current) => ({ ...current, status: value as FormConfig["status"] }))}>
