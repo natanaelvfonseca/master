@@ -489,6 +489,49 @@ function sourceFieldValue(fields: Record<string, string>, name: string) {
   return matchingEntry?.[1] ?? "";
 }
 
+function phoneFieldValue(fields: Record<string, string>) {
+  const explicitValue = firstField(fields, [
+    "phone_number",
+    "numero_de_telefone",
+    "numero_telefone",
+    "telefone_celular",
+    "telefone_com_ddd",
+    "telefone_para_contato",
+    "telefone",
+    "celular",
+    "phone",
+    "whatsapp",
+    "whats",
+    "contato",
+  ]);
+
+  if (explicitValue) {
+    return explicitValue;
+  }
+
+  const phoneLikeEntry = Object.entries(fields).find(([fieldName, value]) => {
+    const normalizedName = normalizeMetaFieldName(fieldName);
+    const digits = value.replace(/\D+/g, "");
+
+    return (
+      digits.length >= 8 &&
+      /phone|fone|telefone|tel|celular|whats|zap|contato|ddd/.test(normalizedName)
+    );
+  });
+
+  if (phoneLikeEntry?.[1]) {
+    return phoneLikeEntry[1];
+  }
+
+  const valueLikePhone = Object.values(fields).find((value) => {
+    const digits = value.replace(/\D+/g, "");
+
+    return digits.length >= 10 && digits.length <= 13;
+  });
+
+  return valueLikePhone ?? "";
+}
+
 function transformValue(value: string, transform: MetaFieldMapping["transform"]) {
   if (transform === "lowercase") {
     return value.toLowerCase();
@@ -540,15 +583,7 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
       "nome",
       "name",
     ]);
-    mapped.phone = firstField(sourceFields, [
-      "phone_number",
-      "numero_de_telefone",
-      "telefone_celular",
-      "telefone",
-      "celular",
-      "phone",
-      "whatsapp",
-    ]);
+    mapped.phone = phoneFieldValue(sourceFields);
     mapped.email = firstField(sourceFields, ["email", "e-mail"]);
     mapped.city = firstField(sourceFields, ["city", "cidade", "qual_sua_cidade"]);
     mapped.courseName = firstField(sourceFields, [
@@ -571,15 +606,7 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
         "name",
       ]);
     } else if (!rawValue && rule.target === "phone") {
-      rawValue = firstField(sourceFields, [
-        "phone_number",
-        "numero_de_telefone",
-        "telefone_celular",
-        "telefone",
-        "celular",
-        "phone",
-        "whatsapp",
-      ]);
+      rawValue = phoneFieldValue(sourceFields);
     } else if (!rawValue && rule.target === "email") {
       rawValue = firstField(sourceFields, ["email", "e_mail"]);
     }
