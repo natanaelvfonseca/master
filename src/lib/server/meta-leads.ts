@@ -651,7 +651,7 @@ export async function fetchMetaLeadDetails(
   const params = new URLSearchParams({
     access_token: token,
     fields:
-      "id,created_time,field_data,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,form_id,page_id",
+      "id,created_time,field_data,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,form_id",
   });
   const proof = appSecretProof(token, integration.app_secret);
 
