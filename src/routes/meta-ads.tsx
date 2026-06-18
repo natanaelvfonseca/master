@@ -4,18 +4,15 @@ import {
   AlertTriangle,
   CheckCircle2,
   Copy,
-  FileInput,
   FormInput,
   KeyRound,
   Loader2,
   Lock,
-  Play,
   Plus,
   RefreshCw,
   RadioTower,
   Route as RouteIcon,
   Settings2,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { canManageMetaAds } from "@/lib/auth-types";
@@ -465,14 +462,11 @@ function MetaAdsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 md:grid-cols-8">
+        <TabsList className="grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 md:grid-cols-5">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="pages">Páginas</TabsTrigger>
           <TabsTrigger value="forms">Formulários</TabsTrigger>
-          <TabsTrigger value="mapping">Mapeamentos</TabsTrigger>
-          <TabsTrigger value="distribution">Distribuição</TabsTrigger>
           <TabsTrigger value="events">Eventos</TabsTrigger>
-          <TabsTrigger value="test">Testar</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -642,22 +636,6 @@ function MetaAdsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mapping">
-          <InfoGrid
-            icon={FileInput}
-            title="Mapeamentos por formulário"
-            text="Cada formulário salva seu próprio JSON de campos. Use a ação Configurar na tabela de formulários para testar variações de nome, telefone, e-mail, cidade, curso e observações sem afetar outros formulários."
-          />
-        </TabsContent>
-
-        <TabsContent value="distribution">
-          <InfoGrid
-            icon={Users}
-            title="Distribuição por formulário"
-            text="As regras ficam no formulário: fixo, rodízio com estado no banco, aleatório, menor carteira aberta, consultores da unidade, consultores selecionados, sem responsável ou manter existente em duplicidades."
-          />
-        </TabsContent>
-
         <TabsContent value="events">
           <Card className="border-primary/10 shadow-card">
             <CardHeader>
@@ -675,14 +653,6 @@ function MetaAdsPage() {
               />
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="test">
-          <InfoGrid
-            icon={Play}
-            title="Testar webhook"
-            text="Use o Lead Ads Testing Tool apontando para /api/webhooks/meta-leads. Eventos sem Page/Form configurado aparecem como pendentes e podem ser configurados e reprocessados por esta central."
-          />
         </TabsContent>
 
         <TabsContent value="settings">
@@ -1050,30 +1020,6 @@ function EventTable({
         ))}
       </TableBody>
     </Table>
-  );
-}
-
-function InfoGrid({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  text: string;
-}) {
-  return (
-    <Card className="border-primary/10 bg-[linear-gradient(135deg,rgba(11,42,111,.06),rgba(63,115,216,.08),rgba(227,170,43,.08))] shadow-card">
-      <CardContent className="flex gap-4 p-6">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-primary">{title}</h2>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{text}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
