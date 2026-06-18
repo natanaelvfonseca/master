@@ -613,10 +613,6 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
 
     const value = transformValue(rawValue.trim(), rule.transform);
 
-    if (rule.required && !value) {
-      mapped.missingRequiredFields.push(rule.source);
-    }
-
     if (!value || rule.target === "ignore") {
       continue;
     }
@@ -1559,7 +1555,7 @@ async function processEventById(eventId: string) {
     const leadPayload = (event.lead_payload ?? {}) as MetaLeadPayload;
     const mapped = mapMetaLead(leadPayload, form.field_mapping);
 
-    if (!mapped.fullName || !mapped.phone || mapped.missingRequiredFields.length) {
+    if (mapped.missingRequiredFields.length) {
       const detailsUnavailable = !Object.keys(mapped.sourceFields).length;
       await client.query(
         `
@@ -1613,6 +1609,8 @@ async function processEventById(eventId: string) {
         : await chooseConsultant(client, form);
     const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
     const leadCity = resolvedAttendance?.city ?? mapped.city;
+    const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
+    const leadPhone = mapped.phone || "";
     const leadResult = await client.query<{ id: string }>(
       `
         insert into app_leads (
@@ -1635,8 +1633,8 @@ async function processEventById(eventId: string) {
       `,
       [
         targetUnitId,
-        mapped.fullName,
-        mapped.phone,
+        leadFullName,
+        leadPhone,
         mapped.email,
         leadCity,
         course?.id ?? null,
@@ -1646,6 +1644,8 @@ async function processEventById(eventId: string) {
         channel?.name ?? null,
         [
           mapped.observations,
+          !mapped.fullName ? "Nome nao informado pela Meta." : "",
+          !mapped.phone ? "Telefone nao informado pela Meta." : "",
           `Meta Lead ID: ${event.leadgen_id}`,
           event.campaign_name ? `Campanha: ${event.campaign_name}` : "",
           event.ad_name ? `Anúncio: ${event.ad_name}` : "",
@@ -1688,7 +1688,7 @@ async function processEventById(eventId: string) {
         event.page_id,
         form.id,
         assignment.reason,
-        JSON.stringify({ ...mapped, city: leadCity }),
+        JSON.stringify({ ...mapped, fullName: leadFullName, phone: leadPhone, city: leadCity }),
         resolvedAttendance?.id ?? null,
         assignment.userId,
         routingSource,

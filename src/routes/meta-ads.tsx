@@ -194,8 +194,8 @@ const stages = [
 
 const defaultMapping = JSON.stringify(
   [
-    { source: "full_name", target: "fullName", required: true, transform: "none" },
-    { source: "phone_number", target: "phone", required: true, transform: "phone_digits" },
+    { source: "full_name", target: "fullName", required: false, transform: "none" },
+    { source: "phone_number", target: "phone", required: false, transform: "phone_digits" },
     { source: "email", target: "email", required: false, transform: "lowercase" },
     { source: "qual_sua_cidade", target: "city", required: false, transform: "none" },
     { source: "qual_curso_voce_deseja", target: "courseName", required: false, transform: "none" },
@@ -1190,7 +1190,7 @@ function FormDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Mapeamento de campos">
+            <Field label="Mapeamento de campos opcional">
               <Textarea className="min-h-56 font-mono text-xs" value={form.fieldMapping} onChange={(event) => onFormChange((current) => ({ ...current, fieldMapping: event.target.value }))} />
             </Field>
             <Field label="Status">
