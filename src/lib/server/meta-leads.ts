@@ -560,6 +560,67 @@ function firstField(fields: Record<string, string>, names: Array<string>) {
   return "";
 }
 
+function formatMetaObservationLabel(value: string) {
+  const label = value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : value;
+}
+
+function shouldHideMetaObservationField(fieldName: string, mappedRuleSources: Set<string>) {
+  const normalizedName = normalizeMetaFieldName(fieldName);
+  const hiddenNames = new Set([
+    "full_name",
+    "nome_completo",
+    "nome_e_sobrenome",
+    "nome",
+    "name",
+    "phone_number",
+    "numero_de_telefone",
+    "numero_telefone",
+    "telefone_celular",
+    "telefone_com_ddd",
+    "telefone_para_contato",
+    "telefone",
+    "celular",
+    "phone",
+    "whatsapp",
+    "whats",
+    "email",
+    "e_mail",
+    "city",
+    "cidade",
+    "course",
+    "curso",
+    "curso_de_interesse",
+    "qual_curso_voce_deseja",
+  ]);
+
+  return hiddenNames.has(normalizedName) || mappedRuleSources.has(normalizedName);
+}
+
+function cleanMetaLeadObservations(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => {
+      const normalizedLine = normalizeMetaFieldName(line);
+
+      return (
+        line &&
+        !normalizedLine.startsWith("meta_lead_id") &&
+        !normalizedLine.startsWith("campanha") &&
+        !normalizedLine.startsWith("anuncio") &&
+        !normalizedLine.startsWith("roteamento") &&
+        !normalizedLine.startsWith("nome_nao_informado_pela_meta") &&
+        !normalizedLine.startsWith("telefone_nao_informado_pela_meta")
+      );
+    })
+    .join("\n");
+}
+
 export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMapping>) {
   const sourceFields = leadFieldsFromMeta(lead);
   const mapped = {
@@ -574,6 +635,11 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
   };
 
   const rules = normalizeMapping(mapping);
+  const mappedRuleSources = new Set(
+    rules
+      .filter((rule) => !["observations", "ignore"].includes(rule.target))
+      .map((rule) => normalizeMetaFieldName(rule.source)),
+  );
 
   if (!rules.length) {
     mapped.fullName = firstField(sourceFields, [
@@ -618,7 +684,9 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
     }
 
     if (rule.target === "observations") {
-      mapped.observations = [mapped.observations, `${rule.source}: ${value}`].filter(Boolean).join("\n");
+      mapped.observations = [mapped.observations, `${formatMetaObservationLabel(rule.source)}: ${value}`]
+        .filter(Boolean)
+        .join("\n");
     } else {
       mapped[rule.target] = value;
     }
@@ -626,8 +694,8 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
 
   if (!mapped.observations) {
     mapped.observations = Object.entries(sourceFields)
-      .filter(([key]) => !["full_name", "phone_number", "email"].includes(key))
-      .map(([key, value]) => `${key}: ${value}`)
+      .filter(([key]) => !shouldHideMetaObservationField(key, mappedRuleSources))
+      .map(([key, value]) => `${formatMetaObservationLabel(key)}: ${value}`)
       .join("\n");
   }
 
@@ -1642,12 +1710,8 @@ async function processEventById(eventId: string) {
         course ? Number(course.value) : null,
         channel?.id ?? null,
         channel?.name ?? null,
-        [
+        cleanMetaLeadObservations([
           mapped.observations,
-          !mapped.fullName ? "Nome nao informado pela Meta." : "",
-          !mapped.phone ? "Telefone nao informado pela Meta." : "",
-          `Meta Lead ID: ${event.leadgen_id}`,
-          event.campaign_name ? `Campanha: ${event.campaign_name}` : "",
           event.ad_name ? `Anúncio: ${event.ad_name}` : "",
           resolvedAttendance
             ? `Roteamento: ${resolvedAttendance.course_name} - ${resolvedAttendance.city}-${resolvedAttendance.state}`
@@ -1656,7 +1720,7 @@ async function processEventById(eventId: string) {
               : "",
         ]
           .filter(Boolean)
-          .join("\n"),
+          .join("\n")),
         form.initial_stage,
         assignment.userId,
       ],
