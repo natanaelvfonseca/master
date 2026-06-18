@@ -839,9 +839,6 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
   const metaFormId = stringOrNull(input.metaFormId);
   const formName = stringOrNull(input.formName) ?? metaFormId;
   const unitId = stringOrNull(input.unitId);
-  const selectedConsultants = Array.isArray(input.selectedConsultantIds)
-    ? input.selectedConsultantIds.filter((item): item is string => typeof item === "string" && isUuid(item))
-    : [];
 
   if (!pageDbId || !isUuid(pageDbId) || !metaFormId || !formName) {
     throw new Error("Formulário inválido.");
@@ -904,8 +901,8 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
         stringOrNull(input.funnelName) ?? "",
         initialStage,
         isUuid(String(input.acquisitionChannelId ?? "")) ? input.acquisitionChannelId : null,
-        isUuid(String(input.defaultResponsibleId ?? "")) ? input.defaultResponsibleId : null,
-        isDistributionRule(input.distributionRule) ? input.distributionRule : "unassigned",
+        null,
+        "round_robin",
         JSON.stringify(normalizeMapping(fieldMapping)),
         JSON.stringify(settings),
         input.status === "active" ? "active" : "inactive",
@@ -915,37 +912,10 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
 
     await client.query(`delete from app_meta_form_consultants where form_id = $1`, [formId]);
 
-    for (const consultantId of selectedConsultants) {
-      await client.query(
-        `
-          insert into app_meta_form_consultants (form_id, user_id)
-          values ($1, $2)
-          on conflict do nothing
-        `,
-        [formId, consultantId],
-      );
-    }
-
     return formResult.rows[0];
   });
 
   return form;
-}
-
-function isDistributionRule(value: unknown): value is MetaDistributionRule {
-  return (
-    typeof value === "string" &&
-    [
-      "fixed",
-      "round_robin",
-      "random",
-      "least_open",
-      "unit_consultants",
-      "selected_consultants",
-      "unassigned",
-      "keep_existing",
-    ].includes(value)
-  );
 }
 
 export async function duplicateMetaForm(input: Record<string, unknown>) {
@@ -1154,11 +1124,7 @@ export async function subscribeMetaPage(pageDbId: string) {
   return { subscribed };
 }
 
-async function candidateConsultants(
-  client: PoolClient,
-  form: MetaFormRow,
-  selectedOnly: boolean,
-) {
+async function candidateConsultants(client: PoolClient, form: MetaFormRow) {
   if (!form.unit_id) {
     return [];
   }
@@ -1170,65 +1136,31 @@ async function candidateConsultants(
         u.name,
         count(l.id) filter (where l.stage <> 'Matriculado')::text as open_leads
       from app_users u
-      inner join app_user_units uu on uu.user_id = u.id and uu.unit_id = $1
       left join app_leads l on l.created_by = u.id and l.unit_id = $1 and l.stage <> 'Matriculado'
       where u.status = 'active'
         and u.role = 'CONSULTOR'
         and (
-          $3::boolean = false
+          u.primary_unit_id = $1
           or exists (
             select 1
-            from app_meta_form_consultants fc
-            where fc.form_id = $2 and fc.user_id = u.id
+            from app_user_units uu
+            where uu.user_id = u.id and uu.unit_id = $1
           )
         )
       group by u.id
       order by u.name asc
     `,
-    [form.unit_id, form.id, selectedOnly],
+    [form.unit_id],
   );
 
   return result.rows;
 }
 
 async function chooseConsultant(client: PoolClient, form: MetaFormRow) {
-  if (form.distribution_rule === "unassigned") {
-    return { userId: null, reason: "Sem responsável por configuração do formulário." };
-  }
-
-  if (form.distribution_rule === "fixed") {
-    return {
-      userId: form.default_responsible_id,
-      reason: form.default_responsible_id
-        ? "Responsável fixo configurado no formulário."
-        : "Responsável fixo não definido.",
-    };
-  }
-
-  if (form.distribution_rule === "keep_existing") {
-    return {
-      userId: form.default_responsible_id,
-      reason: "Regra manter existente; como é lead novo, usado responsável padrão quando definido.",
-    };
-  }
-
-  const selectedOnly = form.distribution_rule === "selected_consultants";
-  const candidates = await candidateConsultants(client, form, selectedOnly);
+  const candidates = await candidateConsultants(client, form);
 
   if (!candidates.length) {
     return { userId: null, reason: "Nenhum consultor ativo elegível encontrado." };
-  }
-
-  if (form.distribution_rule === "random") {
-    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
-    return { userId: candidate.id, reason: `Distribuição aleatória entre ${candidates.length} consultores.` };
-  }
-
-  if (form.distribution_rule === "least_open") {
-    const candidate = [...candidates].sort(
-      (a, b) => Number(a.open_leads) - Number(b.open_leads) || a.name.localeCompare(b.name),
-    )[0];
-    return { userId: candidate.id, reason: `Menor quantidade de leads abertos (${candidate.open_leads}).` };
   }
 
   const cursor = Number(form.round_robin_cursor) || 0;

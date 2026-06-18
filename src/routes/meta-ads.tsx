@@ -174,9 +174,6 @@ type FormConfig = {
   funnelName: string;
   initialStage: string;
   acquisitionChannelId: string;
-  defaultResponsibleId: string;
-  distributionRule: string;
-  selectedConsultantIds: Array<string>;
   fieldMapping: string;
   settings: string;
   status: "active" | "inactive";
@@ -194,17 +191,6 @@ const stages = [
   "Recuperação",
   "Matriculado",
 ];
-
-const distributionLabels: Record<string, string> = {
-  fixed: "Responsável fixo",
-  round_robin: "Rodízio sequencial",
-  random: "Aleatória",
-  least_open: "Menor quantidade aberta",
-  unit_consultants: "Consultores da unidade",
-  selected_consultants: "Consultores selecionados",
-  unassigned: "Sem responsável",
-  keep_existing: "Manter existente",
-};
 
 const defaultMapping = JSON.stringify(
   [
@@ -272,9 +258,6 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
     funnelName: "Captação",
     initialStage: "Novo lead",
     acquisitionChannelId: "",
-    defaultResponsibleId: "",
-    distributionRule: "round_robin",
-    selectedConsultantIds: [],
     fieldMapping: defaultMapping,
     settings: "{}",
     status: "active",
@@ -405,9 +388,6 @@ function MetaAdsPage() {
         funnelName: form.funnel_name ?? "",
         initialStage: form.initial_stage,
         acquisitionChannelId: form.acquisition_channel_id ?? "",
-        defaultResponsibleId: form.default_responsible_id ?? "",
-        distributionRule: form.distribution_rule,
-        selectedConsultantIds: form.selected_consultant_ids ?? [],
         fieldMapping: JSON.stringify(form.field_mapping ?? [], null, 2),
         settings: JSON.stringify(form.settings ?? {}, null, 2),
         status: form.status,
@@ -439,11 +419,6 @@ function MetaAdsPage() {
   const pageOptions = state?.pages ?? [];
   const unitCourses = state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitChannels = state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
-  const unitConsultants =
-    state?.options.consultants.filter(
-      (item) => item.unitId === formConfig.unitId && item.status === "active",
-    ) ?? [];
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -821,7 +796,6 @@ function MetaAdsPage() {
         units={state?.options.units ?? []}
         courses={unitCourses}
         channels={unitChannels}
-        consultants={unitConsultants}
         saving={saving}
         onOpenChange={setFormDialogOpen}
         onFormChange={setFormConfig}
@@ -1141,7 +1115,6 @@ function FormDialog({
   units,
   courses,
   channels,
-  consultants,
   saving,
   onOpenChange,
   onFormChange,
@@ -1153,28 +1126,18 @@ function FormDialog({
   units: Array<OptionRow>;
   courses: Array<OptionRow>;
   channels: Array<OptionRow>;
-  consultants: Array<OptionRow>;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<FormConfig>>;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
-  function toggleConsultant(id: string) {
-    onFormChange((current) => ({
-      ...current,
-      selectedConsultantIds: current.selectedConsultantIds.includes(id)
-        ? current.selectedConsultantIds.filter((item) => item !== id)
-        : [...current.selectedConsultantIds, id],
-    }));
-  }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card shadow-elegant sm:max-w-4xl">
         <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Configurar formulário</DialogTitle>
-            <DialogDescription>Destino, mapeamento e distribuição ficam isolados por Page ID + Form ID.</DialogDescription>
+            <DialogDescription>Destino e mapeamento ficam isolados por Page ID + Form ID.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-5 md:grid-cols-2">
             <Field label="Página">
@@ -1192,7 +1155,7 @@ function FormDialog({
               <Input value={form.formName} onChange={(event) => onFormChange((current) => ({ ...current, formName: event.target.value }))} required />
             </Field>
             <Field label="Unidade">
-              <Select value={form.unitId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, unitId: value === NO_SELECTION ? "" : value, courseId: "", acquisitionChannelId: "", defaultResponsibleId: "", selectedConsultantIds: [] }))}>
+              <Select value={form.unitId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, unitId: value === NO_SELECTION ? "" : value, courseId: "", acquisitionChannelId: "" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_SELECTION}>Pendente</SelectItem>
@@ -1229,38 +1192,6 @@ function FormDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Regra de distribuição">
-              <Select value={form.distributionRule} onValueChange={(value) => onFormChange((current) => ({ ...current, distributionRule: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(distributionLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Responsável padrão">
-              <Select value={form.defaultResponsibleId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, defaultResponsibleId: value === NO_SELECTION ? "" : value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_SELECTION}>Sem responsável</SelectItem>
-                  {consultants.map((consultant) => <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Consultores participantes</Label>
-              <div className="grid gap-2 rounded-lg border bg-white/60 p-3 md:grid-cols-3">
-                {consultants.length ? consultants.map((consultant) => (
-                  <label key={consultant.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={form.selectedConsultantIds.includes(consultant.id)}
-                      onChange={() => toggleConsultant(consultant.id)}
-                    />
-                    {consultant.name}
-                  </label>
-                )) : <span className="text-sm text-muted-foreground">Selecione uma unidade com consultores ativos.</span>}
-              </div>
-            </div>
             <Field label="Mapeamento de campos">
               <Textarea className="min-h-56 font-mono text-xs" value={form.fieldMapping} onChange={(event) => onFormChange((current) => ({ ...current, fieldMapping: event.target.value }))} />
             </Field>
