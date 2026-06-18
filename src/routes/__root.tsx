@@ -15,6 +15,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
+const MARKETING_ALLOWED_PATHS = ["/crm", "/meta-ads", "/perfil"];
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -128,12 +130,23 @@ function RootComponent() {
 
 function AuthenticatedShell() {
   const { loading, session } = useAuth();
+  const path = useRouterState({ select: (state) => state.location.pathname });
 
   React.useEffect(() => {
     if (!loading && !session) {
       window.location.replace("/login");
     }
   }, [loading, session]);
+
+  React.useEffect(() => {
+    if (
+      !loading &&
+      session?.user.role === "MARKETING" &&
+      !MARKETING_ALLOWED_PATHS.some((allowedPath) => path.startsWith(allowedPath))
+    ) {
+      window.location.replace("/crm");
+    }
+  }, [loading, path, session]);
 
   if (loading) {
     return (
@@ -144,6 +157,13 @@ function AuthenticatedShell() {
   }
 
   if (!session) {
+    return null;
+  }
+
+  if (
+    session.user.role === "MARKETING" &&
+    !MARKETING_ALLOWED_PATHS.some((allowedPath) => path.startsWith(allowedPath))
+  ) {
     return null;
   }
 

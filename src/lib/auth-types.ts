@@ -1,4 +1,11 @@
-export const USER_ROLES = ["MASTER", "CEO", "DIRETOR", "GERENTE", "CONSULTOR"] as const;
+export const USER_ROLES = [
+  "MASTER",
+  "CEO",
+  "DIRETOR",
+  "GERENTE",
+  "MARKETING",
+  "CONSULTOR",
+] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
@@ -40,6 +47,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   CEO: "CEO",
   DIRETOR: "Diretor",
   GERENTE: "Gerente",
+  MARKETING: "Marketing",
   CONSULTOR: "Consultor",
 };
 
@@ -56,7 +64,7 @@ export function canCreateUnits(role: UserRole) {
 }
 
 export function canViewGrowth(role: UserRole) {
-  return role !== "CONSULTOR";
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canViewNetworkGrowth(role: UserRole) {
@@ -68,7 +76,7 @@ export function canViewManagement(role: UserRole) {
 }
 
 export function canViewStudents(role: UserRole) {
-  return role !== "CONSULTOR";
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canTransferLeads(role: UserRole) {
@@ -81,6 +89,18 @@ export function canManageBrandPlen(role: UserRole) {
 
 export function canManageMetaAds(role: UserRole) {
   return role === "MASTER";
+}
+
+export function canViewMetaAds(role: UserRole) {
+  return role === "MASTER" || role === "MARKETING";
+}
+
+export function canOperateCrm(role: UserRole) {
+  return role !== "MARKETING";
+}
+
+export function canViewAllUnitLeads(role: UserRole) {
+  return canTransferLeads(role) || role === "MARKETING";
 }
 
 export function canViewBrandPlenHistory(role: UserRole) {
@@ -105,7 +125,7 @@ export function canAccessSystemFeedback(role: UserRole) {
 
 export function getAssignableRoles(role: UserRole): Array<UserRole> {
   if (role === "MASTER") {
-    return ["CEO", "DIRETOR", "GERENTE", "CONSULTOR"];
+    return ["CEO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"];
   }
 
   if (role === "CEO") {

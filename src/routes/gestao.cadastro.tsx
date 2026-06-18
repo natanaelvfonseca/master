@@ -5,6 +5,7 @@ import {
   Edit3,
   GraduationCap,
   Lock,
+  MapPin,
   Plus,
   RadioTower,
   Sparkles,
@@ -63,7 +64,8 @@ type ChannelFormState = {
 
 type DeleteTarget =
   | { kind: "course"; id: string; name: string }
-  | { kind: "channel"; id: string; name: string };
+  | { kind: "channel"; id: string; name: string }
+  | { kind: "attendance"; id: string; name: string };
 
 type CoursesResponse = {
   courses: Array<CourseRecord>;
@@ -71,6 +73,32 @@ type CoursesResponse = {
 
 type ChannelsResponse = {
   channels: Array<AcquisitionChannelRecord>;
+};
+
+type AttendanceRecord = {
+  id: string;
+  unitId: string;
+  unitName: string;
+  courseId: string;
+  courseName: string;
+  city: string;
+  state: string;
+  status: CommercialStatus;
+  consultantIds: Array<string>;
+  consultantNames: Array<string>;
+};
+
+type AttendancesResponse = {
+  attendances: Array<AttendanceRecord>;
+  consultants: Array<{ id: string; name: string }>;
+};
+
+type AttendanceFormState = {
+  courseId: string;
+  city: string;
+  state: string;
+  consultantIds: Array<string>;
+  status: CommercialStatus;
 };
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -88,6 +116,14 @@ const initialCourseForm: CourseFormState = {
 const initialChannelForm: ChannelFormState = {
   name: "",
   type: "Pago",
+  status: "active",
+};
+
+const initialAttendanceForm: AttendanceFormState = {
+  courseId: "",
+  city: "",
+  state: "",
+  consultantIds: [],
   status: "active",
 };
 
@@ -115,16 +151,23 @@ function CadastroPage() {
   const activeUnitId = session?.activeUnit?.id ?? "";
   const [courses, setCourses] = React.useState<Array<CourseRecord>>([]);
   const [channels, setChannels] = React.useState<Array<AcquisitionChannelRecord>>([]);
+  const [attendances, setAttendances] = React.useState<Array<AttendanceRecord>>([]);
+  const [consultants, setConsultants] = React.useState<AttendancesResponse["consultants"]>([]);
   const [loading, setLoading] = React.useState(true);
   const [savingCourse, setSavingCourse] = React.useState(false);
   const [savingChannel, setSavingChannel] = React.useState(false);
+  const [savingAttendance, setSavingAttendance] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
   const [channelDialogOpen, setChannelDialogOpen] = React.useState(false);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = React.useState(false);
   const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
   const [editingChannelId, setEditingChannelId] = React.useState<string | null>(null);
+  const [editingAttendanceId, setEditingAttendanceId] = React.useState<string | null>(null);
   const [courseForm, setCourseForm] = React.useState<CourseFormState>(initialCourseForm);
   const [channelForm, setChannelForm] = React.useState<ChannelFormState>(initialChannelForm);
+  const [attendanceForm, setAttendanceForm] =
+    React.useState<AttendanceFormState>(initialAttendanceForm);
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
 
   const activeCourses = courses.filter((course) => course.status === "active").length;
@@ -144,7 +187,7 @@ function CadastroPage() {
     setLoading(true);
 
     try {
-      const [coursesData, channelsData] = await Promise.all([
+      const [coursesData, channelsData, attendancesData] = await Promise.all([
         readJson<CoursesResponse>(
           await fetch(`/api/gestao/courses${unitQuery(activeUnitId)}`, {
             credentials: "same-origin",
@@ -157,10 +200,18 @@ function CadastroPage() {
             headers: { Accept: "application/json" },
           }),
         ),
+        readJson<AttendancesResponse>(
+          await fetch(`/api/gestao/attendances${unitQuery(activeUnitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        ),
       ]);
 
       setCourses(coursesData.courses);
       setChannels(channelsData.channels);
+      setAttendances(attendancesData.attendances);
+      setConsultants(attendancesData.consultants);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao carregar cadastros.");
     } finally {
@@ -219,6 +270,24 @@ function CadastroPage() {
       status: channel.status,
     });
     setChannelDialogOpen(true);
+  }
+
+  function openNewAttendanceDialog() {
+    setEditingAttendanceId(null);
+    setAttendanceForm(initialAttendanceForm);
+    setAttendanceDialogOpen(true);
+  }
+
+  function openEditAttendanceDialog(attendance: AttendanceRecord) {
+    setEditingAttendanceId(attendance.id);
+    setAttendanceForm({
+      courseId: attendance.courseId,
+      city: attendance.city,
+      state: attendance.state,
+      consultantIds: attendance.consultantIds,
+      status: attendance.status,
+    });
+    setAttendanceDialogOpen(true);
   }
 
   async function handleCourseSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -314,6 +383,43 @@ function CadastroPage() {
     }
   }
 
+  async function handleAttendanceSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activeUnitId) {
+      toast.error("Selecione uma unidade ativa.");
+      return;
+    }
+
+    setSavingAttendance(true);
+
+    try {
+      await readJson<{ ok: true }>(
+        await fetch("/api/gestao/attendances", {
+          method: editingAttendanceId ? "PATCH" : "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...attendanceForm,
+            id: editingAttendanceId,
+            unitId: activeUnitId,
+          }),
+        }),
+      );
+
+      toast.success(editingAttendanceId ? "Atendimento atualizado." : "Atendimento criado.");
+      setAttendanceDialogOpen(false);
+      await loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar atendimento.");
+    } finally {
+      setSavingAttendance(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget || !activeUnitId) {
       return;
@@ -325,17 +431,32 @@ function CadastroPage() {
       const endpoint =
         deleteTarget.kind === "course"
           ? `/api/gestao/courses/${deleteTarget.id}${unitQuery(activeUnitId)}`
-          : `/api/gestao/channels/${deleteTarget.id}${unitQuery(activeUnitId)}`;
+          : deleteTarget.kind === "channel"
+            ? `/api/gestao/channels/${deleteTarget.id}${unitQuery(activeUnitId)}`
+            : "/api/gestao/attendances";
 
       await readJson<{ ok: true }>(
         await fetch(endpoint, {
           method: "DELETE",
           credentials: "same-origin",
-          headers: { Accept: "application/json" },
+          headers:
+            deleteTarget.kind === "attendance"
+              ? { Accept: "application/json", "Content-Type": "application/json" }
+              : { Accept: "application/json" },
+          body:
+            deleteTarget.kind === "attendance"
+              ? JSON.stringify({ id: deleteTarget.id, unitId: activeUnitId })
+              : undefined,
         }),
       );
 
-      toast.success(deleteTarget.kind === "course" ? "Curso excluído." : "Canal excluído.");
+      toast.success(
+        deleteTarget.kind === "course"
+          ? "Curso excluído."
+          : deleteTarget.kind === "channel"
+            ? "Canal excluído."
+            : "Atendimento excluído.",
+      );
       setDeleteTarget(null);
       await loadData();
     } catch (error) {
@@ -572,6 +693,106 @@ function CadastroPage() {
         </Card>
       </div>
 
+      <Card className="animate-panel-rise overflow-hidden border-primary/10 shadow-card">
+        <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-card to-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Atendimentos por curso e cidade</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Defina quem recebe cada combinação identificada no nome das campanhas.
+                </p>
+              </div>
+            </div>
+            <Button onClick={openNewAttendanceDialog} className="bg-gradient-primary">
+              <Plus className="h-4 w-4" />
+              Novo Atendimento
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="px-5">Curso</TableHead>
+                <TableHead>Praça</TableHead>
+                <TableHead>Consultores</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Carregando atendimentos...
+                  </TableCell>
+                </TableRow>
+              ) : attendances.length ? (
+                attendances.map((attendance) => (
+                  <TableRow key={attendance.id}>
+                    <TableCell className="px-5 font-semibold">{attendance.courseName}</TableCell>
+                    <TableCell>
+                      {attendance.city}-{attendance.state}
+                    </TableCell>
+                    <TableCell className="max-w-md">
+                      <div className="flex flex-wrap gap-1">
+                        {attendance.consultantNames.map((name) => (
+                          <Badge key={name} variant="secondary">
+                            {name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={attendance.status} />
+                    </TableCell>
+                    <TableCell className="pr-5">
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditAttendanceDialog(attendance)}
+                          aria-label={`Editar ${attendance.courseName} em ${attendance.city}`}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              kind: "attendance",
+                              id: attendance.id,
+                              name: `${attendance.courseName} - ${attendance.city}-${attendance.state}`,
+                            })
+                          }
+                          aria-label={`Excluir atendimento ${attendance.courseName}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Nenhuma combinação cadastrada.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <CourseDialog
         open={courseDialogOpen}
         editing={Boolean(editingCourseId)}
@@ -589,6 +810,17 @@ function CadastroPage() {
         onOpenChange={setChannelDialogOpen}
         onFormChange={setChannelForm}
         onSubmit={handleChannelSubmit}
+      />
+      <AttendanceDialog
+        open={attendanceDialogOpen}
+        editing={Boolean(editingAttendanceId)}
+        form={attendanceForm}
+        courses={courses.filter((course) => course.status === "active")}
+        consultants={consultants}
+        saving={savingAttendance}
+        onOpenChange={setAttendanceDialogOpen}
+        onFormChange={setAttendanceForm}
+        onSubmit={handleAttendanceSubmit}
       />
       <DeleteDialog
         target={deleteTarget}
@@ -826,6 +1058,164 @@ function ChannelDialog({
             </Button>
             <Button type="submit" className="bg-gradient-primary" disabled={saving}>
               {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar canal"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AttendanceDialog({
+  open,
+  editing,
+  form,
+  courses,
+  consultants,
+  saving,
+  onOpenChange,
+  onFormChange,
+  onSubmit,
+}: {
+  open: boolean;
+  editing: boolean;
+  form: AttendanceFormState;
+  courses: Array<CourseRecord>;
+  consultants: Array<{ id: string; name: string }>;
+  saving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onFormChange: React.Dispatch<React.SetStateAction<AttendanceFormState>>;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  function toggleConsultant(id: string) {
+    onFormChange((current) => ({
+      ...current,
+      consultantIds: current.consultantIds.includes(id)
+        ? current.consultantIds.filter((consultantId) => consultantId !== id)
+        : [...current.consultantIds, id],
+    }));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-primary/20 bg-card shadow-elegant sm:max-w-2xl">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar atendimento" : "Novo atendimento"}</DialogTitle>
+            <DialogDescription>
+              O nome da campanha deve conter [Curso] [Cidade-UF] para usar esta distribuição.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-5 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Curso</Label>
+              <Select
+                value={form.courseId}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({ ...current, courseId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="attendance-city">Cidade</Label>
+              <Input
+                id="attendance-city"
+                value={form.city}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, city: event.target.value }))
+                }
+                placeholder="Ex.: Juiz de Fora"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="attendance-state">UF</Label>
+              <Input
+                id="attendance-state"
+                value={form.state}
+                onChange={(event) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    state: event.target.value.toUpperCase().slice(0, 2),
+                  }))
+                }
+                placeholder="MG"
+                maxLength={2}
+                required
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Consultores participantes</Label>
+              <div className="grid max-h-52 gap-2 overflow-y-auto rounded-lg border bg-background/70 p-3 sm:grid-cols-2">
+                {consultants.length ? (
+                  consultants.map((consultant) => (
+                    <label
+                      key={consultant.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-primary/5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.consultantIds.includes(consultant.id)}
+                        onChange={() => toggleConsultant(consultant.id)}
+                      />
+                      {consultant.name}
+                    </label>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Cadastre consultores ativos nesta unidade.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    status: value as CommercialStatus,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              className="bg-gradient-primary"
+              disabled={
+                saving ||
+                !form.courseId ||
+                !form.city.trim() ||
+                form.state.length !== 2 ||
+                !form.consultantIds.length
+              }
+            >
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar atendimento"}
             </Button>
           </DialogFooter>
         </form>

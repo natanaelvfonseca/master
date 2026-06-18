@@ -2,6 +2,11 @@ import { createHmac, createCipheriv, createDecipheriv, createHash, randomBytes }
 import type { PoolClient, QueryResultRow } from "pg";
 import type { LeadStage } from "@/lib/commercial-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
+import {
+  chooseAttendanceConsultant,
+  ensureCourseAttendanceSchema,
+  findCampaignAttendance,
+} from "@/lib/server/course-attendances";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
 export type MetaDistributionRule =
@@ -115,6 +120,10 @@ type MetaEventRow = QueryResultRow & {
   status: "received" | "pending_configuration" | "processing" | "processed" | "duplicate" | "error";
   error_message: string | null;
   distribution_reason: string | null;
+  attendance_id: string | null;
+  assigned_user_id: string | null;
+  routing_source: "campaign_matrix" | "form_fallback" | null;
+  routing_error: string | null;
   payload: Record<string, unknown>;
   lead_payload: Record<string, unknown> | null;
   mapped_payload: Record<string, unknown> | null;
@@ -170,6 +179,7 @@ let metaSchemaPromise: Promise<void> | null = null;
 
 export async function ensureMetaLeadSchema() {
   await ensureCommercialSchema();
+  await ensureCourseAttendanceSchema();
 
   metaSchemaPromise ??= queryDb(`
     create table if not exists app_meta_integrations (
@@ -284,6 +294,15 @@ export async function ensureMetaLeadSchema() {
     create index if not exists app_meta_events_form_idx on app_meta_lead_events (page_id, form_id);
     create index if not exists app_meta_events_status_idx on app_meta_lead_events (status, received_at desc);
     create index if not exists app_meta_events_lead_idx on app_meta_lead_events (lead_id);
+
+    alter table app_meta_lead_events
+      add column if not exists attendance_id uuid references app_course_attendances(id) on delete set null;
+    alter table app_meta_lead_events
+      add column if not exists assigned_user_id uuid references app_users(id) on delete set null;
+    alter table app_meta_lead_events
+      add column if not exists routing_source text;
+    alter table app_meta_lead_events
+      add column if not exists routing_error text;
   `).then(() => undefined);
 
   await metaSchemaPromise;
@@ -610,7 +629,7 @@ export function verifyMetaSignature(rawBody: string, signature: string | null, a
 export async function listMetaState() {
   const integration = await ensureMetaIntegration();
 
-  const [pagesResult, formsResult, eventsResult, optionsResult] = await Promise.all([
+  const [pagesResult, formsResult, eventsResult, optionsResult, alertsResult] = await Promise.all([
     queryDb<MetaPageRow>(
       `
         select
@@ -676,6 +695,10 @@ export async function listMetaState() {
           status,
           error_message,
           distribution_reason,
+          attendance_id,
+          assigned_user_id,
+          routing_source,
+          routing_error,
           payload,
           lead_payload,
           mapped_payload
@@ -691,6 +714,28 @@ export async function listMetaState() {
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', unit_id, 'name', name, 'status', status) order by name) from app_courses), '[]'::jsonb) as courses,
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', unit_id, 'name', name, 'status', status) order by name) from app_acquisition_channels), '[]'::jsonb) as channels,
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', primary_unit_id, 'name', name, 'role', role, 'status', status) order by name) from app_users where role = 'CONSULTOR'), '[]'::jsonb) as consultants
+      `,
+    ),
+    queryDb<
+      QueryResultRow & {
+        campaign_id: string | null;
+        campaign_name: string;
+        routing_error: string;
+        affected_count: string;
+      }
+    >(
+      `
+        select
+          campaign_id,
+          coalesce(campaign_name, 'Campanha sem nome') as campaign_name,
+          routing_error,
+          count(*)::text as affected_count
+        from app_meta_lead_events
+        where routing_source = 'form_fallback'
+          and routing_error is not null
+        group by campaign_id, campaign_name, routing_error
+        order by max(received_at) desc
+        limit 50
       `,
     ),
   ]);
@@ -709,6 +754,12 @@ export async function listMetaState() {
     })),
     forms: formsResult.rows,
     events: eventsResult.rows,
+    campaignAlerts: alertsResult.rows.map((alert) => ({
+      campaignId: alert.campaign_id,
+      campaignName: alert.campaign_name,
+      reason: alert.routing_error,
+      count: Number(alert.affected_count) || 0,
+    })),
     options: optionsResult.rows[0],
   };
 }
@@ -1289,6 +1340,26 @@ async function getChannelSnapshot(client: PoolClient, channelId: string | null, 
   return result.rows[0] ?? null;
 }
 
+async function getChannelByName(client: PoolClient, channelName: string | null, unitId: string | null) {
+  if (!channelName || !unitId) {
+    return null;
+  }
+
+  const result = await client.query<ChannelSnapshotRow>(
+    `
+      select id, name
+      from app_acquisition_channels
+      where unit_id = $1
+        and status = 'active'
+        and lower(name) = lower($2)
+      limit 1
+    `,
+    [unitId, channelName],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 async function processEventById(eventId: string) {
   const integration = await ensureMetaIntegration();
 
@@ -1317,6 +1388,10 @@ async function processEventById(eventId: string) {
           status,
           error_message,
           distribution_reason,
+          attendance_id,
+          assigned_user_id,
+          routing_source,
+          routing_error,
           payload,
           lead_payload,
           mapped_payload
@@ -1380,11 +1455,34 @@ async function processEventById(eventId: string) {
       return { status: "error", leadId: null };
     }
 
-    const course =
-      (await getCourseSnapshot(client, form.course_id, form.unit_id)) ??
-      (await getCourseByName(client, mapped.courseName, form.unit_id));
-    const channel = await getChannelSnapshot(client, form.acquisition_channel_id, form.unit_id);
-    const assignment = await chooseConsultant(client, form);
+    const campaignRouting = await findCampaignAttendance(client, event.campaign_name);
+    const attendance = campaignRouting.attendance;
+    const attendanceAssignment = attendance
+      ? await chooseAttendanceConsultant(client, attendance)
+      : null;
+    const resolvedAttendance = attendanceAssignment?.userId ? attendance : null;
+    const routingError =
+      attendance && !resolvedAttendance ? attendanceAssignment?.reason : campaignRouting.error;
+    const targetUnitId = resolvedAttendance?.unit_id ?? form.unit_id;
+    const course = resolvedAttendance
+      ? await getCourseSnapshot(
+          client,
+          resolvedAttendance.course_id,
+          resolvedAttendance.unit_id,
+        )
+      : (await getCourseSnapshot(client, form.course_id, form.unit_id)) ??
+        (await getCourseByName(client, mapped.courseName, form.unit_id));
+    const channel =
+      (await getChannelSnapshot(client, form.acquisition_channel_id, targetUnitId)) ??
+      (resolvedAttendance
+        ? await getChannelByName(client, form.acquisition_channel_name, targetUnitId)
+        : null);
+    const assignment =
+      resolvedAttendance && attendanceAssignment
+        ? attendanceAssignment
+        : await chooseConsultant(client, form);
+    const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
+    const leadCity = resolvedAttendance?.city ?? mapped.city;
     const leadResult = await client.query<{ id: string }>(
       `
         insert into app_leads (
@@ -1406,11 +1504,11 @@ async function processEventById(eventId: string) {
         returning id
       `,
       [
-        form.unit_id,
+        targetUnitId,
         mapped.fullName,
         mapped.phone,
         mapped.email,
-        mapped.city,
+        leadCity,
         course?.id ?? null,
         course?.name ?? (mapped.courseName || null),
         course ? Number(course.value) : null,
@@ -1421,6 +1519,11 @@ async function processEventById(eventId: string) {
           `Meta Lead ID: ${event.leadgen_id}`,
           event.campaign_name ? `Campanha: ${event.campaign_name}` : "",
           event.ad_name ? `Anúncio: ${event.ad_name}` : "",
+          resolvedAttendance
+            ? `Roteamento: ${resolvedAttendance.course_name} - ${resolvedAttendance.city}-${resolvedAttendance.state}`
+            : routingError
+              ? `Roteamento padrão: ${routingError}`
+              : "",
         ]
           .filter(Boolean)
           .join("\n"),
@@ -1441,10 +1544,25 @@ async function processEventById(eventId: string) {
           processed_at = now(),
           distribution_reason = $5,
           mapped_payload = $6::jsonb,
+          attendance_id = $7,
+          assigned_user_id = $8,
+          routing_source = $9,
+          routing_error = $10,
           updated_at = now()
         where id = $1
       `,
-      [event.id, leadId, event.page_id, form.id, assignment.reason, JSON.stringify(mapped)],
+      [
+        event.id,
+        leadId,
+        event.page_id,
+        form.id,
+        assignment.reason,
+        JSON.stringify({ ...mapped, city: leadCity }),
+        resolvedAttendance?.id ?? null,
+        assignment.userId,
+        routingSource,
+        resolvedAttendance ? null : routingError,
+      ],
     );
 
     await client.query(

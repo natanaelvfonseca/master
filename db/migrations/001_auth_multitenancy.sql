@@ -17,7 +17,7 @@ create table if not exists app_users (
   email text not null,
   name text not null,
   avatar_url text,
-  role text not null check (role in ('MASTER', 'CEO', 'DIRETOR', 'GERENTE', 'CONSULTOR')),
+  role text not null check (role in ('MASTER', 'CEO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR')),
   primary_unit_id uuid not null references app_units(id) on delete restrict,
   password_hash text not null,
   status text not null default 'active' check (status in ('active', 'inactive')),

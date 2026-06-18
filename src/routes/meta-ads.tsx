@@ -15,7 +15,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { canManageMetaAds } from "@/lib/auth-types";
+import { canManageMetaAds, canViewMetaAds } from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -118,6 +118,8 @@ type MetaEvent = {
   status: string;
   error_message: string | null;
   distribution_reason: string | null;
+  routing_source: "campaign_matrix" | "form_fallback" | null;
+  routing_error: string | null;
 };
 
 type OptionRow = {
@@ -133,6 +135,12 @@ type MetaState = {
   pages: Array<MetaPage>;
   forms: Array<MetaForm>;
   events: Array<MetaEvent>;
+  campaignAlerts: Array<{
+    campaignId: string | null;
+    campaignName: string;
+    reason: string;
+    count: number;
+  }>;
   options: {
     units: Array<OptionRow>;
     courses: Array<OptionRow>;
@@ -301,7 +309,8 @@ function MetaAdsPage() {
     status: "inactive",
   });
 
-  const canAccess = session ? canManageMetaAds(session.user.role) : false;
+  const canAccess = session ? canViewMetaAds(session.user.role) : false;
+  const canManage = session ? canManageMetaAds(session.user.role) : false;
   const pendingEvents = state?.events.filter((event) => event.status === "pending_configuration") ?? [];
   const configuredForms =
     state?.forms.filter((form) => form.status === "active" && form.unit_id).length ?? 0;
@@ -352,7 +361,7 @@ function MetaAdsPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            A integração Meta Ads é administrada apenas por usuários Master.
+            A integração Meta Ads fica disponível para usuários Master e Marketing.
           </p>
         </div>
       </div>
@@ -446,10 +455,12 @@ function MetaAdsPage() {
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               Webhook único
             </Badge>
-            <Button onClick={() => setPageDialogOpen(true)} className="bg-gradient-primary">
-              <Plus className="h-4 w-4" />
-              Página
-            </Button>
+            {canManage ? (
+              <Button onClick={() => setPageDialogOpen(true)} className="bg-gradient-primary">
+                <Plus className="h-4 w-4" />
+                Página
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -461,13 +472,42 @@ function MetaAdsPage() {
         <MetricCard icon={AlertTriangle} label="Pendentes" value={pendingEvents.length} tone="gold" />
       </div>
 
+      {state?.campaignAlerts.length ? (
+        <Card className="border-gold/40 bg-gold/10 shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-gold-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              Campanhas usando distribuição padrão
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {state.campaignAlerts.map((alert) => (
+              <div
+                key={`${alert.campaignId ?? alert.campaignName}-${alert.reason}`}
+                className="flex flex-col gap-1 rounded-md border border-gold/30 bg-white/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <div className="text-sm font-semibold">{alert.campaignName}</div>
+                  <div className="text-xs text-muted-foreground">{alert.reason}</div>
+                </div>
+                <Badge variant="secondary">{alert.count} lead(s)</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 md:grid-cols-5">
+        <TabsList
+          className={`grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 ${
+            canManage ? "md:grid-cols-5" : "md:grid-cols-2"
+          }`}
+        >
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
-          <TabsTrigger value="pages">Páginas</TabsTrigger>
-          <TabsTrigger value="forms">Formulários</TabsTrigger>
+          {canManage ? <TabsTrigger value="pages">Páginas</TabsTrigger> : null}
+          {canManage ? <TabsTrigger value="forms">Formulários</TabsTrigger> : null}
           <TabsTrigger value="events">Eventos</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
+          {canManage ? <TabsTrigger value="settings">Configurações</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -479,6 +519,7 @@ function MetaAdsPage() {
               <CardContent>
                 <EventTable
                   events={(state?.events ?? []).slice(0, 8)}
+                  readOnly={!canManage}
                   onReprocess={(event) => {
                     setBusyAction(event.id);
                     void postAction({ action: "reprocessEvent", eventId: event.id }, "Evento reprocessado.");
@@ -644,6 +685,7 @@ function MetaAdsPage() {
             <CardContent>
               <EventTable
                 events={state?.events ?? []}
+                readOnly={!canManage}
                 onReprocess={(event) => {
                   setBusyAction(event.id);
                   void postAction({ action: "reprocessEvent", eventId: event.id }, "Evento reprocessado.");
@@ -965,11 +1007,13 @@ function FormsTable({
 function EventTable({
   events,
   busyAction,
+  readOnly = false,
   onReprocess,
   onConfigure,
 }: {
   events: Array<MetaEvent>;
   busyAction: string | null;
+  readOnly?: boolean;
   onReprocess: (event: MetaEvent) => void;
   onConfigure: (event: MetaEvent) => void;
 }) {
@@ -997,12 +1041,25 @@ function EventTable({
             <TableCell>{event.campaign_name ?? event.ad_name ?? "--"}</TableCell>
             <TableCell>
               <Badge className={statusClass(event.status)}>{event.status}</Badge>
+              {event.routing_source ? (
+                <div className="mt-1 text-xs font-medium text-muted-foreground">
+                  {event.routing_source === "campaign_matrix"
+                    ? "Curso + cidade"
+                    : "Padrão do formulário"}
+                </div>
+              ) : null}
               {event.error_message ? (
                 <div className="mt-1 max-w-64 text-xs text-destructive">{event.error_message}</div>
               ) : null}
+              {event.routing_error ? (
+                <div className="mt-1 max-w-64 text-xs text-gold-foreground">
+                  {event.routing_error}
+                </div>
+              ) : null}
             </TableCell>
             <TableCell>
-              <div className="flex justify-end gap-1.5">
+              {!readOnly ? (
+                <div className="flex justify-end gap-1.5">
                 {event.status === "pending_configuration" ? (
                   <Button type="button" size="sm" variant="outline" onClick={() => onConfigure(event)}>
                     Configurar formulário
@@ -1014,7 +1071,8 @@ function EventTable({
                   loading={busyAction === event.id}
                   onClick={() => onReprocess(event)}
                 />
-              </div>
+                </div>
+              ) : null}
             </TableCell>
           </TableRow>
         ))}

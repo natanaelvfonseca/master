@@ -37,12 +37,12 @@ import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import {
   canAccessSystemFeedback,
-  canManageMetaAds,
   canManageBrandPlen,
   canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
   canViewStudents,
+  canViewMetaAds,
   getInitials,
   ROLE_LABELS,
 } from "@/lib/auth-types";
@@ -127,7 +127,7 @@ export function AppSidebar() {
   const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
-  const canViewMetaAds = user ? canManageMetaAds(user.role) : false;
+  const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -146,21 +146,30 @@ export function AppSidebar() {
           (!item.brandAdminOnly || canViewBrandAdmin) &&
           (!item.brandHistoryOnly || canViewBrandHistory) &&
           (!item.managementOnly || canViewManagementArea) &&
-          (!item.metaAdsOnly || canViewMetaAds) &&
+          (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback),
       ),
     }))
     .filter((group) => group.items.length > 0);
+  const roleVisibleGroups =
+    user?.role === "MARKETING"
+      ? visibleGroups
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => item.url === "/crm" || item.url === "/meta-ads"),
+          }))
+          .filter((group) => group.items.length > 0)
+      : visibleGroups;
   const navGroups = session?.canRegisterUsers
     ? [
-        ...visibleGroups,
+        ...roleVisibleGroups,
         {
           label: "Administração",
           items: [{ title: "Usuários e unidades", url: "/usuarios", icon: UserCog }],
         },
       ]
-    : visibleGroups;
+    : roleVisibleGroups;
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">

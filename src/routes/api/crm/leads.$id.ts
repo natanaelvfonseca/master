@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
 import type { LeadStage } from "@/lib/commercial-types";
-import { canTransferLeads } from "@/lib/auth-types";
+import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
@@ -176,6 +176,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         if (!session) {
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canOperateCrm(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
         }
 
         if (!isUuid(params.id)) {
@@ -402,6 +406,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         if (!session) {
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canOperateCrm(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
         }
 
         if (!isUuid(params.id)) {

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { canManageMetaAds } from "@/lib/auth-types";
+import { canManageMetaAds, canViewMetaAds } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import {
   duplicateMetaForm,
@@ -13,14 +13,17 @@ import {
   validateMetaPageToken,
 } from "@/lib/server/meta-leads";
 
-async function requireMaster(request: Request) {
+async function requireAccess(request: Request, write = false) {
   const session = await getSessionFromRequest(request);
 
   if (!session) {
     return { response: Response.json({ ok: false, error: "Não autenticado." }, { status: 401 }) };
   }
 
-  if (!canManageMetaAds(session.user.role)) {
+  if (
+    (write && !canManageMetaAds(session.user.role)) ||
+    (!write && !canViewMetaAds(session.user.role))
+  ) {
     return { response: Response.json({ ok: false, error: "Acesso negado." }, { status: 403 }) };
   }
 
@@ -37,7 +40,7 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = await requireMaster(request);
+        const auth = await requireAccess(request);
 
         if ("response" in auth) {
           return auth.response;
@@ -48,7 +51,7 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
         return Response.json(state, { headers: { "Cache-Control": "no-store" } });
       },
       POST: async ({ request }) => {
-        const auth = await requireMaster(request);
+        const auth = await requireAccess(request, true);
 
         if ("response" in auth) {
           return auth.response;

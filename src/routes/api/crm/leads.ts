@@ -7,7 +7,7 @@ import {
   getUnitFromRequest,
   isUuid,
 } from "@/lib/server/commercial-schema";
-import { canTransferLeads, canViewStudents } from "@/lib/auth-types";
+import { canOperateCrm, canViewAllUnitLeads, canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 
@@ -173,7 +173,7 @@ export const Route = createFileRoute("/api/crm/leads")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
-        const canManageUnitLeads = canTransferLeads(session.user.role);
+        const canManageUnitLeads = canViewAllUnitLeads(session.user.role);
         const exposeAcquisitionChannel = session.user.role !== "CONSULTOR";
         const result = await queryDb<LeadRow>(
           `
@@ -219,6 +219,10 @@ export const Route = createFileRoute("/api/crm/leads")({
 
         if (!session) {
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
+        }
+
+        if (!canOperateCrm(session.user.role)) {
+          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
         }
 
         const body = await request.json().catch(() => null);

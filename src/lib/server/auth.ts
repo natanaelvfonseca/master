@@ -57,7 +57,17 @@ export async function ensureUserProfileSchema() {
     userProfileSchemaPromise = queryDb(
       `
         alter table app_users
-        add column if not exists avatar_url text
+        add column if not exists avatar_url text;
+
+        do $$
+        begin
+          perform pg_advisory_xact_lock(hashtext('app_users_role_check_marketing'));
+          alter table app_users drop constraint if exists app_users_role_check;
+          alter table app_users
+          add constraint app_users_role_check
+          check (role in ('MASTER', 'CEO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
+        end
+        $$
       `,
     )
       .then(() => undefined)
@@ -71,7 +81,7 @@ export async function ensureUserProfileSchema() {
 }
 
 export function isValidRole(role: string): role is UserRole {
-  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "CONSULTOR"].includes(role);
+  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(role);
 }
 
 export async function hashPassword(password: string) {
@@ -265,7 +275,7 @@ export function clearSessionCookie() {
 }
 
 export async function getAccessibleUnits(userId: string, role: UserRole) {
-  if (role === "MASTER" || role === "CEO") {
+  if (role === "MASTER" || role === "CEO" || role === "MARKETING") {
     const result = await queryDb<UserUnitRow>(
       `
         select id, name, slug

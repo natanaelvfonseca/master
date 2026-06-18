@@ -26,7 +26,7 @@ import type {
 } from "@/lib/commercial-types";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { useAuth } from "@/lib/auth";
-import { canTransferLeads } from "@/lib/auth-types";
+import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -318,6 +318,7 @@ function CRM() {
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
   const canTransferUnitLeads = session ? canTransferLeads(session.user.role) : false;
+  const canOperatePipeline = session ? canOperateCrm(session.user.role) : false;
   const canRemoveLeads = canTransferUnitLeads;
   const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
   const selectedTransferCount = selectedTransferLeadIds.size;
@@ -969,13 +970,15 @@ function CRM() {
                 Transferência de Lead
               </Button>
             ) : null}
-            <Button
-              className="bg-gradient-primary text-primary-foreground"
-              onClick={openLeadDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Lead
-            </Button>
+            {canOperatePipeline ? (
+              <Button
+                className="bg-gradient-primary text-primary-foreground"
+                onClick={openLeadDialog}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Lead
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -1039,6 +1042,7 @@ function CRM() {
                         canViewAcquisitionChannel={canViewAcquisitionChannel}
                         canViewOwner={canTransferUnitLeads}
                         canRemove={canRemoveLeads}
+                        canEdit={canOperatePipeline}
                         onRemove={() => void handleRemoveLead(lead)}
                         onEdit={() => openEditLeadDialog(lead)}
                         onDragStart={(event) => handleDragStart(event, lead)}
@@ -1160,6 +1164,7 @@ function LeadPipelineCard({
   canViewAcquisitionChannel,
   canViewOwner,
   canRemove,
+  canEdit,
   onRemove,
   onEdit,
   onDragStart,
@@ -1172,6 +1177,7 @@ function LeadPipelineCard({
   canViewAcquisitionChannel: boolean;
   canViewOwner: boolean;
   canRemove: boolean;
+  canEdit: boolean;
   onRemove: () => void;
   onEdit: () => void;
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -1179,10 +1185,12 @@ function LeadPipelineCard({
 }) {
   return (
     <Card
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      className={`group cursor-grab border-primary/10 bg-white/90 p-3 shadow-card transition-all duration-200 ease-out active:cursor-grabbing ${
+      draggable={canEdit}
+      onDragStart={canEdit ? onDragStart : undefined}
+      onDragEnd={canEdit ? onDragEnd : undefined}
+      className={`group border-primary/10 bg-white/90 p-3 shadow-card transition-all duration-200 ease-out ${
+        canEdit ? "cursor-grab active:cursor-grabbing" : ""
+      } ${
         dragging
           ? "scale-[0.98] opacity-60 shadow-lg"
           : "hover:-translate-y-0.5 hover:shadow-elegant"
@@ -1192,8 +1200,10 @@ function LeadPipelineCard({
         <div className="min-w-0">
           <button
             type="button"
-            onClick={onEdit}
-            className="truncate text-left text-sm font-semibold transition hover:text-primary"
+            onClick={canEdit ? onEdit : undefined}
+            className={`truncate text-left text-sm font-semibold ${
+              canEdit ? "transition hover:text-primary" : "cursor-default"
+            }`}
           >
             {lead.fullName}
           </button>
