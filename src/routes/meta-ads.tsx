@@ -807,7 +807,7 @@ function MetaAdsPage() {
           <DialogHeader>
             <DialogTitle>Duplicar configuração</DialogTitle>
             <DialogDescription>
-              Copia destino, distribuição e mapeamento para um novo Form ID.
+              Copia destino e mapeamento para um novo Form ID.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -942,7 +942,6 @@ function FormsTable({
           <TableHead>Unidade</TableHead>
           <TableHead>Curso</TableHead>
           <TableHead>Etapa</TableHead>
-          <TableHead>Distribuição</TableHead>
           <TableHead>Leads</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Ações</TableHead>
@@ -957,7 +956,6 @@ function FormsTable({
             <TableCell>{form.unit_name ?? "Pendente"}</TableCell>
             <TableCell>{form.course_name ?? "--"}</TableCell>
             <TableCell>{form.initial_stage}</TableCell>
-            <TableCell>{distributionLabels[form.distribution_rule] ?? form.distribution_rule}</TableCell>
             <TableCell>{form.leads_received_count}</TableCell>
             <TableCell>
               <Badge className={statusClass(form.status)}>{form.status === "active" ? "Ativo" : "Inativo"}</Badge>
