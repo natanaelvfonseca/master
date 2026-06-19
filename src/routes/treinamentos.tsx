@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Layers3,
   Loader2,
+  Pencil,
   Play,
   PlayCircle,
   Plus,
@@ -77,6 +78,11 @@ type UploadFormState = {
   thumbnailFile: File | null;
 };
 
+type EditFormState = Pick<
+  UploadFormState,
+  "title" | "description" | "trail" | "durationLabel" | "orderIndex" | "scope"
+>;
+
 const initialUploadForm: UploadFormState = {
   title: "",
   description: "",
@@ -93,6 +99,7 @@ const initialUploadForm: UploadFormState = {
 const TRAINING_UPLOAD_URL = "/api/training/upload";
 const MAX_VIDEO_UPLOAD_BYTES = 1024 * 1024 * 1024;
 const MAX_THUMBNAIL_UPLOAD_BYTES = 10 * 1024 * 1024;
+const PLAYBACK_RATES = ["0.75", "1", "1.25", "1.5", "2"] as const;
 
 const trailStyles: Record<TrainingTrailId, { ring: string; glow: string; icon: typeof Sparkles }> =
   {
@@ -147,6 +154,17 @@ function formatDate(value: string) {
 
 function getTrail(trailId: TrainingTrailId) {
   return TRAINING_TRAILS.find((trail) => trail.id === trailId) ?? TRAINING_TRAILS[0];
+}
+
+function sortLessons(lessons: Array<TrainingLesson>) {
+  const trailOrder = new Map(TRAINING_TRAILS.map((trail, index) => [trail.id, index]));
+
+  return [...lessons].sort(
+    (a, b) =>
+      (trailOrder.get(a.trail) ?? 0) - (trailOrder.get(b.trail) ?? 0) ||
+      a.orderIndex - b.orderIndex ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 function buildVideoSrc(lesson: TrainingLesson, unitId: string) {
@@ -445,9 +463,11 @@ function UploadDialog({
             <Label>Ordem na trilha</Label>
             <Input
               type="number"
+              min="0"
               value={form.orderIndex}
               onChange={(event) => updateForm({ orderIndex: event.target.value })}
             />
+            <p className="text-xs text-muted-foreground">O menor número aparece primeiro.</p>
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <Label>Descrição</Label>
@@ -552,19 +572,179 @@ function UploadDialog({
   );
 }
 
+function EditLessonDialog({
+  activeUnitId,
+  lesson,
+  open,
+  onOpenChange,
+  onUpdated,
+}: {
+  activeUnitId: string;
+  lesson: TrainingLesson | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdated: (response: TrainingResponse) => void;
+}) {
+  const [form, setForm] = useState<EditFormState | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!lesson || !open) return;
+
+    setForm({
+      title: lesson.title,
+      description: lesson.description,
+      trail: lesson.trail,
+      durationLabel: lesson.durationLabel,
+      orderIndex: String(lesson.orderIndex),
+      scope: lesson.scope,
+    });
+  }, [lesson, open]);
+
+  const updateForm = (patch: Partial<EditFormState>) => {
+    setForm((current) => (current ? { ...current, ...patch } : current));
+  };
+
+  const submit = async () => {
+    if (!lesson || !form) return;
+
+    if (!form.title.trim() || !form.description.trim() || !form.durationLabel.trim()) {
+      toast.error("Preencha título, descrição e duração.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const data = await readJson<TrainingResponse>(
+        await fetch("/api/training", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "updateLesson",
+            unitId: activeUnitId,
+            lessonId: lesson.id,
+            ...form,
+          }),
+        }),
+      );
+
+      onUpdated(data);
+      onOpenChange(false);
+      toast.success("Aula atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao editar aula.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !saving && onOpenChange(nextOpen)}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Editar aula</DialogTitle>
+          <DialogDescription>
+            Ajuste as informações e a posição da aula sem reenviar o vídeo.
+          </DialogDescription>
+        </DialogHeader>
+
+        {form ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Título</Label>
+              <Input
+                value={form.title}
+                onChange={(event) => updateForm({ title: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Trilha</Label>
+              <Select
+                value={form.trail}
+                onValueChange={(value) => updateForm({ trail: value as TrainingTrailId })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRAINING_TRAILS.map((trail) => (
+                    <SelectItem key={trail.id} value={trail.id}>
+                      {trail.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Visibilidade</Label>
+              <Select
+                value={form.scope}
+                onValueChange={(value) => updateForm({ scope: value as TrainingLessonScope })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">Todas as unidades</SelectItem>
+                  <SelectItem value="unit">Unidade ativa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Duração</Label>
+              <Input
+                value={form.durationLabel}
+                onChange={(event) => updateForm({ durationLabel: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Posição na trilha</Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.orderIndex}
+                onChange={(event) => updateForm({ orderIndex: event.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">O menor número aparece primeiro.</p>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Descrição</Label>
+              <Textarea
+                rows={4}
+                value={form.description}
+                onChange={(event) => updateForm({ description: event.target.value })}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+            Salvar alterações
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Treinamentos() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
   const activeUnitName = session?.activeUnit?.name ?? "Unidade ativa";
   const canManage = session ? canManageTraining(session.user.role) : false;
-  const canViewLeadership = session
-    ? canViewLeadershipTraining(session.user.role)
-    : false;
+  const canViewLeadership = session ? canViewLeadershipTraining(session.user.role) : false;
   const visibleTrails = useMemo(
-    () =>
-      TRAINING_TRAILS.filter(
-        (trail) => trail.id !== "lideranca" || canViewLeadership,
-      ),
+    () => TRAINING_TRAILS.filter((trail) => trail.id !== "lideranca" || canViewLeadership),
     [canViewLeadership],
   );
   const [lessons, setLessons] = useState<Array<TrainingLesson>>([]);
@@ -578,7 +758,10 @@ function Treinamentos() {
   const [loading, setLoading] = useState(false);
   const [savingProgress, setSavingProgress] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [playbackRate, setPlaybackRate] = useState("1");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const selectedLessonIdRef = useRef<string | null>(null);
   const hasInitializedTrainingRef = useRef(false);
 
@@ -640,7 +823,7 @@ function Treinamentos() {
             headers: { Accept: "application/json" },
           }),
         );
-        const nextLessons = data.lessons ?? [];
+        const nextLessons = sortLessons(data.lessons ?? []);
 
         setLessons(nextLessons);
         setSummary(
@@ -701,7 +884,7 @@ function Treinamentos() {
         }),
       );
 
-      setLessons(data.lessons ?? []);
+      setLessons(sortLessons(data.lessons ?? []));
       if (data.summary) {
         setSummary(data.summary);
       }
@@ -738,18 +921,38 @@ function Treinamentos() {
   };
 
   const handleUploaded = (lesson: TrainingLesson) => {
-    setLessons((current) => [lesson, ...current]);
+    setLessons((current) => sortLessons([...current, lesson]));
     selectedLessonIdRef.current = lesson.id;
     setSelectedLessonId(lesson.id);
     setSelectedTrail(lesson.trail);
     void loadTraining({ silent: true });
   };
 
+  const handleUpdated = (data: TrainingResponse) => {
+    const nextLessons = sortLessons(data.lessons ?? []);
+    setLessons(nextLessons);
+
+    if (data.summary) {
+      setSummary(data.summary);
+    }
+
+    if (data.lesson) {
+      selectedLessonIdRef.current = data.lesson.id;
+      setSelectedLessonId(data.lesson.id);
+      setSelectedTrail(data.lesson.trail);
+    }
+  };
+
+  const changePlaybackRate = (value: string) => {
+    setPlaybackRate(value);
+
+    if (videoRef.current) {
+      videoRef.current.playbackRate = Number(value);
+    }
+  };
+
   return (
-    <div
-      className="space-y-6 overflow-x-hidden"
-      onContextMenu={(event) => event.preventDefault()}
-    >
+    <div className="space-y-6 overflow-x-hidden" onContextMenu={(event) => event.preventDefault()}>
       <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#0B2A6F_38%,#1746B8_74%,#3F73D8_100%)] p-5 text-white shadow-[0_30px_90px_-50px_rgba(11,42,111,0.95)] md:p-7">
         <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,.1)_1px,transparent_1px)] [background-size:34px_34px]" />
         <div className="absolute left-0 top-0 h-px w-full animate-pulse bg-gradient-to-r from-transparent via-gold to-transparent" />
@@ -892,8 +1095,24 @@ function Treinamentos() {
                   </CardTitle>
                 </CardHeader>
                 <div className="relative min-w-0 bg-[#061B4D] p-2 md:p-3">
+                  <div className="mb-2 flex items-center justify-end gap-2 text-white">
+                    <span className="text-xs font-semibold text-white/70">Velocidade</span>
+                    <Select value={playbackRate} onValueChange={changePlaybackRate}>
+                      <SelectTrigger className="h-8 w-24 border-white/20 bg-white/10 text-xs text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLAYBACK_RATES.map((rate) => (
+                          <SelectItem key={rate} value={rate}>
+                            {rate}x
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <video
                     key={selectedLesson.id}
+                    ref={videoRef}
                     className="aspect-video w-full max-w-full rounded-lg bg-black shadow-[0_24px_70px_-36px_rgba(0,0,0,0.85)]"
                     controls
                     controlsList="nodownload noremoteplayback"
@@ -904,6 +1123,9 @@ function Treinamentos() {
                     poster={selectedLesson.thumbnailDataUrl ?? undefined}
                     preload="metadata"
                     src={buildVideoSrc(selectedLesson, activeUnitId)}
+                    onLoadedMetadata={(event) => {
+                      event.currentTarget.playbackRate = Number(playbackRate);
+                    }}
                   />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent" />
                 </div>
@@ -1092,19 +1314,29 @@ function Treinamentos() {
                 </Button>
 
                 {canManage ? (
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 text-muted-foreground"
-                    onClick={() => archiveLesson(selectedLesson)}
-                    disabled={archivingId === selectedLesson.id}
-                  >
-                    {archivingId === selectedLesson.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    Arquivar aula
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 border-primary/25 text-primary"
+                      onClick={() => setEditOpen(true)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar aula
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 text-muted-foreground"
+                      onClick={() => archiveLesson(selectedLesson)}
+                      disabled={archivingId === selectedLesson.id}
+                    >
+                      {archivingId === selectedLesson.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Arquivar aula
+                    </Button>
+                  </div>
                 ) : null}
               </CardContent>
             ) : (
@@ -1121,6 +1353,14 @@ function Treinamentos() {
           </Card>
         </aside>
       </div>
+
+      <EditLessonDialog
+        activeUnitId={activeUnitId}
+        lesson={selectedLesson}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onUpdated={handleUpdated}
+      />
     </div>
   );
 }

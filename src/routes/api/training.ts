@@ -424,14 +424,16 @@ export const Route = createFileRoute("/api/training")({
 
           const requestedUnit = getRequestedUnit(session, form.get("unitId"));
           const scope: TrainingLessonScope = form.get("scope") === "unit" ? "unit" : "global";
-          const unitId = scope === "unit" ? requestedUnit?.id : null;
+          const unitId = scope === "unit" ? (requestedUnit?.id ?? null) : null;
           const title = readString(form.get("title"), MAX_TITLE_LENGTH);
           const description = readString(form.get("description"));
           const durationLabel = readString(form.get("durationLabel"), 40);
           const orderIndex = Number.parseInt(readString(form.get("orderIndex"), 12), 10) || 0;
-          const trail = isTrainingTrail(form.get("trail")) ? form.get("trail") : "plataforma";
-          const videoSource = isVideoSource(form.get("videoSource"))
-            ? form.get("videoSource")
+          const trailValue = form.get("trail");
+          const trail: TrainingTrailId = isTrainingTrail(trailValue) ? trailValue : "plataforma";
+          const videoSourceValue = form.get("videoSource");
+          const videoSource: TrainingVideoSource = isVideoSource(videoSourceValue)
+            ? videoSourceValue
             : "upload";
           const videoFile = getFile(form.get("video"));
           const thumbnailFile = getFile(form.get("thumbnail"));
@@ -527,23 +529,105 @@ export const Route = createFileRoute("/api/training")({
         }
 
         const body = (await request.json().catch(() => null)) as {
+          action?: unknown;
           unitId?: unknown;
           lessonId?: unknown;
           completed?: unknown;
+          title?: unknown;
+          description?: unknown;
+          durationLabel?: unknown;
+          orderIndex?: unknown;
+          trail?: unknown;
+          scope?: unknown;
         } | null;
-        const unit = getUnitFromBody(session, body?.unitId);
         const lessonId = readString(body?.lessonId, 80);
-        const completed = body?.completed !== false;
-
-        if (!unit) {
-          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
-        }
 
         if (!lessonId) {
           return Response.json({ ok: false, error: "Aula inválida." }, { status: 400 });
         }
 
         await ensureTrainingSchema();
+
+        if (body?.action === "updateLesson") {
+          if (!assertManageTraining(session)) {
+            return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+          }
+
+          const requestedUnit = getRequestedUnit(session, body.unitId);
+          const scope: TrainingLessonScope = body.scope === "unit" ? "unit" : "global";
+          const title = readString(body.title, MAX_TITLE_LENGTH);
+          const description = readString(body.description);
+          const durationLabel = readString(body.durationLabel, 40);
+          const orderIndex = Math.max(0, Number.parseInt(readString(body.orderIndex, 12), 10) || 0);
+          const trail = isTrainingTrail(body.trail) ? body.trail : "plataforma";
+
+          if (scope === "unit" && !requestedUnit) {
+            return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+          }
+
+          if (!title || !description || !durationLabel) {
+            return Response.json(
+              { ok: false, error: "Preencha título, descrição e duração." },
+              { status: 400 },
+            );
+          }
+
+          const updated = await queryDb<{ id: string } & QueryResultRow>(
+            `
+              update app_training_lessons
+              set unit_id = $2,
+                  trail = $3,
+                  title = $4,
+                  description = $5,
+                  duration_label = $6,
+                  order_index = $7,
+                  updated_at = now()
+              where id = $1 and status = 'published'
+              returning id
+            `,
+            [
+              lessonId,
+              scope === "unit" ? (requestedUnit?.id ?? null) : null,
+              trail,
+              title,
+              description,
+              durationLabel,
+              orderIndex,
+            ],
+          );
+
+          if (!updated.rows[0]) {
+            return Response.json({ ok: false, error: "Aula não encontrada." }, { status: 404 });
+          }
+
+          const unit = requestedUnit ?? session.activeUnit;
+
+          if (!unit) {
+            return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+          }
+
+          const lessons = await listLessons(unit, session.user.id, session.user.role);
+          const completedLessons = lessons.filter((lesson) => lesson.completedAt).length;
+
+          return Response.json({
+            lesson: lessons.find((lesson) => lesson.id === lessonId) ?? null,
+            lessons,
+            summary: {
+              totalLessons: lessons.length,
+              completedLessons,
+              progressPercent: lessons.length
+                ? Math.round((completedLessons / lessons.length) * 100)
+                : 0,
+            },
+          });
+        }
+
+        const unit = getUnitFromBody(session, body?.unitId);
+        const completed = body?.completed !== false;
+
+        if (!unit) {
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+        }
 
         if (!(await assertLessonVisible(lessonId, unit, session.user.role))) {
           return Response.json({ ok: false, error: "Aula não encontrada." }, { status: 404 });
