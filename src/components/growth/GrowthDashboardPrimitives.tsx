@@ -67,6 +67,28 @@ export function GrowthScopeSelect({
   );
 }
 
+export function GrowthPeriodSelect({
+  value,
+  onValueChange,
+}: {
+  value: number;
+  onValueChange: (value: number) => void;
+}) {
+  return (
+    <Select value={String(value)} onValueChange={(next) => onValueChange(Number(next))}>
+      <SelectTrigger className="w-[150px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="7">Últimos 7 dias</SelectItem>
+        <SelectItem value="30">Últimos 30 dias</SelectItem>
+        <SelectItem value="90">Últimos 90 dias</SelectItem>
+        <SelectItem value="365">Últimos 12 meses</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function GrowthAccessDenied() {
   return (
     <div className="flex min-h-[55vh] items-center justify-center">

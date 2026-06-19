@@ -2,7 +2,7 @@ import type { UnitSummary } from "@/lib/auth-types";
 import type { LeadStage } from "@/lib/commercial-types";
 
 export type GrowthScope = {
-  mode: "network" | "unit";
+  mode: "network" | "unit" | "individual";
   label: string;
   unit: UnitSummary | null;
 };
@@ -18,6 +18,10 @@ export type GrowthMetrics = {
   sourceConversionRate: number;
   activeChannels: number;
   paidChannels: number;
+  revenue: number;
+  metaLeads: number;
+  campaignCount: number;
+  averageFirstContactHours: number;
 };
 
 export type GrowthSourceMetric = {
@@ -54,13 +58,40 @@ export type GrowthFunnelMetric = {
   leads: number;
 };
 
+export type GrowthTrendMetric = {
+  date: string;
+  leads: number;
+  enrollments: number;
+};
+
+export type GrowthCampaignMetric = {
+  campaign: string;
+  leads: number;
+  enrollments: number;
+  conversionRate: number;
+};
+
+export type GrowthConsultantMetric = {
+  id: string;
+  name: string;
+  leads: number;
+  qualifiedLeads: number;
+  enrollments: number;
+  conversionRate: number;
+  followUpRate: number;
+};
+
 export type GrowthResponse = {
   scope: GrowthScope;
   availableUnits: Array<UnitSummary>;
+  periodDays: number;
   metrics: GrowthMetrics;
   sources: Array<GrowthSourceMetric>;
   courses: Array<GrowthCourseMetric>;
   cities: Array<GrowthCityMetric>;
   units: Array<GrowthUnitMetric>;
   funnel: Array<GrowthFunnelMetric>;
+  trend: Array<GrowthTrendMetric>;
+  campaigns: Array<GrowthCampaignMetric>;
+  consultants: Array<GrowthConsultantMetric>;
 };

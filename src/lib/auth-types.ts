@@ -64,7 +64,7 @@ export function canCreateUnits(role: UserRole) {
 }
 
 export function canViewGrowth(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return USER_ROLES.includes(role);
 }
 
 export function canViewNetworkGrowth(role: UserRole) {

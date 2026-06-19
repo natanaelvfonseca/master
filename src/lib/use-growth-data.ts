@@ -16,15 +16,15 @@ async function readJson<T>(response: Response): Promise<T> {
   return data;
 }
 
-function growthQuery(scopeValue: string) {
+function growthQuery(scopeValue: string, periodDays: number) {
   if (scopeValue === "all") {
-    return "?scope=all";
+    return `?scope=all&period=${periodDays}`;
   }
 
-  return `?unitId=${encodeURIComponent(scopeValue)}`;
+  return `?unitId=${encodeURIComponent(scopeValue)}&period=${periodDays}`;
 }
 
-export function useGrowthData(scopeValue: string, enabled: boolean) {
+export function useGrowthData(scopeValue: string, enabled: boolean, periodDays = 30) {
   const [data, setData] = React.useState<GrowthResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -41,7 +41,7 @@ export function useGrowthData(scopeValue: string, enabled: boolean) {
 
       try {
         const nextData = await readJson<GrowthResponse>(
-          await fetch(`/api/growth${growthQuery(scopeValue)}`, {
+          await fetch(`/api/growth${growthQuery(scopeValue, periodDays)}`, {
             credentials: "same-origin",
             headers: { Accept: "application/json" },
           }),
@@ -67,7 +67,7 @@ export function useGrowthData(scopeValue: string, enabled: boolean) {
     return () => {
       ignore = true;
     };
-  }, [enabled, scopeValue]);
+  }, [enabled, periodDays, scopeValue]);
 
   return { data, loading };
 }

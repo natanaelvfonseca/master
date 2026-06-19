@@ -15,7 +15,23 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
-const MARKETING_ALLOWED_PATHS = ["/crm", "/meta-ads", "/treinamentos", "/perfil"];
+const MARKETING_ALLOWED_PATHS = [
+  "/crm",
+  "/bi",
+  "/branding",
+  "/meta-ads",
+  "/treinamentos",
+  "/perfil",
+];
+
+function isMarketingPathAllowed(path: string) {
+  return (
+    path === "/" ||
+    MARKETING_ALLOWED_PATHS.some(
+      (allowedPath) => path === allowedPath || path.startsWith(`${allowedPath}/`),
+    )
+  );
+}
 
 function NotFoundComponent() {
   return (
@@ -142,7 +158,7 @@ function AuthenticatedShell() {
     if (
       !loading &&
       session?.user.role === "MARKETING" &&
-      !MARKETING_ALLOWED_PATHS.some((allowedPath) => path.startsWith(allowedPath))
+      !isMarketingPathAllowed(path)
     ) {
       window.location.replace("/crm");
     }
@@ -162,7 +178,7 @@ function AuthenticatedShell() {
 
   if (
     session.user.role === "MARKETING" &&
-    !MARKETING_ALLOWED_PATHS.some((allowedPath) => path.startsWith(allowedPath))
+    !isMarketingPathAllowed(path)
   ) {
     return null;
   }

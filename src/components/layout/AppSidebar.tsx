@@ -159,7 +159,10 @@ export function AppSidebar() {
             ...group,
             items: group.items.filter(
               (item) =>
+                item.url === "/" ||
                 item.url === "/crm" ||
+                item.url === "/bi" ||
+                item.url === "/branding" ||
                 item.url === "/meta-ads" ||
                 item.url === "/treinamentos",
             ),
