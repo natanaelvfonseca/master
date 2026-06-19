@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CircleAlert, LoaderCircle, Power, QrCode, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import plenaImage from "@/assets/plena-ia.png";
+import plenaConnectedImage from "@/assets/plena-ia-conectada.png";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,7 +210,7 @@ function Conversas() {
         <div className="relative grid min-h-[620px] items-end lg:grid-cols-[minmax(320px,0.9fr)_minmax(420px,1.1fr)]">
           <div className="relative order-2 flex h-[430px] items-end justify-center lg:order-1 lg:h-[620px]">
             <img
-              src={plenaImage}
+              src={connected ? plenaConnectedImage : plenaImage}
               alt="Plena, assistente comercial da Plenarius"
               className="h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_25px_35px_rgba(0,0,0,0.3)]"
             />
