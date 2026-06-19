@@ -38,9 +38,11 @@ import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
 import { Route as ApiWebhooksMetaLeadsRouteImport } from './routes/api/webhooks/meta-leads'
+import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.video'
 import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upload'
 import { Route as ApiIntegrationsMetaAdsRouteImport } from './routes/api/integrations/meta-ads'
+import { Route as ApiIntegrationsEvolutionRouteImport } from './routes/api/integrations/evolution'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -204,6 +206,11 @@ const ApiWebhooksMetaLeadsRoute = ApiWebhooksMetaLeadsRouteImport.update({
   path: '/api/webhooks/meta-leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksEvolutionRoute = ApiWebhooksEvolutionRouteImport.update({
+  id: '/api/webhooks/evolution',
+  path: '/api/webhooks/evolution',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTrainingVideoRoute = ApiTrainingVideoRouteImport.update({
   id: '/video',
   path: '/video',
@@ -219,6 +226,12 @@ const ApiIntegrationsMetaAdsRoute = ApiIntegrationsMetaAdsRouteImport.update({
   path: '/api/integrations/meta-ads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIntegrationsEvolutionRoute =
+  ApiIntegrationsEvolutionRouteImport.update({
+    id: '/api/integrations/evolution',
+    path: '/api/integrations/evolution',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
   path: '/api/health/db',
@@ -348,9 +361,11 @@ export interface FileRoutesByFullPath {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -399,9 +414,11 @@ export interface FileRoutesByTo {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -451,9 +468,11 @@ export interface FileRoutesById {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
+  '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
@@ -504,9 +523,11 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
     | '/api/training/video'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -555,9 +576,11 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
     | '/api/training/video'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -606,9 +629,11 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
     | '/api/training/video'
+    | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
@@ -658,7 +683,9 @@ export interface RootRouteChildren {
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
   ApiHealthDbRoute: typeof ApiHealthDbRoute
+  ApiIntegrationsEvolutionRoute: typeof ApiIntegrationsEvolutionRoute
   ApiIntegrationsMetaAdsRoute: typeof ApiIntegrationsMetaAdsRoute
+  ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
   ApiWebhooksMetaLeadsRoute: typeof ApiWebhooksMetaLeadsRoute
 }
 
@@ -867,6 +894,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksMetaLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/evolution': {
+      id: '/api/webhooks/evolution'
+      path: '/api/webhooks/evolution'
+      fullPath: '/api/webhooks/evolution'
+      preLoaderRoute: typeof ApiWebhooksEvolutionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/training/video': {
       id: '/api/training/video'
       path: '/video'
@@ -886,6 +920,13 @@ declare module '@tanstack/react-router' {
       path: '/api/integrations/meta-ads'
       fullPath: '/api/integrations/meta-ads'
       preLoaderRoute: typeof ApiIntegrationsMetaAdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/integrations/evolution': {
+      id: '/api/integrations/evolution'
+      path: '/api/integrations/evolution'
+      fullPath: '/api/integrations/evolution'
+      preLoaderRoute: typeof ApiIntegrationsEvolutionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health/db': {
@@ -1101,7 +1142,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
   ApiHealthDbRoute: ApiHealthDbRoute,
+  ApiIntegrationsEvolutionRoute: ApiIntegrationsEvolutionRoute,
   ApiIntegrationsMetaAdsRoute: ApiIntegrationsMetaAdsRoute,
+  ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,
   ApiWebhooksMetaLeadsRoute: ApiWebhooksMetaLeadsRoute,
 }
 export const routeTree = rootRouteImport
