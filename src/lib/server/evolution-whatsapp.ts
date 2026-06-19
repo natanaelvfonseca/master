@@ -171,6 +171,37 @@ function publicWebhookUrl(requestUrl: string, secret: string) {
   return `${origin}/api/webhooks/evolution?token=${encodeURIComponent(secret)}`;
 }
 
+function remoteInstanceName(item: any) {
+  return String(
+    item?.name ?? item?.instanceName ?? item?.instance?.instanceName ?? item?.instance?.name ?? "",
+  );
+}
+
+async function remoteInstanceExists(instanceName: string) {
+  const instances = await evolutionFetch("/instance/fetchInstances");
+  const items = Array.isArray(instances)
+    ? instances
+    : Array.isArray(instances?.instances)
+      ? instances.instances
+      : [];
+
+  return items.some((item: any) => remoteInstanceName(item) === instanceName);
+}
+
+async function createRemoteInstance(instanceName: string) {
+  await evolutionFetch("/instance/create", {
+    method: "POST",
+    body: JSON.stringify({
+      instanceName,
+      token: "",
+      qrcode: true,
+      integration: "WHATSAPP-BAILEYS",
+      rejectCall: false,
+      groupsIgnore: true,
+    }),
+  });
+}
+
 async function getInstance(userId: string) {
   await ensureEvolutionSchema();
   const result = await queryDb<InstanceRow>(
@@ -228,13 +259,12 @@ export async function connectEvolution(
 ) {
   await ensureEvolutionSchema();
   let instance = await getInstance(user.id);
+  const unitName = instancePart(unit.name) || "unidade";
+  const userEmail = instancePart(user.email) || createHash("sha256").update(user.id).digest("hex");
+  const desiredInstanceName = `plenarius_${unitName}_${userEmail}`.slice(0, 100);
 
   if (!instance) {
     const secret = randomBytes(24).toString("base64url");
-    const unitName = instancePart(unit.name) || "unidade";
-    const userEmail =
-      instancePart(user.email) || createHash("sha256").update(user.id).digest("hex");
-    const instanceName = `plenarius_${unitName}_${userEmail}`.slice(0, 100);
     const created = await queryDb<InstanceRow>(
       `
         insert into app_whatsapp_instances
@@ -242,22 +272,32 @@ export async function connectEvolution(
         values ($1, $2, $3, 'connecting', $4, $2)
         returning *
       `,
-      [unit.id, user.id, instanceName, secret],
+      [unit.id, user.id, desiredInstanceName, secret],
     );
     instance = created.rows[0];
+  } else if (instance.instance_name !== desiredInstanceName && instance.status !== "connected") {
+    await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {
+      method: "DELETE",
+    }).catch(() => null);
+    await evolutionFetch(`/instance/delete/${encodeURIComponent(instance.instance_name)}`, {
+      method: "DELETE",
+    }).catch(() => null);
 
+    const renamed = await queryDb<InstanceRow>(
+      `
+        update app_whatsapp_instances
+        set unit_id = $2, instance_name = $3, status = 'connecting', updated_at = now()
+        where id = $1
+        returning *
+      `,
+      [instance.id, unit.id, desiredInstanceName],
+    );
+    instance = renamed.rows[0] ?? instance;
+  }
+
+  if (!(await remoteInstanceExists(instance.instance_name))) {
     try {
-      await evolutionFetch("/instance/create", {
-        method: "POST",
-        body: JSON.stringify({
-          instanceName,
-          token: "",
-          qrcode: true,
-          integration: "WHATSAPP-BAILEYS",
-          rejectCall: false,
-          groupsIgnore: true,
-        }),
-      });
+      await createRemoteInstance(instance.instance_name);
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
       if (!message.includes("already") && !message.includes("exist")) throw error;
