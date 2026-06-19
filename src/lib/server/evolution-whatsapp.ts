@@ -5,34 +5,13 @@ import { queryDb } from "@/lib/server/db";
 type InstanceRow = QueryResultRow & {
   id: string;
   unit_id: string;
+  user_id: string | null;
   instance_name: string;
   status: "disconnected" | "connecting" | "connected" | "error";
   phone_number: string | null;
   webhook_secret: string;
   connected_at: string | null;
   last_event_at: string | null;
-};
-
-type ConversationRow = QueryResultRow & {
-  remote_jid: string;
-  phone: string;
-  contact_name: string | null;
-  content: string;
-  message_type: string;
-  direction: "inbound" | "outbound";
-  sent_at: string;
-  unread_count: string;
-};
-
-type MessageRow = QueryResultRow & {
-  id: string;
-  remote_jid: string;
-  phone: string;
-  contact_name: string | null;
-  content: string;
-  message_type: string;
-  direction: "inbound" | "outbound";
-  sent_at: string;
 };
 
 let schemaPromise: Promise<void> | null = null;
@@ -42,7 +21,8 @@ export async function ensureEvolutionSchema() {
     schemaPromise = queryDb(`
       create table if not exists app_whatsapp_instances (
         id uuid primary key default gen_random_uuid(),
-        unit_id uuid not null unique references app_units(id) on delete cascade,
+        unit_id uuid not null references app_units(id) on delete cascade,
+        user_id uuid references app_users(id) on delete cascade,
         instance_name text not null unique,
         status text not null default 'disconnected' check (
           status in ('disconnected', 'connecting', 'connected', 'error')
@@ -59,6 +39,7 @@ export async function ensureEvolutionSchema() {
       create table if not exists app_whatsapp_messages (
         id uuid primary key default gen_random_uuid(),
         unit_id uuid not null references app_units(id) on delete cascade,
+        user_id uuid references app_users(id) on delete cascade,
         instance_id uuid not null references app_whatsapp_instances(id) on delete cascade,
         evolution_message_id text not null,
         remote_jid text not null,
@@ -76,6 +57,28 @@ export async function ensureEvolutionSchema() {
         on app_whatsapp_messages (unit_id, remote_jid, sent_at desc);
       create index if not exists app_whatsapp_messages_unit_sent_idx
         on app_whatsapp_messages (unit_id, sent_at desc);
+
+      alter table app_whatsapp_instances
+        add column if not exists user_id uuid references app_users(id) on delete cascade;
+      update app_whatsapp_instances
+      set user_id = created_by
+      where user_id is null and created_by is not null;
+      alter table app_whatsapp_instances
+        drop constraint if exists app_whatsapp_instances_unit_id_key;
+      create unique index if not exists app_whatsapp_instances_user_idx
+        on app_whatsapp_instances (user_id)
+        where user_id is not null;
+      create index if not exists app_whatsapp_instances_unit_idx
+        on app_whatsapp_instances (unit_id);
+
+      alter table app_whatsapp_messages
+        add column if not exists user_id uuid references app_users(id) on delete cascade;
+      update app_whatsapp_messages message
+      set user_id = instance.user_id
+      from app_whatsapp_instances instance
+      where message.instance_id = instance.id and message.user_id is null;
+      create index if not exists app_whatsapp_messages_user_sent_idx
+        on app_whatsapp_messages (user_id, sent_at desc);
     `)
       .then(() => undefined)
       .catch((error) => {
@@ -132,14 +135,13 @@ async function evolutionFetch(path: string, init: RequestInit = {}) {
   return data;
 }
 
-function slug(value: string) {
+function instancePart(value: string) {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 35);
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function connectionState(data: any) {
@@ -169,17 +171,17 @@ function publicWebhookUrl(requestUrl: string, secret: string) {
   return `${origin}/api/webhooks/evolution?token=${encodeURIComponent(secret)}`;
 }
 
-async function getInstance(unitId: string) {
+async function getInstance(userId: string) {
   await ensureEvolutionSchema();
   const result = await queryDb<InstanceRow>(
-    `select * from app_whatsapp_instances where unit_id = $1 limit 1`,
-    [unitId],
+    `select * from app_whatsapp_instances where user_id = $1 limit 1`,
+    [userId],
   );
   return result.rows[0] ?? null;
 }
 
-export async function getEvolutionState(unitId: string, requestUrl: string) {
-  let instance = await getInstance(unitId);
+export async function getEvolutionState(userId: string) {
+  let instance = await getInstance(userId);
 
   if (instance) {
     try {
@@ -204,40 +206,6 @@ export async function getEvolutionState(unitId: string, requestUrl: string) {
     }
   }
 
-  const conversations = await queryDb<ConversationRow>(
-    `
-      select distinct on (remote_jid)
-        remote_jid,
-        phone,
-        contact_name,
-        content,
-        message_type,
-        direction,
-        sent_at::text,
-        (
-          select count(*)::text
-          from app_whatsapp_messages unread
-          where unread.unit_id = latest.unit_id
-            and unread.remote_jid = latest.remote_jid
-            and unread.direction = 'inbound'
-            and unread.sent_at > coalesce(
-              (
-                select max(answered.sent_at)
-                from app_whatsapp_messages answered
-                where answered.unit_id = latest.unit_id
-                  and answered.remote_jid = latest.remote_jid
-                  and answered.direction = 'outbound'
-              ),
-              '-infinity'::timestamptz
-            )
-        ) as unread_count
-      from app_whatsapp_messages latest
-      where unit_id = $1
-      order by remote_jid, sent_at desc
-    `,
-    [unitId],
-  );
-
   return {
     configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY),
     instance: instance
@@ -248,42 +216,33 @@ export async function getEvolutionState(unitId: string, requestUrl: string) {
           phoneNumber: instance.phone_number,
           connectedAt: instance.connected_at,
           lastEventAt: instance.last_event_at,
-          webhookUrl: publicWebhookUrl(requestUrl, instance.webhook_secret),
         }
       : null,
-    conversations: conversations.rows.map((row) => ({
-      remoteJid: row.remote_jid,
-      phone: row.phone,
-      contactName: row.contact_name,
-      lastMessage: row.content,
-      messageType: row.message_type,
-      direction: row.direction,
-      sentAt: row.sent_at,
-      unreadCount: Number(row.unread_count),
-    })),
   };
 }
 
 export async function connectEvolution(
   unit: { id: string; name: string },
-  userId: string,
+  user: { id: string; email: string },
   requestUrl: string,
 ) {
   await ensureEvolutionSchema();
-  let instance = await getInstance(unit.id);
+  let instance = await getInstance(user.id);
 
   if (!instance) {
     const secret = randomBytes(24).toString("base64url");
-    const suffix = createHash("sha256").update(unit.id).digest("hex").slice(0, 8);
-    const instanceName = `plenarius-${slug(unit.name) || "unidade"}-${suffix}`;
+    const unitName = instancePart(unit.name) || "unidade";
+    const userEmail =
+      instancePart(user.email) || createHash("sha256").update(user.id).digest("hex");
+    const instanceName = `plenarius_${unitName}_${userEmail}`.slice(0, 100);
     const created = await queryDb<InstanceRow>(
       `
         insert into app_whatsapp_instances
-          (unit_id, instance_name, status, webhook_secret, created_by)
-        values ($1, $2, 'connecting', $3, $4)
+          (unit_id, user_id, instance_name, status, webhook_secret, created_by)
+        values ($1, $2, $3, 'connecting', $4, $2)
         returning *
       `,
-      [unit.id, instanceName, secret, userId],
+      [unit.id, user.id, instanceName, secret],
     );
     instance = created.rows[0];
 
@@ -313,8 +272,8 @@ export async function connectEvolution(
         enabled: true,
         url: webhookUrl,
         byEvents: false,
-        base64: false,
-        events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+        base64: true,
+        events: ["MESSAGES_UPSERT"],
       },
     }),
   });
@@ -343,7 +302,7 @@ export async function connectEvolution(
       `,
       [instance.id],
     );
-    return { status: "connected", qrCode: null, webhookUrl };
+    return { status: "connected", qrCode: null };
   }
 
   const qrData = await evolutionFetch(
@@ -354,11 +313,11 @@ export async function connectEvolution(
     [instance.id],
   );
 
-  return { status: "connecting", qrCode: qrCodeFrom(qrData), webhookUrl };
+  return { status: "connecting", qrCode: qrCodeFrom(qrData) };
 }
 
-export async function disconnectEvolution(unitId: string) {
-  const instance = await getInstance(unitId);
+export async function disconnectEvolution(userId: string) {
+  const instance = await getInstance(userId);
   if (!instance) return;
 
   await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {
@@ -368,46 +327,6 @@ export async function disconnectEvolution(unitId: string) {
     `update app_whatsapp_instances set status = 'disconnected', updated_at = now() where id = $1`,
     [instance.id],
   );
-}
-
-export async function listEvolutionMessages(unitId: string, remoteJid: string) {
-  await ensureEvolutionSchema();
-  const result = await queryDb<MessageRow>(
-    `
-      select id, remote_jid, phone, contact_name, content, message_type, direction, sent_at::text
-      from app_whatsapp_messages
-      where unit_id = $1 and remote_jid = $2
-      order by sent_at asc
-      limit 300
-    `,
-    [unitId, remoteJid],
-  );
-
-  return result.rows.map((row) => ({
-    id: row.id,
-    remoteJid: row.remote_jid,
-    phone: row.phone,
-    contactName: row.contact_name,
-    content: row.content,
-    messageType: row.message_type,
-    direction: row.direction,
-    sentAt: row.sent_at,
-  }));
-}
-
-export async function sendEvolutionMessage(unitId: string, remoteJid: string, text: string) {
-  const instance = await getInstance(unitId);
-  if (!instance || instance.status !== "connected") {
-    throw new Error("Conecte o WhatsApp antes de enviar mensagens.");
-  }
-
-  const number = remoteJid.split("@")[0].replace(/\D/g, "");
-  if (!number || !text.trim()) throw new Error("Mensagem inválida.");
-
-  return evolutionFetch(`/message/sendText/${encodeURIComponent(instance.instance_name)}`, {
-    method: "POST",
-    body: JSON.stringify({ number, text: text.trim() }),
-  });
 }
 
 function eventName(payload: any) {
@@ -498,10 +417,10 @@ export async function receiveEvolutionWebhook(payload: any, token: string | null
       await queryDb(
         `
           insert into app_whatsapp_messages (
-            unit_id, instance_id, evolution_message_id, remote_jid, phone,
+            unit_id, user_id, instance_id, evolution_message_id, remote_jid, phone,
             contact_name, direction, message_type, content, sent_at
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           on conflict (instance_id, evolution_message_id) do update
           set contact_name = coalesce(excluded.contact_name, app_whatsapp_messages.contact_name),
               content = excluded.content,
@@ -509,6 +428,7 @@ export async function receiveEvolutionWebhook(payload: any, token: string | null
         `,
         [
           instance.unit_id,
+          instance.user_id,
           instance.id,
           parsed.id,
           parsed.remoteJid,
