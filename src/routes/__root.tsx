@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
-const MARKETING_ALLOWED_PATHS = ["/crm", "/meta-ads", "/perfil"];
+const MARKETING_ALLOWED_PATHS = ["/crm", "/meta-ads", "/treinamentos", "/perfil"];
 
 function NotFoundComponent() {
   return (

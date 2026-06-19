@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
+import { canViewLeadershipTraining } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { getUnitFromRequest } from "@/lib/server/commercial-schema";
 import { queryDb } from "@/lib/server/db";
@@ -81,9 +82,10 @@ export const Route = createFileRoute("/api/training/video")({
             where id = $1
               and status = 'published'
               and (unit_id is null or unit_id = $2)
+              and ($3::boolean or trail <> 'lideranca')
             limit 1
           `,
-          [id, unit.id],
+          [id, unit.id, canViewLeadershipTraining(session.user.role)],
         );
         const video = result.rows[0];
 

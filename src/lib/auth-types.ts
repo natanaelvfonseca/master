@@ -111,6 +111,10 @@ export function canManageTraining(role: UserRole) {
   return role === "MASTER" || role === "CEO";
 }
 
+export function canViewLeadershipTraining(role: UserRole) {
+  return role !== "CONSULTOR";
+}
+
 export function canSubmitSystemFeedback(role: UserRole) {
   return role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }

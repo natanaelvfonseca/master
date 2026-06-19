@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import { canManageTraining, type AuthSession, type UnitSummary } from "@/lib/auth-types";
+import {
+  canManageTraining,
+  canViewLeadershipTraining,
+  type AuthSession,
+  type UnitSummary,
+  type UserRole,
+} from "@/lib/auth-types";
 import {
   TRAINING_TRAILS,
   type TrainingLesson,
@@ -199,7 +205,7 @@ function isJsonRequest(request: Request) {
   return request.headers.get("content-type")?.includes("application/json") ?? false;
 }
 
-async function listLessons(unit: UnitSummary, userId: string) {
+async function listLessons(unit: UnitSummary, userId: string, role: UserRole) {
   const result = await queryDb<TrainingLessonRow>(
     `
       select
@@ -223,18 +229,19 @@ async function listLessons(unit: UnitSummary, userId: string) {
       left join app_training_progress p on p.lesson_id = l.id and p.user_id = $2
       where l.status = 'published'
         and (l.unit_id is null or l.unit_id = $1)
+        and ($3::boolean or l.trail <> 'lideranca')
       order by
         array_position(array['plataforma','vendas','escola','lideranca'], l.trail),
         l.order_index asc,
         l.created_at desc
     `,
-    [unit.id, userId],
+    [unit.id, userId, canViewLeadershipTraining(role)],
   );
 
   return result.rows.map(mapLesson);
 }
 
-async function assertLessonVisible(id: string, unit: UnitSummary) {
+async function assertLessonVisible(id: string, unit: UnitSummary, role: UserRole) {
   const result = await queryDb<{ id: string } & QueryResultRow>(
     `
       select id
@@ -242,9 +249,10 @@ async function assertLessonVisible(id: string, unit: UnitSummary) {
       where id = $1
         and status = 'published'
         and (unit_id is null or unit_id = $2)
+        and ($3::boolean or trail <> 'lideranca')
       limit 1
     `,
-    [id, unit.id],
+    [id, unit.id, canViewLeadershipTraining(role)],
   );
 
   return Boolean(result.rows[0]);
@@ -325,7 +333,7 @@ export const Route = createFileRoute("/api/training")({
 
         await ensureTrainingSchema();
 
-        const lessons = await listLessons(unit, session.user.id);
+        const lessons = await listLessons(unit, session.user.id, session.user.role);
         const completedLessons = lessons.filter((lesson) => lesson.completedAt).length;
 
         return Response.json(
@@ -537,7 +545,7 @@ export const Route = createFileRoute("/api/training")({
 
         await ensureTrainingSchema();
 
-        if (!(await assertLessonVisible(lessonId, unit))) {
+        if (!(await assertLessonVisible(lessonId, unit, session.user.role))) {
           return Response.json({ ok: false, error: "Aula não encontrada." }, { status: 404 });
         }
 
@@ -560,7 +568,7 @@ export const Route = createFileRoute("/api/training")({
           );
         }
 
-        const lessons = await listLessons(unit, session.user.id);
+        const lessons = await listLessons(unit, session.user.id, session.user.role);
         const completedLessons = lessons.filter((lesson) => lesson.completedAt).length;
 
         return Response.json({

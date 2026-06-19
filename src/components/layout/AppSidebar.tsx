@@ -157,7 +157,12 @@ export function AppSidebar() {
       ? visibleGroups
           .map((group) => ({
             ...group,
-            items: group.items.filter((item) => item.url === "/crm" || item.url === "/meta-ads"),
+            items: group.items.filter(
+              (item) =>
+                item.url === "/crm" ||
+                item.url === "/meta-ads" ||
+                item.url === "/treinamentos",
+            ),
           }))
           .filter((group) => group.items.length > 0)
       : visibleGroups;

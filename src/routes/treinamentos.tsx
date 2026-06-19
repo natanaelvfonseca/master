@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
-import { canManageTraining } from "@/lib/auth-types";
+import { canManageTraining, canViewLeadershipTraining } from "@/lib/auth-types";
 import {
   TRAINING_TRAILS,
   type TrainingLesson,
@@ -557,6 +557,16 @@ function Treinamentos() {
   const activeUnitId = session?.activeUnit?.id ?? "";
   const activeUnitName = session?.activeUnit?.name ?? "Unidade ativa";
   const canManage = session ? canManageTraining(session.user.role) : false;
+  const canViewLeadership = session
+    ? canViewLeadershipTraining(session.user.role)
+    : false;
+  const visibleTrails = useMemo(
+    () =>
+      TRAINING_TRAILS.filter(
+        (trail) => trail.id !== "lideranca" || canViewLeadership,
+      ),
+    [canViewLeadership],
+  );
   const [lessons, setLessons] = useState<Array<TrainingLesson>>([]);
   const [summary, setSummary] = useState<TrainingSummary>({
     totalLessons: 0,
@@ -581,14 +591,14 @@ function Treinamentos() {
   );
   const lessonsByTrail = useMemo(
     () =>
-      TRAINING_TRAILS.reduce(
+      visibleTrails.reduce(
         (acc, trail) => {
           acc[trail.id] = lessons.filter((lesson) => lesson.trail === trail.id);
           return acc;
         },
         {} as Record<TrainingTrailId, Array<TrainingLesson>>,
       ),
-    [lessons],
+    [lessons, visibleTrails],
   );
   const activeTrail = getTrail(selectedTrail);
   const activeTrailLessons = lessonsByTrail[selectedTrail] ?? [];
@@ -751,8 +761,9 @@ function Treinamentos() {
               Trilha de aprendizagem Plenarius
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/78 md:text-base">
-              Treinamento para plataforma, vendas, escola e liderança, organizado para evoluir o
-              time com consistência.
+              {canViewLeadership
+                ? "Treinamento para plataforma, vendas, escola e liderança, organizado para evoluir o time com consistência."
+                : "Treinamento para plataforma, vendas e escola, organizado para evoluir o atendimento com consistência."}
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Badge className="border-gold/30 bg-gold/15 text-gold">{activeUnitName}</Badge>
@@ -807,8 +818,13 @@ function Treinamentos() {
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="min-w-0 space-y-5">
-          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
-            {TRAINING_TRAILS.map((trail) => {
+          <div
+            className={cn(
+              "grid min-w-0 grid-cols-2 gap-2",
+              canViewLeadership ? "sm:grid-cols-4" : "sm:grid-cols-3",
+            )}
+          >
+            {visibleTrails.map((trail) => {
               const Icon = trailStyles[trail.id].icon;
               const trailLessons = lessonsByTrail[trail.id] ?? [];
               const completed = trailLessons.filter((lesson) => lesson.completedAt).length;
