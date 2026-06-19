@@ -74,7 +74,6 @@ const groups: Array<NavigationGroup> = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
-      { title: "Meta Ads", url: "/meta-ads", icon: InfinityIcon, metaAdsOnly: true },
       { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
@@ -104,6 +103,7 @@ const groups: Array<NavigationGroup> = [
     label: "Gestão",
     items: [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList, managementOnly: true },
+      { title: "Meta Ads", url: "/meta-ads", icon: InfinityIcon, metaAdsOnly: true },
       {
         title: "Feedback",
         url: "/feedback",
@@ -137,7 +137,7 @@ export function AppSidebar() {
     .filter(
       (group) =>
         (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
-        (group.label !== "Gestão" || canViewManagementArea || canViewSystemFeedback),
+        (group.label !== "Gestão" || canViewManagementArea || canSeeMetaAds || canViewSystemFeedback),
     )
     .map((group) => ({
       ...group,
