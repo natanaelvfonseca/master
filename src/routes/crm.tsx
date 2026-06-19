@@ -321,6 +321,7 @@ function CRM() {
   const canOperatePipeline = session ? canOperateCrm(session.user.role) : false;
   const canRemoveLeads = canTransferUnitLeads;
   const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
+  const canViewLeadAge = session?.user.role !== "CONSULTOR";
   const selectedTransferCount = selectedTransferLeadIds.size;
 
   const loadLeads = React.useCallback(
@@ -1040,6 +1041,7 @@ function CRM() {
                         dragging={draggingLeadId === lead.id}
                         syncing={syncingLeadId === lead.id}
                         canViewAcquisitionChannel={canViewAcquisitionChannel}
+                        canViewLeadAge={canViewLeadAge}
                         canViewOwner={canTransferUnitLeads}
                         canRemove={canRemoveLeads}
                         canEdit={canOperatePipeline}
@@ -1162,6 +1164,7 @@ function LeadPipelineCard({
   dragging,
   syncing,
   canViewAcquisitionChannel,
+  canViewLeadAge,
   canViewOwner,
   canRemove,
   canEdit,
@@ -1175,6 +1178,7 @@ function LeadPipelineCard({
   dragging: boolean;
   syncing: boolean;
   canViewAcquisitionChannel: boolean;
+  canViewLeadAge: boolean;
   canViewOwner: boolean;
   canRemove: boolean;
   canEdit: boolean;
@@ -1217,10 +1221,12 @@ function LeadPipelineCard({
               <span className="truncate">{lead.email}</span>
             </div>
           ) : null}
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-primary">
-            <Clock3 className="h-3.5 w-3.5" />
-            <span className="truncate">{formatLeadAge(lead.createdAt)}</span>
-          </div>
+          {canViewLeadAge ? (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-primary">
+              <Clock3 className="h-3.5 w-3.5" />
+              <span className="truncate">{formatLeadAge(lead.createdAt)}</span>
+            </div>
+          ) : null}
           {canViewOwner && lead.createdByName ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <UserCheck className="h-3.5 w-3.5" />
