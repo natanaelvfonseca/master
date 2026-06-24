@@ -1082,15 +1082,6 @@ function CRM() {
         description="Pipeline visual com lead score por IA, alertas de follow-up e priorização inteligente."
         actions={
           <>
-            <Button type="button" variant="outline" onClick={() => setFiltersOpen((open) => !open)}>
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-              {activeFilterCount ? (
-                <Badge className="ml-2 bg-primary text-primary-foreground">
-                  {activeFilterCount}
-                </Badge>
-              ) : null}
-            </Button>
             {canTransferUnitLeads ? (
               <Button type="button" variant="outline" onClick={openTransferDialog}>
                 <ArrowRightLeft className="mr-2 h-4 w-4" />
@@ -1110,29 +1101,35 @@ function CRM() {
         }
       />
 
-      <Card className="overflow-hidden border-primary/10 shadow-card">
-        <div className="grid gap-3 p-4 lg:grid-cols-[minmax(280px,1fr)_auto] lg:items-center">
-          <div className="relative">
+      <Card className="overflow-hidden border-primary/10 bg-card/80 shadow-card">
+        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar lead por nome, telefone, curso, cidade, origem ou responsável..."
-              className="h-10 pl-9"
+              placeholder="Buscar lead..."
+              className="h-9 pl-9 text-sm"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button
               type="button"
+              size="sm"
               variant={filtersOpen ? "default" : "outline"}
               onClick={() => setFiltersOpen((open) => !open)}
               className={filtersOpen ? "bg-gradient-primary" : ""}
             >
               <Filter className="mr-2 h-4 w-4" />
-              {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+              Filtros
+              {activeFilterCount ? (
+                <Badge className="ml-2 bg-primary text-primary-foreground">
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
             </Button>
             {search || activeFilterCount ? (
-              <Button type="button" variant="ghost" onClick={clearPipelineFilters}>
+              <Button type="button" size="sm" variant="ghost" onClick={clearPipelineFilters}>
                 <X className="mr-2 h-4 w-4" />
                 Limpar
               </Button>
@@ -1141,7 +1138,7 @@ function CRM() {
         </div>
 
         {filtersOpen ? (
-          <div className="grid gap-3 border-t border-border bg-muted/25 p-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 border-t border-border bg-muted/25 p-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <Label>Curso</Label>
               <Select
