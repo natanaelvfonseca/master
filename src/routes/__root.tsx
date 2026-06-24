@@ -19,10 +19,18 @@ const MARKETING_ALLOWED_PATHS = [
   "/crm",
   "/bi",
   "/branding",
+  "/brand-plen/nova",
+  "/brand-plen/biblioteca",
+  "/brand-plen/kit",
+  "/gestao/cadastro",
   "/meta-ads",
   "/treinamentos",
+  "/feedback",
+  "/usuarios",
+  "/unidades",
   "/perfil",
 ];
+const MARKETING_FALLBACK_PATH = "/";
 
 function isMarketingPathAllowed(path: string) {
   return (
@@ -155,12 +163,8 @@ function AuthenticatedShell() {
   }, [loading, session]);
 
   React.useEffect(() => {
-    if (
-      !loading &&
-      session?.user.role === "MARKETING" &&
-      !isMarketingPathAllowed(path)
-    ) {
-      window.location.replace("/crm");
+    if (!loading && session?.user.role === "MARKETING" && !isMarketingPathAllowed(path)) {
+      window.location.replace(MARKETING_FALLBACK_PATH);
     }
   }, [loading, path, session]);
 
@@ -176,10 +180,7 @@ function AuthenticatedShell() {
     return null;
   }
 
-  if (
-    session.user.role === "MARKETING" &&
-    !isMarketingPathAllowed(path)
-  ) {
+  if (session.user.role === "MARKETING" && !isMarketingPathAllowed(path)) {
     return null;
   }
 
