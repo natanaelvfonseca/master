@@ -59,6 +59,10 @@ export function canDeleteUsers(role: UserRole) {
   return role === "MASTER" || role === "CEO" || role === "DIRETOR";
 }
 
+export function canEditUsers(role: UserRole) {
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR";
+}
+
 export function canCreateUnits(role: UserRole) {
   return role === "MASTER";
 }
@@ -161,6 +165,10 @@ export function canDeleteManagedUser(actorRole: UserRole, targetRole: UserRole) 
   }
 
   return false;
+}
+
+export function canEditManagedUser(actorRole: UserRole, targetRole: UserRole) {
+  return canDeleteManagedUser(actorRole, targetRole);
 }
 
 export function getInitials(name: string) {

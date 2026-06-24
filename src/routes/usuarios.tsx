@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, KeyRound, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { Building2, KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -37,6 +45,8 @@ import { useAuth } from "@/lib/auth";
 import {
   canDeleteManagedUser,
   canDeleteUsers,
+  canEditManagedUser,
+  canEditUsers,
   getAssignableRoles,
   ROLE_LABELS,
   type ManagedUser,
@@ -57,6 +67,13 @@ type DeleteTarget = {
   role: UserRole;
 };
 
+type EditForm = {
+  userId: string;
+  name: string;
+  email: string;
+  password: string;
+};
+
 export const Route = createFileRoute("/usuarios")({
   head: () => ({ meta: [{ title: "Usuários - Plenarius Growth Hub" }] }),
   component: UsersPage,
@@ -68,10 +85,12 @@ function UsersPage() {
   const [units, setUnits] = React.useState<UnitsResponse["units"]>([]);
   const [loading, setLoading] = React.useState(true);
   const [savingUser, setSavingUser] = React.useState(false);
+  const [savingEdit, setSavingEdit] = React.useState(false);
   const [savingUnit, setSavingUnit] = React.useState(false);
   const [deletingUser, setDeletingUser] = React.useState(false);
   const [unitName, setUnitName] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
+  const [editForm, setEditForm] = React.useState<EditForm | null>(null);
   const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
     () => (userRole ? getAssignableRoles(userRole) : []),
@@ -86,6 +105,7 @@ function UsersPage() {
   });
   const canChooseUnit = userRole ? ["MASTER", "CEO"].includes(userRole) : false;
   const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
+  const canEditUserRecords = userRole ? canEditUsers(userRole) : false;
   const defaultUnit = session?.activeUnit ?? session?.units[0] ?? null;
   const defaultUnitId = defaultUnit?.id ?? "";
   const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
@@ -280,6 +300,44 @@ function UsersPage() {
     }
   }
 
+  async function handleEditUser(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editForm) {
+      return;
+    }
+
+    setSavingEdit(true);
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editForm),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        user?: ManagedUser;
+      };
+
+      if (!response.ok || !data.user) {
+        throw new Error(data.error ?? "Não foi possível editar usuário.");
+      }
+
+      setUsers((current) => current.map((user) => (user.id === data.user!.id ? data.user! : user)));
+      setEditForm(null);
+      toast.success(editForm.password ? "Usuário e senha atualizados." : "Usuário atualizado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao editar usuário.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -368,9 +426,7 @@ function UsersPage() {
                 {canChooseUnit ? (
                   <Select
                     value={effectiveUnitId}
-                    onValueChange={(value) =>
-                      setForm((current) => ({ ...current, unitId: value }))
-                    }
+                    onValueChange={(value) => setForm((current) => ({ ...current, unitId: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -438,7 +494,27 @@ function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-1">
+                          {canEditUserRecords &&
+                          canEditManagedUser(session.user.role, user.role) ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-primary hover:bg-primary/10 hover:text-primary"
+                              onClick={() =>
+                                setEditForm({
+                                  userId: user.id,
+                                  name: user.name,
+                                  email: user.email,
+                                  password: "",
+                                })
+                              }
+                              aria-label={`Editar ${user.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                           {canDeleteUserRecords &&
                           user.id !== session.user.id &&
                           canDeleteManagedUser(session.user.role, user.role) ? (
@@ -500,6 +576,88 @@ function UsersPage() {
           </CardContent>
         </Card>
       ) : null}
+      <Dialog
+        open={Boolean(editForm)}
+        onOpenChange={(open) => !open && !savingEdit && setEditForm(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={handleEditUser}>
+            <DialogHeader>
+              <DialogTitle>Editar usuário</DialogTitle>
+              <DialogDescription>
+                Altere nome, email ou defina uma nova senha. Os dados serão atualizados no banco.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-5">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm?.name ?? ""}
+                  onChange={(event) =>
+                    setEditForm((current) =>
+                      current ? { ...current, name: event.target.value } : current,
+                    )
+                  }
+                  autoComplete="name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm?.email ?? ""}
+                  onChange={(event) =>
+                    setEditForm((current) =>
+                      current ? { ...current, email: event.target.value } : current,
+                    )
+                  }
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-password">Nova senha</Label>
+                <div className="relative">
+                  <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    value={editForm?.password ?? ""}
+                    onChange={(event) =>
+                      setEditForm((current) =>
+                        current ? { ...current, password: event.target.value } : current,
+                      )
+                    }
+                    className="pl-9"
+                    minLength={8}
+                    placeholder="Deixe em branco para manter"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ao trocar a senha, as sessões abertas deste usuário serão encerradas.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditForm(null)}
+                disabled={savingEdit}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingEdit}>
+                {savingEdit ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !deletingUser && setDeleteTarget(null)}
@@ -509,7 +667,7 @@ function UsersPage() {
             <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `Deseja excluir "${deleteTarget.name}"? O usuário será desativado e perderá o acesso ao sistema.`
+                ? `Deseja excluir "${deleteTarget.name}" permanentemente? O cadastro e o acesso serão removidos do banco de dados.`
                 : "Deseja excluir este usuário?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
