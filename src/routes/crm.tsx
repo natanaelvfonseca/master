@@ -13,9 +13,11 @@ import {
   Mail,
   Phone,
   Plus,
+  Search,
   Trash2,
   UserCheck,
   UserPlus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -122,6 +124,8 @@ type TransferSubmitResponse = {
 };
 
 const NO_SELECTION = "__none__";
+const FILTER_ALL = "__all__";
+const PIPELINE_STAGE_PAGE_SIZE = 15;
 
 const stages: Array<LeadStage> = [
   "Novo lead",
@@ -162,6 +166,47 @@ const confettiPieces = Array.from({ length: 72 }, (_, index) => ({
   width: index % 3 === 0 ? 8 : 10,
   height: index % 4 === 0 ? 18 : 12,
 }));
+
+type PipelineFilters = {
+  courseId: string;
+  channelId: string;
+  ownerId: string;
+  city: string;
+};
+
+function emptyPipelineFilters(): PipelineFilters {
+  return {
+    courseId: FILTER_ALL,
+    channelId: FILTER_ALL,
+    ownerId: FILTER_ALL,
+    city: FILTER_ALL,
+  };
+}
+
+function leadMatchesSearch(lead: LeadRecord, search: string) {
+  const query = search.trim().toLowerCase();
+
+  if (!query) {
+    return true;
+  }
+
+  return [
+    lead.fullName,
+    lead.phone,
+    lead.phone2,
+    lead.email,
+    lead.city,
+    lead.courseName,
+    lead.acquisitionChannelName,
+    lead.createdByName,
+    lead.unitName,
+    lead.stage,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(query);
+}
 
 function emptyLeadForm(unitId = ""): LeadFormState {
   return {
@@ -291,6 +336,12 @@ function CRM() {
   const [leadDialogMode, setLeadDialogMode] = React.useState<LeadDialogMode>("create");
   const [editingLead, setEditingLead] = React.useState<LeadRecord | null>(null);
   const [form, setForm] = React.useState<LeadFormState>(() => emptyLeadForm(activeUnitId));
+  const [search, setSearch] = React.useState("");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [filters, setFilters] = React.useState<PipelineFilters>(() => emptyPipelineFilters());
+  const [stageVisibleCounts, setStageVisibleCounts] = React.useState<
+    Partial<Record<LeadStage, number>>
+  >({});
   const [loadingLeads, setLoadingLeads] = React.useState(true);
   const [loadingOptions, setLoadingOptions] = React.useState(false);
   const [leadTasks, setLeadTasks] = React.useState<Array<CrmLeadTask>>([]);
@@ -326,6 +377,48 @@ function CRM() {
   const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
   const canViewLeadAge = session?.user.role !== "CONSULTOR";
   const selectedTransferCount = selectedTransferLeadIds.size;
+  const activeFilterCount = [
+    filters.courseId,
+    filters.channelId,
+    filters.ownerId,
+    filters.city,
+  ].filter((value) => value !== FILTER_ALL).length;
+  const ownerOptions = React.useMemo(() => {
+    const map = new Map<string, string>();
+
+    leads.forEach((lead) => {
+      if (lead.createdById && lead.createdByName) {
+        map.set(lead.createdById, lead.createdByName);
+      }
+    });
+
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((first, second) =>
+      first.name.localeCompare(second.name, "pt-BR"),
+    );
+  }, [leads]);
+  const cityOptions = React.useMemo(
+    () =>
+      Array.from(new Set(leads.map((lead) => lead.city).filter(Boolean) as Array<string>)).sort(
+        (first, second) => first.localeCompare(second, "pt-BR"),
+      ),
+    [leads],
+  );
+  const filteredLeads = React.useMemo(
+    () =>
+      leads.filter(
+        (lead) =>
+          leadMatchesSearch(lead, search) &&
+          (filters.courseId === FILTER_ALL || lead.courseId === filters.courseId) &&
+          (filters.channelId === FILTER_ALL || lead.acquisitionChannelId === filters.channelId) &&
+          (filters.ownerId === FILTER_ALL || lead.createdById === filters.ownerId) &&
+          (filters.city === FILTER_ALL || lead.city === filters.city),
+      ),
+    [filters, leads, search],
+  );
+
+  React.useEffect(() => {
+    setStageVisibleCounts({});
+  }, [filters, search]);
 
   const loadLeads = React.useCallback(
     async (options?: { silent?: boolean }) => {
@@ -956,6 +1049,18 @@ function CRM() {
     }
   }
 
+  function clearPipelineFilters() {
+    setSearch("");
+    setFilters(emptyPipelineFilters());
+  }
+
+  function loadMoreStageLeads(stage: LeadStage) {
+    setStageVisibleCounts((current) => ({
+      ...current,
+      [stage]: (current[stage] ?? PIPELINE_STAGE_PAGE_SIZE) + PIPELINE_STAGE_PAGE_SIZE,
+    }));
+  }
+
   return (
     <div className="space-y-6">
       <ConversionConfetti runId={confettiRunId} />
@@ -965,9 +1070,14 @@ function CRM() {
         description="Pipeline visual com lead score por IA, alertas de follow-up e priorização inteligente."
         actions={
           <>
-            <Button variant="outline">
+            <Button type="button" variant="outline" onClick={() => setFiltersOpen((open) => !open)}>
               <Filter className="mr-2 h-4 w-4" />
               Filtros
+              {activeFilterCount ? (
+                <Badge className="ml-2 bg-primary text-primary-foreground">
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
             </Button>
             {canTransferUnitLeads ? (
               <Button type="button" variant="outline" onClick={openTransferDialog}>
@@ -988,10 +1098,132 @@ function CRM() {
         }
       />
 
+      <Card className="overflow-hidden border-primary/10 shadow-card">
+        <div className="grid gap-3 p-4 lg:grid-cols-[minmax(280px,1fr)_auto] lg:items-center">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar lead por nome, telefone, curso, cidade, origem ou responsável..."
+              className="h-10 pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant={filtersOpen ? "default" : "outline"}
+              onClick={() => setFiltersOpen((open) => !open)}
+              className={filtersOpen ? "bg-gradient-primary" : ""}
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              {filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+            </Button>
+            {search || activeFilterCount ? (
+              <Button type="button" variant="ghost" onClick={clearPipelineFilters}>
+                <X className="mr-2 h-4 w-4" />
+                Limpar
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        {filtersOpen ? (
+          <div className="grid gap-3 border-t border-border bg-muted/25 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Curso</Label>
+              <Select
+                value={filters.courseId}
+                onValueChange={(value) =>
+                  setFilters((current) => ({ ...current, courseId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os cursos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>Todos os cursos</SelectItem>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Origem</Label>
+              <Select
+                value={filters.channelId}
+                onValueChange={(value) =>
+                  setFilters((current) => ({ ...current, channelId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as origens" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>Todas as origens</SelectItem>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Responsável</Label>
+              <Select
+                value={filters.ownerId}
+                onValueChange={(value) => setFilters((current) => ({ ...current, ownerId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os responsáveis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>Todos os responsáveis</SelectItem>
+                  {ownerOptions.map((owner) => (
+                    <SelectItem key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cidade</Label>
+              <Select
+                value={filters.city}
+                onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas as cidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
+                  {cityOptions.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
       <div className="overflow-x-auto pb-4">
         <div className="flex min-w-max gap-4">
           {stages.map((stage) => {
-            const stageLeads = leads.filter((lead) => pipelineStage(lead.stage) === stage);
+            const stageLeads = filteredLeads.filter((lead) => pipelineStage(lead.stage) === stage);
+            const visibleCount = stageVisibleCounts[stage] ?? PIPELINE_STAGE_PAGE_SIZE;
+            const visibleStageLeads = stageLeads.slice(0, visibleCount);
+            const hiddenCount = Math.max(stageLeads.length - visibleStageLeads.length, 0);
             const stageValue = stageLeads.reduce((sum, lead) => sum + (lead.courseValue ?? 0), 0);
             const isDropTarget = dropTargetStage === stage;
 
@@ -1037,24 +1269,40 @@ function CRM() {
                       description="Sincronizando leads da unidade ativa."
                     />
                   ) : stageLeads.length ? (
-                    stageLeads.map((lead) => (
-                      <LeadPipelineCard
-                        key={lead.id}
-                        lead={lead}
-                        removing={removingLeadId === lead.id}
-                        dragging={draggingLeadId === lead.id}
-                        syncing={syncingLeadId === lead.id}
-                        canViewAcquisitionChannel={canViewAcquisitionChannel}
-                        canViewLeadAge={canViewLeadAge}
-                        canViewOwner={canTransferUnitLeads}
-                        canRemove={canRemoveLeads}
-                        canEdit={canOperatePipeline}
-                        onRemove={() => void handleRemoveLead(lead)}
-                        onEdit={() => openEditLeadDialog(lead)}
-                        onDragStart={(event) => handleDragStart(event, lead)}
-                        onDragEnd={handleDragEnd}
-                      />
-                    ))
+                    <>
+                      {visibleStageLeads.map((lead) => (
+                        <LeadPipelineCard
+                          key={lead.id}
+                          lead={lead}
+                          removing={removingLeadId === lead.id}
+                          dragging={draggingLeadId === lead.id}
+                          syncing={syncingLeadId === lead.id}
+                          canViewAcquisitionChannel={canViewAcquisitionChannel}
+                          canViewLeadAge={canViewLeadAge}
+                          canViewOwner={canTransferUnitLeads}
+                          canRemove={canRemoveLeads}
+                          canEdit={canOperatePipeline}
+                          onRemove={() => void handleRemoveLead(lead)}
+                          onEdit={() => openEditLeadDialog(lead)}
+                          onDragStart={(event) => handleDragStart(event, lead)}
+                          onDragEnd={handleDragEnd}
+                        />
+                      ))}
+
+                      {hiddenCount ? (
+                        <div className="sticky bottom-0 -mx-1 -mb-1 rounded-b-xl bg-gradient-to-t from-card via-card/95 to-card/30 px-1 pb-1 pt-8 backdrop-blur-sm">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full border-primary/20 bg-white/90 text-primary shadow-sm hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => loadMoreStageLeads(stage)}
+                          >
+                            + carregar mais leads
+                            <span className="ml-1 text-xs opacity-75">({hiddenCount})</span>
+                          </Button>
+                        </div>
+                      ) : null}
+                    </>
                   ) : (
                     <EmptyState
                       icon={KanbanSquare}

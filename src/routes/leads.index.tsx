@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Lock, Search, Trash2, Users } from "lucide-react";
+import { Filter, Lock, Search, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import type { LeadRecord } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
@@ -11,6 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -23,6 +31,24 @@ import {
 type LeadsResponse = {
   leads: Array<LeadRecord>;
 };
+
+type StudentFilters = {
+  courseId: string;
+  channelId: string;
+  city: string;
+  unitId: string;
+};
+
+const FILTER_ALL = "__all__";
+
+function emptyStudentFilters(): StudentFilters {
+  return {
+    courseId: FILTER_ALL,
+    channelId: FILTER_ALL,
+    city: FILTER_ALL,
+    unitId: FILTER_ALL,
+  };
+}
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
@@ -49,6 +75,8 @@ function LeadsList() {
   const canViewStudentList = session ? canViewStudents(session.user.role) : false;
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [filters, setFilters] = React.useState<StudentFilters>(() => emptyStudentFilters());
   const [loading, setLoading] = React.useState(true);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
 
@@ -90,6 +118,39 @@ function LeadsList() {
     return <StudentsAccessDenied />;
   }
 
+  const courseOptions = Array.from(
+    new Map(
+      leads
+        .filter((lead) => lead.courseId && lead.courseName)
+        .map((lead) => [lead.courseId as string, lead.courseName as string]),
+    ),
+    ([id, name]) => ({ id, name }),
+  ).sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
+  const channelOptions = Array.from(
+    new Map(
+      leads
+        .filter((lead) => lead.acquisitionChannelId && lead.acquisitionChannelName)
+        .map((lead) => [
+          lead.acquisitionChannelId as string,
+          lead.acquisitionChannelName as string,
+        ]),
+    ),
+    ([id, name]) => ({ id, name }),
+  ).sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
+  const cityOptions = Array.from(
+    new Set(leads.map((lead) => lead.city).filter(Boolean) as Array<string>),
+  ).sort((first, second) => first.localeCompare(second, "pt-BR"));
+  const unitOptions = Array.from(
+    new Map(leads.map((lead) => [lead.unitId, lead.unitName])),
+    ([id, name]) => ({ id, name }),
+  ).sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
+  const activeFilterCount = [
+    filters.courseId,
+    filters.channelId,
+    filters.city,
+    filters.unitId,
+  ].filter((value) => value !== FILTER_ALL).length;
+
   const filteredLeads = leads.filter((lead) => {
     const searchText = [
       lead.fullName,
@@ -106,8 +167,19 @@ function LeadsList() {
       .join(" ")
       .toLowerCase();
 
-    return searchText.includes(search.trim().toLowerCase());
+    return (
+      searchText.includes(search.trim().toLowerCase()) &&
+      (filters.courseId === FILTER_ALL || lead.courseId === filters.courseId) &&
+      (filters.channelId === FILTER_ALL || lead.acquisitionChannelId === filters.channelId) &&
+      (filters.city === FILTER_ALL || lead.city === filters.city) &&
+      (filters.unitId === FILTER_ALL || lead.unitId === filters.unitId)
+    );
   });
+
+  function clearStudentFilters() {
+    setSearch("");
+    setFilters(emptyStudentFilters());
+  }
 
   async function handleRemoveStudent(lead: LeadRecord) {
     if (!window.confirm(`Remover o cliente "${lead.fullName}" do banco de dados?`)) {
@@ -143,15 +215,127 @@ function LeadsList() {
       />
       <Card className="shadow-card">
         <div className="border-b border-border p-4">
-          <div className="relative max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por aluno, curso, origem..."
-              className="pl-9"
-            />
+          <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_auto] lg:items-center">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por aluno, telefone, curso, cidade ou origem..."
+                className="pl-9"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={filtersOpen ? "default" : "outline"}
+                onClick={() => setFiltersOpen((open) => !open)}
+                className={filtersOpen ? "bg-gradient-primary" : ""}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Filtros
+                {activeFilterCount ? (
+                  <Badge className="ml-2 bg-gold text-gold-foreground">{activeFilterCount}</Badge>
+                ) : null}
+              </Button>
+              {search || activeFilterCount ? (
+                <Button type="button" variant="ghost" onClick={clearStudentFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Limpar
+                </Button>
+              ) : null}
+            </div>
           </div>
+
+          {filtersOpen ? (
+            <div className="mt-4 grid gap-3 rounded-xl border border-border bg-muted/25 p-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-2">
+                <Label>Curso</Label>
+                <Select
+                  value={filters.courseId}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({ ...current, courseId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os cursos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>Todos os cursos</SelectItem>
+                    {courseOptions.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Origem</Label>
+                <Select
+                  value={filters.channelId}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({ ...current, channelId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as origens" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>Todas as origens</SelectItem>
+                    {channelOptions.map((channel) => (
+                      <SelectItem key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cidade</Label>
+                <Select
+                  value={filters.city}
+                  onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as cidades" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
+                    {cityOptions.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={filters.unitId}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({ ...current, unitId: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as unidades" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FILTER_ALL}>Todas as unidades</SelectItem>
+                    {unitOptions.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
         </div>
         <Table>
           <TableHeader>

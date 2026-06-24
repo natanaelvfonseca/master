@@ -1,9 +1,8 @@
 import * as React from "react";
-import { Bell, CheckCircle2, Clock3, Loader2, Search } from "lucide-react";
+import { Bell, CheckCircle2, Clock3, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -199,10 +198,6 @@ export function Topbar() {
         ) : null}
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <div className="relative hidden md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar aluno, lead, turma..." className="h-9 w-[280px] pl-9" />
-        </div>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
