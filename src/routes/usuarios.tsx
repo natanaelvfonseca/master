@@ -47,6 +47,7 @@ import {
   canDeleteUsers,
   canEditManagedUser,
   canEditUsers,
+  canManageUnits,
   getAssignableRoles,
   ROLE_LABELS,
   type ManagedUser,
@@ -61,6 +62,8 @@ type UnitsResponse = {
   units: Array<{ id: string; name: string; slug: string }>;
 };
 
+type Unit = UnitsResponse["units"][number];
+
 type DeleteTarget = {
   id: string;
   name: string;
@@ -72,6 +75,11 @@ type EditForm = {
   name: string;
   email: string;
   password: string;
+};
+
+type UnitEditForm = {
+  unitId: string;
+  name: string;
 };
 
 export const Route = createFileRoute("/usuarios")({
@@ -87,10 +95,14 @@ function UsersPage() {
   const [savingUser, setSavingUser] = React.useState(false);
   const [savingEdit, setSavingEdit] = React.useState(false);
   const [savingUnit, setSavingUnit] = React.useState(false);
+  const [savingUnitEdit, setSavingUnitEdit] = React.useState(false);
   const [deletingUser, setDeletingUser] = React.useState(false);
+  const [deletingUnit, setDeletingUnit] = React.useState(false);
   const [unitName, setUnitName] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
   const [editForm, setEditForm] = React.useState<EditForm | null>(null);
+  const [unitEditForm, setUnitEditForm] = React.useState<UnitEditForm | null>(null);
+  const [deleteUnitTarget, setDeleteUnitTarget] = React.useState<Unit | null>(null);
   const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
     () => (userRole ? getAssignableRoles(userRole) : []),
@@ -106,6 +118,7 @@ function UsersPage() {
   const canChooseUnit = userRole ? ["MASTER", "CEO"].includes(userRole) : false;
   const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
   const canEditUserRecords = userRole ? canEditUsers(userRole) : false;
+  const canManageUnitRecords = userRole ? canManageUnits(userRole) : false;
   const defaultUnit = session?.activeUnit ?? session?.units[0] ?? null;
   const defaultUnitId = defaultUnit?.id ?? "";
   const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
@@ -244,7 +257,10 @@ function UsersPage() {
         },
         body: JSON.stringify({ name: unitName }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        unit?: Unit;
+      };
 
       if (!response.ok) {
         throw new Error(data.error ?? "Não foi possível criar unidade.");
@@ -263,6 +279,85 @@ function UsersPage() {
       toast.error(error instanceof Error ? error.message : "Falha ao criar unidade.");
     } finally {
       setSavingUnit(false);
+    }
+  }
+
+  async function handleEditUnit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!unitEditForm) {
+      return;
+    }
+
+    setSavingUnitEdit(true);
+
+    try {
+      const response = await fetch("/api/admin/units", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(unitEditForm),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        unit?: Unit;
+      };
+
+      if (!response.ok || !data.unit) {
+        throw new Error(data.error ?? "Não foi possível editar a unidade.");
+      }
+
+      setUnits((current) =>
+        current
+          .map((unit) => (unit.id === data.unit!.id ? data.unit! : unit))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setUnitEditForm(null);
+      await refreshSession();
+      toast.success("Unidade atualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao editar a unidade.");
+    } finally {
+      setSavingUnitEdit(false);
+    }
+  }
+
+  async function handleDeleteUnit() {
+    if (!deleteUnitTarget) {
+      return;
+    }
+
+    setDeletingUnit(true);
+
+    try {
+      const response = await fetch("/api/admin/units", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ unitId: deleteUnitTarget.id }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Não foi possível excluir a unidade.");
+      }
+
+      const remainingUnits = units.filter((unit) => unit.id !== deleteUnitTarget.id);
+      setUnits(remainingUnits);
+      setForm((current) => ({ ...current, unitId: remainingUnits[0]?.id ?? "" }));
+      setDeleteUnitTarget(null);
+      await refreshSession();
+      toast.success("Unidade excluída.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao excluir a unidade.");
+    } finally {
+      setDeletingUnit(false);
     }
   }
 
@@ -552,30 +647,158 @@ function UsersPage() {
         </Card>
       </div>
 
-      {session.canCreateUnits ? (
+      {canManageUnitRecords ? (
         <Card className="shadow-card">
           <CardHeader className="flex-row items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
               <Building2 className="h-4 w-4" />
             </div>
-            <CardTitle className="text-base">Nova unidade</CardTitle>
+            <div>
+              <CardTitle className="text-base">Gerenciar unidades</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Edite os nomes ou remova unidades sem usuários vinculados.
+              </p>
+            </div>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateUnit} className="flex flex-col gap-3 md:flex-row">
-              <Input
-                value={unitName}
-                onChange={(event) => setUnitName(event.target.value)}
-                placeholder="Nome da unidade"
-                className="md:max-w-md"
-                required
-              />
-              <Button type="submit" variant="outline" disabled={savingUnit}>
-                {savingUnit ? "Criando..." : "Criar unidade"}
-              </Button>
-            </form>
+          <CardContent className="space-y-5">
+            {session.canCreateUnits ? (
+              <form
+                onSubmit={handleCreateUnit}
+                className="flex flex-col gap-3 border-b border-border/70 pb-5 md:flex-row"
+              >
+                <Input
+                  value={unitName}
+                  onChange={(event) => setUnitName(event.target.value)}
+                  placeholder="Nome da nova unidade"
+                  className="md:max-w-md"
+                  required
+                />
+                <Button type="submit" variant="outline" disabled={savingUnit}>
+                  {savingUnit ? "Criando..." : "Criar unidade"}
+                </Button>
+              </form>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {unitOptions.map((unit) => (
+                <div
+                  key={unit.id}
+                  className="group flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 p-3 transition-colors hover:border-primary/30 hover:bg-primary/[0.025]"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{unit.name}</p>
+                      {session.activeUnit?.id === unit.id ? (
+                        <Badge variant="secondary" className="bg-success/10 text-success">
+                          Ativa
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{unit.slug}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-primary hover:bg-primary/10 hover:text-primary"
+                      onClick={() => setUnitEditForm({ unitId: unit.id, name: unit.name })}
+                      aria-label={`Editar unidade ${unit.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteUnitTarget(unit)}
+                      aria-label={`Excluir unidade ${unit.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ) : null}
+      <Dialog
+        open={Boolean(unitEditForm)}
+        onOpenChange={(open) => !open && !savingUnitEdit && setUnitEditForm(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleEditUnit}>
+            <DialogHeader>
+              <DialogTitle>Editar unidade</DialogTitle>
+              <DialogDescription>
+                O novo nome ficará disponível em todo o sistema e será salvo no banco de dados.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-5">
+              <div className="space-y-2">
+                <Label htmlFor="edit-unit-name">Nome da unidade</Label>
+                <Input
+                  id="edit-unit-name"
+                  value={unitEditForm?.name ?? ""}
+                  onChange={(event) =>
+                    setUnitEditForm((current) =>
+                      current ? { ...current, name: event.target.value } : current,
+                    )
+                  }
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setUnitEditForm(null)}
+                disabled={savingUnitEdit}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingUnitEdit}>
+                {savingUnitEdit ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog
+        open={Boolean(deleteUnitTarget)}
+        onOpenChange={(open) => !open && !deletingUnit && setDeleteUnitTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir unidade</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteUnitTarget
+                ? `Deseja excluir "${deleteUnitTarget.name}" permanentemente? Os dados exclusivos desta unidade também serão removidos. Unidades com usuários vinculados não podem ser excluídas.`
+                : "Deseja excluir esta unidade?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingUnit}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingUnit}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteUnit();
+              }}
+            >
+              {deletingUnit ? "Excluindo..." : "Excluir unidade"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog
         open={Boolean(editForm)}
         onOpenChange={(open) => !open && !savingEdit && setEditForm(null)}

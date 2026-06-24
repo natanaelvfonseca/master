@@ -67,6 +67,10 @@ export function canCreateUnits(role: UserRole) {
   return role === "MASTER";
 }
 
+export function canManageUnits(role: UserRole) {
+  return role === "MASTER" || role === "CEO";
+}
+
 export function canViewGrowth(role: UserRole) {
   return USER_ROLES.includes(role);
 }
