@@ -1102,17 +1102,19 @@ function CRM() {
       />
 
       <Card className="overflow-hidden border-primary/10 bg-card/80 shadow-card">
-        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar lead..."
-              className="h-9 pl-9 text-sm"
-            />
+        <div className="grid gap-3 p-3">
+          <div className="flex justify-end">
+            <div className="relative w-full sm:max-w-xs lg:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar lead..."
+                className="h-9 pl-9 text-sm"
+              />
+            </div>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               size="sm"
