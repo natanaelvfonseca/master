@@ -126,6 +126,7 @@ type TransferSubmitResponse = {
 const NO_SELECTION = "__none__";
 const FILTER_ALL = "__all__";
 const PIPELINE_STAGE_PAGE_SIZE = 15;
+const CONSULTANT_PIPELINE_VALUE = 130;
 
 const stages: Array<LeadStage> = [
   "Novo lead",
@@ -206,6 +207,14 @@ function leadMatchesSearch(lead: LeadRecord, search: string) {
     .join(" ")
     .toLowerCase()
     .includes(query);
+}
+
+function pipelineDisplayValue(lead: LeadRecord, role?: string) {
+  if (role === "CONSULTOR") {
+    return CONSULTANT_PIPELINE_VALUE;
+  }
+
+  return lead.courseValue;
 }
 
 function emptyLeadForm(unitId = ""): LeadFormState {
@@ -1054,10 +1063,13 @@ function CRM() {
     setFilters(emptyPipelineFilters());
   }
 
-  function loadMoreStageLeads(stage: LeadStage) {
+  function loadMoreStageLeads(stage: LeadStage, totalLeads: number) {
     setStageVisibleCounts((current) => ({
       ...current,
-      [stage]: (current[stage] ?? PIPELINE_STAGE_PAGE_SIZE) + PIPELINE_STAGE_PAGE_SIZE,
+      [stage]: Math.min(
+        (current[stage] ?? PIPELINE_STAGE_PAGE_SIZE) + PIPELINE_STAGE_PAGE_SIZE,
+        totalLeads,
+      ),
     }));
   }
 
@@ -1224,7 +1236,10 @@ function CRM() {
             const visibleCount = stageVisibleCounts[stage] ?? PIPELINE_STAGE_PAGE_SIZE;
             const visibleStageLeads = stageLeads.slice(0, visibleCount);
             const hiddenCount = Math.max(stageLeads.length - visibleStageLeads.length, 0);
-            const stageValue = stageLeads.reduce((sum, lead) => sum + (lead.courseValue ?? 0), 0);
+            const stageValue = stageLeads.reduce(
+              (sum, lead) => sum + (pipelineDisplayValue(lead, session?.user.role) ?? 0),
+              0,
+            );
             const isDropTarget = dropTargetStage === stage;
 
             return (
@@ -1277,6 +1292,7 @@ function CRM() {
                           removing={removingLeadId === lead.id}
                           dragging={draggingLeadId === lead.id}
                           syncing={syncingLeadId === lead.id}
+                          displayValue={pipelineDisplayValue(lead, session?.user.role)}
                           canViewAcquisitionChannel={canViewAcquisitionChannel}
                           canViewLeadAge={canViewLeadAge}
                           canViewOwner={canTransferUnitLeads}
@@ -1295,7 +1311,7 @@ function CRM() {
                             type="button"
                             variant="outline"
                             className="w-full border-primary/20 bg-white/90 text-primary shadow-sm hover:bg-primary hover:text-primary-foreground"
-                            onClick={() => loadMoreStageLeads(stage)}
+                            onClick={() => loadMoreStageLeads(stage, stageLeads.length)}
                           >
                             + carregar mais leads
                             <span className="ml-1 text-xs opacity-75">({hiddenCount})</span>
@@ -1415,6 +1431,7 @@ function LeadPipelineCard({
   removing,
   dragging,
   syncing,
+  displayValue,
   canViewAcquisitionChannel,
   canViewLeadAge,
   canViewOwner,
@@ -1429,6 +1446,7 @@ function LeadPipelineCard({
   removing: boolean;
   dragging: boolean;
   syncing: boolean;
+  displayValue: number | null;
   canViewAcquisitionChannel: boolean;
   canViewLeadAge: boolean;
   canViewOwner: boolean;
@@ -1518,9 +1536,9 @@ function LeadPipelineCard({
           </Badge>
         ) : null}
       </div>
-      {lead.courseValue !== null ? (
+      {displayValue !== null ? (
         <div className="mt-3 text-xs font-semibold text-primary">
-          {currencyFormatter.format(lead.courseValue)}
+          {currencyFormatter.format(displayValue)}
         </div>
       ) : null}
     </Card>
