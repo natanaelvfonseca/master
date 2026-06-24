@@ -168,8 +168,13 @@ export function AppSidebar() {
                 item.url === "/crm" ||
                 item.url === "/bi" ||
                 item.url === "/branding" ||
+                item.url === "/brand-plen/nova" ||
+                item.url === "/brand-plen/biblioteca" ||
+                item.url === "/brand-plen/kit" ||
+                item.url === "/gestao/cadastro" ||
                 item.url === "/meta-ads" ||
-                item.url === "/treinamentos",
+                item.url === "/treinamentos" ||
+                item.url === "/feedback",
             ),
           }))
           .filter((group) => group.items.length > 0)

@@ -52,23 +52,23 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export function canRegisterUsers(role: UserRole) {
-  return ["MASTER", "CEO", "DIRETOR", "GERENTE"].includes(role);
+  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "MARKETING"].includes(role);
 }
 
 export function canDeleteUsers(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR";
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "MARKETING";
 }
 
 export function canEditUsers(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR";
+  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "MARKETING";
 }
 
 export function canCreateUnits(role: UserRole) {
-  return role === "MASTER";
+  return role === "MASTER" || role === "MARKETING";
 }
 
 export function canManageUnits(role: UserRole) {
-  return role === "MASTER" || role === "CEO";
+  return role === "MASTER" || role === "CEO" || role === "MARKETING";
 }
 
 export function canViewGrowth(role: UserRole) {
@@ -80,7 +80,13 @@ export function canViewNetworkGrowth(role: UserRole) {
 }
 
 export function canViewManagement(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return (
+    role === "MASTER" ||
+    role === "CEO" ||
+    role === "DIRETOR" ||
+    role === "GERENTE" ||
+    role === "MARKETING"
+  );
 }
 
 export function canViewStudents(role: UserRole) {
@@ -92,7 +98,7 @@ export function canTransferLeads(role: UserRole) {
 }
 
 export function canManageBrandPlen(role: UserRole) {
-  return role === "MASTER";
+  return role === "MASTER" || role === "MARKETING";
 }
 
 export function canManageMetaAds(role: UserRole) {
@@ -124,7 +130,7 @@ export function canViewLeadershipTraining(role: UserRole) {
 }
 
 export function canSubmitSystemFeedback(role: UserRole) {
-  return role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return role === "CEO" || role === "DIRETOR" || role === "GERENTE" || role === "MARKETING";
 }
 
 export function canManageSystemFeedback(role: UserRole) {
@@ -152,6 +158,10 @@ export function getAssignableRoles(role: UserRole): Array<UserRole> {
     return ["CONSULTOR"];
   }
 
+  if (role === "MARKETING") {
+    return ["DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"];
+  }
+
   return [];
 }
 
@@ -166,6 +176,10 @@ export function canDeleteManagedUser(actorRole: UserRole, targetRole: UserRole) 
 
   if (actorRole === "DIRETOR") {
     return targetRole === "GERENTE" || targetRole === "CONSULTOR";
+  }
+
+  if (actorRole === "MARKETING") {
+    return ["DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(targetRole);
   }
 
   return false;

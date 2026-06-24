@@ -104,7 +104,7 @@ function UsersPage() {
     role: "" as UserRole | "",
     unitId: "",
   });
-  const canChooseUnit = userRole ? ["MASTER", "CEO"].includes(userRole) : false;
+  const canChooseUnit = userRole ? ["MASTER", "CEO", "MARKETING"].includes(userRole) : false;
   const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
   const canEditUserRecords = userRole ? canEditUsers(userRole) : false;
   const defaultUnit = session?.activeUnit ?? session?.units[0] ?? null;
@@ -121,7 +121,7 @@ function UsersPage() {
       const nextRole = current.role || assignableRoles[0] || "";
       const sessionDefaultUnitId = session.activeUnit?.id || session.units[0]?.id || "";
       const currentUnitStillExists = session.units.some((unit) => unit.id === current.unitId);
-      const nextUnitId = ["MASTER", "CEO"].includes(session.user.role)
+      const nextUnitId = ["MASTER", "CEO", "MARKETING"].includes(session.user.role)
         ? currentUnitStillExists
           ? current.unitId
           : sessionDefaultUnitId

@@ -282,12 +282,12 @@ function BrandKit() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Brand Plen · Master"
+        eyebrow="Brand Plen · Administração"
         title="Brand Kit"
         description={`Configurações internas do gerador de imagem com IA para ${activeUnitName}.`}
         actions={
           <Badge className="gap-1 border-primary/20 bg-primary/10 text-primary">
-            <Lock className="h-3 w-3" /> Apenas Master
+            <Lock className="h-3 w-3" /> Master e Marketing
           </Badge>
         }
       />
@@ -577,7 +577,7 @@ function BrandAdminAccessDenied() {
         </div>
         <h1 className="text-xl font-bold">Acesso restrito</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          O Brand Kit e as configurações do gerador ficam disponíveis apenas para o usuário Master.
+          O Brand Kit e as configurações do gerador ficam disponíveis para Master e Marketing.
         </p>
       </div>
     </div>

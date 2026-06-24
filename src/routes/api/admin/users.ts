@@ -110,7 +110,7 @@ export const Route = createFileRoute("/api/admin/users")({
         const password = typeof body?.password === "string" ? body.password : "";
         const role = typeof body?.role === "string" ? body.role : "";
         const requestedUnitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
-        const canChooseUnit = ["MASTER", "CEO"].includes(session.user.role);
+        const canChooseUnit = ["MASTER", "CEO", "MARKETING"].includes(session.user.role);
         const unitId = canChooseUnit
           ? requestedUnitId || session.activeUnit.id
           : session.activeUnit.id;
