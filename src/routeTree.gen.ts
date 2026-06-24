@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
+import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as TreinamentosRouteImport } from './routes/treinamentos'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
@@ -64,6 +65,11 @@ import { Route as ApiCrmLeadsIdRouteImport } from './routes/api/crm/leads.$id'
 const UsuariosRoute = UsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnidadesRoute = UnidadesRouteImport.update({
+  id: '/unidades',
+  path: '/unidades',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TreinamentosRoute = TreinamentosRouteImport.update({
@@ -332,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/treinamentos': typeof TreinamentosRoute
+  '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
@@ -385,6 +392,7 @@ export interface FileRoutesByTo {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/treinamentos': typeof TreinamentosRoute
+  '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
@@ -439,6 +447,7 @@ export interface FileRoutesById {
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
   '/treinamentos': typeof TreinamentosRoute
+  '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
@@ -494,6 +503,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/treinamentos'
+    | '/unidades'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
@@ -547,6 +557,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/treinamentos'
+    | '/unidades'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/recuperacao'
     | '/treinamentos'
+    | '/unidades'
     | '/usuarios'
     | '/api/brand-library'
     | '/api/dashboard'
@@ -654,6 +666,7 @@ export interface RootRouteChildren {
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
   TreinamentosRoute: typeof TreinamentosRoute
+  UnidadesRoute: typeof UnidadesRoute
   UsuariosRoute: typeof UsuariosRoute
   ApiBrandLibraryRoute: typeof ApiBrandLibraryRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
@@ -696,6 +709,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unidades': {
+      id: '/unidades'
+      path: '/unidades'
+      fullPath: '/unidades'
+      preLoaderRoute: typeof UnidadesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/treinamentos': {
@@ -1113,6 +1133,7 @@ const rootRouteChildren: RootRouteChildren = {
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
   TreinamentosRoute: TreinamentosRoute,
+  UnidadesRoute: UnidadesRoute,
   UsuariosRoute: UsuariosRoute,
   ApiBrandLibraryRoute: ApiBrandLibraryRoute,
   ApiDashboardRoute: ApiDashboardRoute,

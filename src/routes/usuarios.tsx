@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -47,10 +47,11 @@ import {
   canDeleteUsers,
   canEditManagedUser,
   canEditUsers,
-  canManageUnits,
   getAssignableRoles,
+  getInitials,
   ROLE_LABELS,
   type ManagedUser,
+  type UnitSummary,
   type UserRole,
 } from "@/lib/auth-types";
 
@@ -59,10 +60,8 @@ type UsersResponse = {
 };
 
 type UnitsResponse = {
-  units: Array<{ id: string; name: string; slug: string }>;
+  units: Array<UnitSummary>;
 };
-
-type Unit = UnitsResponse["units"][number];
 
 type DeleteTarget = {
   id: string;
@@ -77,32 +76,22 @@ type EditForm = {
   password: string;
 };
 
-type UnitEditForm = {
-  unitId: string;
-  name: string;
-};
-
 export const Route = createFileRoute("/usuarios")({
   head: () => ({ meta: [{ title: "Usuários - Plenarius Growth Hub" }] }),
   component: UsersPage,
 });
 
 function UsersPage() {
-  const { session, refreshSession } = useAuth();
+  const { session } = useAuth();
   const [users, setUsers] = React.useState<Array<ManagedUser>>([]);
-  const [units, setUnits] = React.useState<UnitsResponse["units"]>([]);
+  const [units, setUnits] = React.useState<Array<UnitSummary>>([]);
   const [loading, setLoading] = React.useState(true);
+  const [createUserOpen, setCreateUserOpen] = React.useState(false);
   const [savingUser, setSavingUser] = React.useState(false);
   const [savingEdit, setSavingEdit] = React.useState(false);
-  const [savingUnit, setSavingUnit] = React.useState(false);
-  const [savingUnitEdit, setSavingUnitEdit] = React.useState(false);
   const [deletingUser, setDeletingUser] = React.useState(false);
-  const [deletingUnit, setDeletingUnit] = React.useState(false);
-  const [unitName, setUnitName] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
   const [editForm, setEditForm] = React.useState<EditForm | null>(null);
-  const [unitEditForm, setUnitEditForm] = React.useState<UnitEditForm | null>(null);
-  const [deleteUnitTarget, setDeleteUnitTarget] = React.useState<Unit | null>(null);
   const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
     () => (userRole ? getAssignableRoles(userRole) : []),
@@ -118,15 +107,10 @@ function UsersPage() {
   const canChooseUnit = userRole ? ["MASTER", "CEO"].includes(userRole) : false;
   const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
   const canEditUserRecords = userRole ? canEditUsers(userRole) : false;
-  const canManageUnitRecords = userRole ? canManageUnits(userRole) : false;
   const defaultUnit = session?.activeUnit ?? session?.units[0] ?? null;
   const defaultUnitId = defaultUnit?.id ?? "";
   const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
-  const unitOptionsBase = units.length ? units : (session?.units ?? []);
-  const unitOptions =
-    defaultUnit && !unitOptionsBase.some((unit) => unit.id === defaultUnit.id)
-      ? [defaultUnit, ...unitOptionsBase]
-      : unitOptionsBase;
+  const unitOptions = units.length ? units : (session?.units ?? []);
 
   React.useEffect(() => {
     if (!session) {
@@ -136,8 +120,11 @@ function UsersPage() {
     setForm((current) => {
       const nextRole = current.role || assignableRoles[0] || "";
       const sessionDefaultUnitId = session.activeUnit?.id || session.units[0]?.id || "";
+      const currentUnitStillExists = session.units.some((unit) => unit.id === current.unitId);
       const nextUnitId = ["MASTER", "CEO"].includes(session.user.role)
-        ? current.unitId || sessionDefaultUnitId
+        ? currentUnitStillExists
+          ? current.unitId
+          : sessionDefaultUnitId
         : sessionDefaultUnitId;
 
       if (current.role === nextRole && current.unitId === nextUnitId) {
@@ -163,7 +150,7 @@ function UsersPage() {
         : null;
 
       if (!usersResponse.ok || (unitsResponse && !unitsResponse.ok)) {
-        throw new Error("Não foi possível carregar usuários.");
+        throw new Error("Não foi possível carregar os usuários.");
       }
 
       const usersData = (await usersResponse.json()) as UsersResponse;
@@ -192,7 +179,7 @@ function UsersPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Seu usuário não tem permissão para cadastrar usuários.
+            Seu usuário não tem permissão para gerenciar usuários.
           </p>
         </div>
       </div>
@@ -213,151 +200,23 @@ function UsersPage() {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, unitId: effectiveUnitId }),
       });
-      const data = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        unit?: { id: string; name: string; slug: string };
-      };
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
         throw new Error(data.error ?? "Não foi possível cadastrar usuário.");
       }
 
-      toast.success("Usuário cadastrado.");
-      setForm((current) => ({
-        ...current,
-        name: "",
-        email: "",
-        password: "",
-      }));
+      setForm((current) => ({ ...current, name: "", email: "", password: "" }));
+      setCreateUserOpen(false);
       await loadData();
+      toast.success("Usuário cadastrado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao cadastrar usuário.");
     } finally {
       setSavingUser(false);
-    }
-  }
-
-  async function handleCreateUnit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSavingUnit(true);
-
-    try {
-      const response = await fetch("/api/admin/units", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: unitName }),
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        unit?: Unit;
-      };
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Não foi possível criar unidade.");
-      }
-
-      toast.success("Unidade criada.");
-      setUnitName("");
-      if (data.unit) {
-        setUnits((current) =>
-          [...current, data.unit!].sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      }
-      await refreshSession();
-      await loadData();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao criar unidade.");
-    } finally {
-      setSavingUnit(false);
-    }
-  }
-
-  async function handleEditUnit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!unitEditForm) {
-      return;
-    }
-
-    setSavingUnitEdit(true);
-
-    try {
-      const response = await fetch("/api/admin/units", {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(unitEditForm),
-      });
-      const data = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        unit?: Unit;
-      };
-
-      if (!response.ok || !data.unit) {
-        throw new Error(data.error ?? "Não foi possível editar a unidade.");
-      }
-
-      setUnits((current) =>
-        current
-          .map((unit) => (unit.id === data.unit!.id ? data.unit! : unit))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setUnitEditForm(null);
-      await refreshSession();
-      toast.success("Unidade atualizada.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao editar a unidade.");
-    } finally {
-      setSavingUnitEdit(false);
-    }
-  }
-
-  async function handleDeleteUnit() {
-    if (!deleteUnitTarget) {
-      return;
-    }
-
-    setDeletingUnit(true);
-
-    try {
-      const response = await fetch("/api/admin/units", {
-        method: "DELETE",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ unitId: deleteUnitTarget.id }),
-      });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Não foi possível excluir a unidade.");
-      }
-
-      const remainingUnits = units.filter((unit) => unit.id !== deleteUnitTarget.id);
-      setUnits(remainingUnits);
-      setForm((current) => ({ ...current, unitId: remainingUnits[0]?.id ?? "" }));
-      setDeleteUnitTarget(null);
-      await refreshSession();
-      toast.success("Unidade excluída.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao excluir a unidade.");
-    } finally {
-      setDeletingUnit(false);
     }
   }
 
@@ -372,10 +231,7 @@ function UsersPage() {
       const response = await fetch("/api/admin/users", {
         method: "DELETE",
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ userId: deleteTarget.id }),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -384,10 +240,9 @@ function UsersPage() {
         throw new Error(data.error ?? "Não foi possível excluir usuário.");
       }
 
-      toast.success("Usuário excluído.");
       setUsers((current) => current.filter((user) => user.id !== deleteTarget.id));
       setDeleteTarget(null);
-      await loadData();
+      toast.success("Usuário excluído.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao excluir usuário.");
     } finally {
@@ -408,10 +263,7 @@ function UsersPage() {
       const response = await fetch("/api/admin/users", {
         method: "PUT",
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -437,40 +289,161 @@ function UsersPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Administração"
-        title="Usuários e unidades"
-        description="Cadastros internos vinculados à unidade ativa."
+        title="Usuários"
+        description="Cadastre e gerencie as pessoas vinculadas à unidade ativa."
         actions={
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {session.activeUnit?.name ?? "Sem unidade ativa"}
-          </Badge>
+          <>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {session.activeUnit?.name ?? "Sem unidade ativa"}
+            </Badge>
+            <Button type="button" onClick={() => setCreateUserOpen(true)}>
+              <UserPlus className="h-4 w-4" />
+              Cadastrar usuário
+            </Button>
+          </>
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <Card className="shadow-card">
-          <CardHeader className="flex-row items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
-              <UserPlus className="h-4 w-4" />
+      <Card className="overflow-hidden shadow-card">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 bg-muted/20">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-gold text-gold-foreground">
+              <Users className="h-4 w-4" />
             </div>
-            <CardTitle className="text-base">Novo usuário</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-2">
+            <div>
+              <CardTitle className="text-base">Usuários da unidade</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {loading ? "Atualizando lista..." : `${users.length} usuário(s) ativo(s)`}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/10 hover:bg-muted/10">
+                <TableHead className="pl-6">Usuário</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Função</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[112px] pr-6 text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                    Carregando usuários...
+                  </TableCell>
+                </TableRow>
+              ) : users.length ? (
+                users.map((user) => (
+                  <TableRow key={user.id} className="group h-[68px]">
+                    <TableCell className="pl-6">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary ring-1 ring-primary/15">
+                          {getInitials(user.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.unitName}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="bg-success/10 text-success">
+                        Ativo
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-6">
+                      <div className="flex justify-end gap-1">
+                        {canEditUserRecords && canEditManagedUser(session.user.role, user.role) ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-primary hover:bg-primary/10 hover:text-primary"
+                            onClick={() =>
+                              setEditForm({
+                                userId: user.id,
+                                name: user.name,
+                                email: user.email,
+                                password: "",
+                              })
+                            }
+                            aria-label={`Editar ${user.name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        {canDeleteUserRecords &&
+                        user.id !== session.user.id &&
+                        canDeleteManagedUser(session.user.role, user.role) ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({ id: user.id, name: user.name, role: user.role })
+                            }
+                            aria-label={`Excluir ${user.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center">
+                    <div className="mx-auto max-w-sm text-muted-foreground">
+                      <Users className="mx-auto mb-3 h-6 w-6 opacity-50" />
+                      <p className="font-medium text-foreground">Nenhum usuário nesta unidade</p>
+                      <p className="mt-1 text-sm">
+                        Use o botão acima para fazer o primeiro cadastro.
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={createUserOpen} onOpenChange={(open) => !savingUser && setCreateUserOpen(open)}>
+        <DialogContent className="sm:max-w-xl">
+          <form onSubmit={handleCreateUser}>
+            <DialogHeader>
+              <DialogTitle>Cadastrar usuário</DialogTitle>
+              <DialogDescription>
+                Preencha os dados de acesso e selecione a função do novo usuário.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-5 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="name">Nome</Label>
+                <Label htmlFor="create-name">Nome</Label>
                 <Input
-                  id="name"
+                  id="create-name"
                   value={form.name}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, name: event.target.value }))
                   }
+                  autoFocus
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="create-email">Email</Label>
                 <Input
-                  id="email"
+                  id="create-email"
                   type="email"
                   value={form.email}
                   onChange={(event) =>
@@ -480,11 +453,11 @@ function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha inicial</Label>
+                <Label htmlFor="create-password">Senha inicial</Label>
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="password"
+                    id="create-password"
                     type="password"
                     value={form.password}
                     onChange={(event) =>
@@ -538,267 +511,24 @@ function UsersPage() {
                   <Input value={defaultUnit?.name ?? ""} disabled readOnly />
                 )}
               </div>
-              <div className="md:col-span-2">
-                <Button type="submit" disabled={savingUser || !form.role || !effectiveUnitId}>
-                  {savingUser ? "Salvando..." : "Cadastrar usuário"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader className="flex-row items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-gold text-gold-foreground">
-              <Users className="h-4 w-4" />
-            </div>
-            <CardTitle className="text-base">Usuários da unidade</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Função</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[96px] text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : users.length ? (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={user.status === "active" ? "bg-success/10 text-success" : ""}
-                        >
-                          {user.status === "active" ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          {canEditUserRecords &&
-                          canEditManagedUser(session.user.role, user.role) ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-primary hover:bg-primary/10 hover:text-primary"
-                              onClick={() =>
-                                setEditForm({
-                                  userId: user.id,
-                                  name: user.name,
-                                  email: user.email,
-                                  password: "",
-                                })
-                              }
-                              aria-label={`Editar ${user.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                          {canDeleteUserRecords &&
-                          user.id !== session.user.id &&
-                          canDeleteManagedUser(session.user.role, user.role) ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() =>
-                                setDeleteTarget({
-                                  id: user.id,
-                                  name: user.name,
-                                  role: user.role,
-                                })
-                              }
-                              aria-label={`Excluir ${user.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
-                      Nenhum usuário nesta unidade.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      {canManageUnitRecords ? (
-        <Card className="shadow-card">
-          <CardHeader className="flex-row items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-              <Building2 className="h-4 w-4" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Gerenciar unidades</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Edite os nomes ou remova unidades sem usuários vinculados.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {session.canCreateUnits ? (
-              <form
-                onSubmit={handleCreateUnit}
-                className="flex flex-col gap-3 border-b border-border/70 pb-5 md:flex-row"
-              >
-                <Input
-                  value={unitName}
-                  onChange={(event) => setUnitName(event.target.value)}
-                  placeholder="Nome da nova unidade"
-                  className="md:max-w-md"
-                  required
-                />
-                <Button type="submit" variant="outline" disabled={savingUnit}>
-                  {savingUnit ? "Criando..." : "Criar unidade"}
-                </Button>
-              </form>
-            ) : null}
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {unitOptions.map((unit) => (
-                <div
-                  key={unit.id}
-                  className="group flex items-center gap-3 rounded-xl border border-border/70 bg-background/60 p-3 transition-colors hover:border-primary/30 hover:bg-primary/[0.025]"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Building2 className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold">{unit.name}</p>
-                      {session.activeUnit?.id === unit.id ? (
-                        <Badge variant="secondary" className="bg-success/10 text-success">
-                          Ativa
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs text-muted-foreground">{unit.slug}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-primary hover:bg-primary/10 hover:text-primary"
-                      onClick={() => setUnitEditForm({ unitId: unit.id, name: unit.name })}
-                      aria-label={`Editar unidade ${unit.name}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setDeleteUnitTarget(unit)}
-                      aria-label={`Excluir unidade ${unit.name}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-      <Dialog
-        open={Boolean(unitEditForm)}
-        onOpenChange={(open) => !open && !savingUnitEdit && setUnitEditForm(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleEditUnit}>
-            <DialogHeader>
-              <DialogTitle>Editar unidade</DialogTitle>
-              <DialogDescription>
-                O novo nome ficará disponível em todo o sistema e será salvo no banco de dados.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-5">
-              <div className="space-y-2">
-                <Label htmlFor="edit-unit-name">Nome da unidade</Label>
-                <Input
-                  id="edit-unit-name"
-                  value={unitEditForm?.name ?? ""}
-                  onChange={(event) =>
-                    setUnitEditForm((current) =>
-                      current ? { ...current, name: event.target.value } : current,
-                    )
-                  }
-                  autoFocus
-                  required
-                />
-              </div>
             </div>
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setUnitEditForm(null)}
-                disabled={savingUnitEdit}
+                onClick={() => setCreateUserOpen(false)}
+                disabled={savingUser}
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={savingUnitEdit}>
-                {savingUnitEdit ? "Salvando..." : "Salvar alterações"}
+              <Button type="submit" disabled={savingUser || !form.role || !effectiveUnitId}>
+                {savingUser ? "Salvando..." : "Cadastrar usuário"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      <AlertDialog
-        open={Boolean(deleteUnitTarget)}
-        onOpenChange={(open) => !open && !deletingUnit && setDeleteUnitTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir unidade</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteUnitTarget
-                ? `Deseja excluir "${deleteUnitTarget.name}" permanentemente? Os dados exclusivos desta unidade também serão removidos. Unidades com usuários vinculados não podem ser excluídas.`
-                : "Deseja excluir esta unidade?"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingUnit}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deletingUnit}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDeleteUnit();
-              }}
-            >
-              {deletingUnit ? "Excluindo..." : "Excluir unidade"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
       <Dialog
         open={Boolean(editForm)}
         onOpenChange={(open) => !open && !savingEdit && setEditForm(null)}
@@ -822,7 +552,6 @@ function UsersPage() {
                       current ? { ...current, name: event.target.value } : current,
                     )
                   }
-                  autoComplete="name"
                   required
                 />
               </div>
@@ -837,7 +566,6 @@ function UsersPage() {
                       current ? { ...current, email: event.target.value } : current,
                     )
                   }
-                  autoComplete="email"
                   required
                 />
               </div>
@@ -857,7 +585,6 @@ function UsersPage() {
                     className="pl-9"
                     minLength={8}
                     placeholder="Deixe em branco para manter"
-                    autoComplete="new-password"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -881,6 +608,7 @@ function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !deletingUser && setDeleteTarget(null)}

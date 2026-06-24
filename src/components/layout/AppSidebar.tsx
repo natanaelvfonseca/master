@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bot,
   BookOpenCheck,
+  Building2,
   ClipboardList,
   GraduationCap,
   History,
@@ -38,6 +39,7 @@ import { useAuth } from "@/lib/auth";
 import {
   canAccessSystemFeedback,
   canManageBrandPlen,
+  canManageUnits,
   canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
@@ -137,7 +139,10 @@ export function AppSidebar() {
     .filter(
       (group) =>
         (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
-        (group.label !== "Gestão" || canViewManagementArea || canSeeMetaAds || canViewSystemFeedback),
+        (group.label !== "Gestão" ||
+          canViewManagementArea ||
+          canSeeMetaAds ||
+          canViewSystemFeedback),
     )
     .map((group) => ({
       ...group,
@@ -174,7 +179,12 @@ export function AppSidebar() {
         ...roleVisibleGroups,
         {
           label: "Administração",
-          items: [{ title: "Usuários e unidades", url: "/usuarios", icon: UserCog }],
+          items: [
+            { title: "Usuários", url: "/usuarios", icon: UserCog },
+            ...(user && canManageUnits(user.role)
+              ? [{ title: "Unidades", url: "/unidades", icon: Building2 }]
+              : []),
+          ],
         },
       ]
     : roleVisibleGroups;
