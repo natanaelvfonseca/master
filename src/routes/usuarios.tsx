@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { KeyRound, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,7 @@ function UsersPage() {
   const [deletingUser, setDeletingUser] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
   const [editForm, setEditForm] = React.useState<EditForm | null>(null);
+  const [search, setSearch] = React.useState("");
   const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
     () => (userRole ? getAssignableRoles(userRole) : []),
@@ -285,6 +286,25 @@ function UsersPage() {
     }
   }
 
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredUsers = normalizedSearch
+    ? users.filter((user) => {
+        const searchableText = [
+          user.name,
+          user.email,
+          user.unitName,
+          ROLE_LABELS[user.role],
+          user.role,
+          user.status === "active" ? "ativo" : "inativo",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedSearch);
+      })
+    : users;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -305,7 +325,7 @@ function UsersPage() {
       />
 
       <Card className="overflow-hidden shadow-card">
-        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 bg-muted/20">
+        <CardHeader className="flex flex-col gap-3 border-b border-border/70 bg-muted/20 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-gold text-gold-foreground">
               <Users className="h-4 w-4" />
@@ -313,9 +333,23 @@ function UsersPage() {
             <div>
               <CardTitle className="text-base">Usuários da unidade</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                {loading ? "Atualizando lista..." : `${users.length} usuário(s) ativo(s)`}
+                {loading
+                  ? "Atualizando lista..."
+                  : normalizedSearch
+                    ? `${filteredUsers.length} de ${users.length} usuário(s)`
+                    : `${users.length} usuário(s) ativo(s)`}
               </p>
             </div>
+          </div>
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar usuário..."
+              className="h-9 pl-9 text-sm"
+              aria-label="Buscar usuário"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -336,8 +370,8 @@ function UsersPage() {
                     Carregando usuários...
                   </TableCell>
                 </TableRow>
-              ) : users.length ? (
-                users.map((user) => (
+              ) : filteredUsers.length ? (
+                filteredUsers.map((user) => (
                   <TableRow key={user.id} className="group h-[68px]">
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
@@ -405,9 +439,15 @@ function UsersPage() {
                   <TableCell colSpan={5} className="h-32 text-center">
                     <div className="mx-auto max-w-sm text-muted-foreground">
                       <Users className="mx-auto mb-3 h-6 w-6 opacity-50" />
-                      <p className="font-medium text-foreground">Nenhum usuário nesta unidade</p>
+                      <p className="font-medium text-foreground">
+                        {normalizedSearch
+                          ? "Nenhum usuário encontrado"
+                          : "Nenhum usuário nesta unidade"}
+                      </p>
                       <p className="mt-1 text-sm">
-                        Use o botão acima para fazer o primeiro cadastro.
+                        {normalizedSearch
+                          ? "Tente buscar por outro nome, email, função ou unidade."
+                          : "Use o botão acima para fazer o primeiro cadastro."}
                       </p>
                     </div>
                   </TableCell>
