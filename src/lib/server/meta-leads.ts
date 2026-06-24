@@ -24,6 +24,7 @@ export type MetaFieldMapping = {
   target:
     | "fullName"
     | "phone"
+    | "phone2"
     | "email"
     | "city"
     | "courseName"
@@ -398,9 +399,11 @@ export function encryptPageToken(token: string) {
   const encrypted = Buffer.concat([cipher.update(token.trim(), "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
 
-  return [iv.toString("base64url"), tag.toString("base64url"), encrypted.toString("base64url")].join(
-    ".",
-  );
+  return [
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    encrypted.toString("base64url"),
+  ].join(".");
 }
 
 export function decryptPageToken(encrypted: string | null) {
@@ -413,7 +416,11 @@ export function decryptPageToken(encrypted: string | null) {
     return "";
   }
 
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivRaw, "base64url"));
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    encryptionKey(),
+    Buffer.from(ivRaw, "base64url"),
+  );
   decipher.setAuthTag(Buffer.from(tagRaw, "base64url"));
 
   return Buffer.concat([
@@ -532,6 +539,48 @@ function phoneFieldValue(fields: Record<string, string>) {
   return valueLikePhone ?? "";
 }
 
+function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) {
+  const primaryDigits = primaryPhone.replace(/\D+/g, "");
+  const isDifferentPhone = (value: string) => {
+    const digits = value.replace(/\D+/g, "");
+    return Boolean(value) && (!primaryDigits || digits !== primaryDigits);
+  };
+  const explicitValue = firstField(fields, [
+    "phone_2",
+    "phone2",
+    "telefone_2",
+    "telefone2",
+    "segundo_telefone",
+    "segundo_numero",
+    "telefone_secundario",
+    "telefone_alternativo",
+    "outro_telefone",
+    "celular_2",
+    "celular2",
+    "whatsapp_2",
+    "whatsapp2",
+    "whats_2",
+    "contato_2",
+  ]);
+
+  if (explicitValue && isDifferentPhone(explicitValue)) {
+    return explicitValue;
+  }
+
+  const phoneLikeEntry = Object.entries(fields).find(([fieldName, value]) => {
+    const normalizedName = normalizeMetaFieldName(fieldName);
+    const digits = value.replace(/\D+/g, "");
+
+    return (
+      digits.length >= 8 &&
+      isDifferentPhone(value) &&
+      /phone|fone|telefone|tel|celular|whats|zap|contato|ddd/.test(normalizedName)
+    );
+  });
+
+  return phoneLikeEntry?.[1] ?? "";
+}
+
 function transformValue(value: string, transform: MetaFieldMapping["transform"]) {
   if (transform === "lowercase") {
     return value.toLowerCase();
@@ -561,10 +610,7 @@ function firstField(fields: Record<string, string>, names: Array<string>) {
 }
 
 function formatMetaObservationLabel(value: string) {
-  const label = value
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const label = value.replace(/_/g, " ").replace(/\s+/g, " ").trim();
 
   return label ? label.charAt(0).toUpperCase() + label.slice(1) : value;
 }
@@ -578,16 +624,29 @@ function shouldHideMetaObservationField(fieldName: string, mappedRuleSources: Se
     "nome",
     "name",
     "phone_number",
+    "phone_2",
+    "phone2",
     "numero_de_telefone",
     "numero_telefone",
+    "segundo_telefone",
+    "telefone_2",
+    "telefone2",
     "telefone_celular",
     "telefone_com_ddd",
     "telefone_para_contato",
+    "telefone_secundario",
+    "telefone_alternativo",
+    "outro_telefone",
     "telefone",
     "celular",
+    "celular_2",
+    "celular2",
     "phone",
     "whatsapp",
+    "whatsapp_2",
+    "whatsapp2",
     "whats",
+    "whats_2",
     "email",
     "e_mail",
     "city",
@@ -626,6 +685,7 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
   const mapped = {
     fullName: "",
     phone: "",
+    phone2: "",
     email: "",
     city: "",
     courseName: "",
@@ -650,6 +710,7 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
       "name",
     ]);
     mapped.phone = phoneFieldValue(sourceFields);
+    mapped.phone2 = phone2FieldValue(sourceFields, mapped.phone);
     mapped.email = firstField(sourceFields, ["email", "e-mail"]);
     mapped.city = firstField(sourceFields, ["city", "cidade", "qual_sua_cidade"]);
     mapped.courseName = firstField(sourceFields, [
@@ -673,6 +734,8 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
       ]);
     } else if (!rawValue && rule.target === "phone") {
       rawValue = phoneFieldValue(sourceFields);
+    } else if (!rawValue && rule.target === "phone2") {
+      rawValue = phone2FieldValue(sourceFields, mapped.phone || phoneFieldValue(sourceFields));
     } else if (!rawValue && rule.target === "email") {
       rawValue = firstField(sourceFields, ["email", "e_mail"]);
     }
@@ -684,12 +747,19 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
     }
 
     if (rule.target === "observations") {
-      mapped.observations = [mapped.observations, `${formatMetaObservationLabel(rule.source)}: ${value}`]
+      mapped.observations = [
+        mapped.observations,
+        `${formatMetaObservationLabel(rule.source)}: ${value}`,
+      ]
         .filter(Boolean)
         .join("\n");
     } else {
       mapped[rule.target] = value;
     }
+  }
+
+  if (!mapped.phone2) {
+    mapped.phone2 = phone2FieldValue(sourceFields, mapped.phone || phoneFieldValue(sourceFields));
   }
 
   if (!mapped.observations) {
@@ -810,7 +880,11 @@ function leadPayloadFromWebhookValue(
   };
 }
 
-export function verifyMetaSignature(rawBody: string, signature: string | null, appSecret: string | null) {
+export function verifyMetaSignature(
+  rawBody: string,
+  signature: string | null,
+  appSecret: string | null,
+) {
   if (!appSecret) {
     return true;
   }
@@ -1047,9 +1121,12 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
       ? JSON.parse(input.fieldMapping || "[]")
       : (input.fieldMapping ?? []);
   const settings =
-    typeof input.settings === "string" ? JSON.parse(input.settings || "{}") : (input.settings ?? {});
+    typeof input.settings === "string"
+      ? JSON.parse(input.settings || "{}")
+      : (input.settings ?? {});
   const initialStage =
-    typeof input.initialStage === "string" && allowedStages.includes(input.initialStage as LeadStage)
+    typeof input.initialStage === "string" &&
+    allowedStages.includes(input.initialStage as LeadStage)
       ? input.initialStage
       : "Novo lead";
 
@@ -1209,7 +1286,9 @@ export async function syncFormsForPage(pageDbId: string) {
     access_token: token,
     fields: "id,name,status,created_time",
   });
-  const response = await fetch(`https://graph.facebook.com/${version}/${page.page_id}/leadgen_forms?${params}`);
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${page.page_id}/leadgen_forms?${params}`,
+  );
   const data = (await response.json().catch(() => ({}))) as {
     data?: Array<{ id?: string; name?: string; created_time?: string }>;
     error?: { message?: string };
@@ -1273,7 +1352,11 @@ export async function validateMetaPageToken(pageDbId: string) {
           updated_at = now()
       where id = $1
     `,
-    [page.id, valid ? "valid" : "invalid", valid ? null : data.error?.message ?? "Token inválido."],
+    [
+      page.id,
+      valid ? "valid" : "invalid",
+      valid ? null : (data.error?.message ?? "Token inválido."),
+    ],
   );
 
   return { valid };
@@ -1298,14 +1381,20 @@ export async function subscribeMetaPage(pageDbId: string) {
 
   const token = decryptPageToken(page.page_access_token_encrypted);
   const version = integration.graph_api_version || "v23.0";
-  const response = await fetch(`https://graph.facebook.com/${version}/${page.page_id}/subscribed_apps`, {
-    method: "POST",
-    body: new URLSearchParams({
-      subscribed_fields: "leadgen",
-      access_token: token,
-    }),
-  });
-  const data = (await response.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${page.page_id}/subscribed_apps`,
+    {
+      method: "POST",
+      body: new URLSearchParams({
+        subscribed_fields: "leadgen",
+        access_token: token,
+      }),
+    },
+  );
+  const data = (await response.json().catch(() => ({}))) as {
+    success?: boolean;
+    error?: { message?: string };
+  };
   const subscribed = response.ok && data.success !== false;
 
   await queryDb(
@@ -1316,7 +1405,11 @@ export async function subscribeMetaPage(pageDbId: string) {
           updated_at = now()
       where id = $1
     `,
-    [page.id, subscribed ? "subscribed" : "error", subscribed ? null : data.error?.message ?? "Falha na inscrição."],
+    [
+      page.id,
+      subscribed ? "subscribed" : "error",
+      subscribed ? null : (data.error?.message ?? "Falha na inscrição."),
+    ],
   );
 
   return { subscribed };
@@ -1414,7 +1507,11 @@ async function getFormForProcessing(client: PoolClient, pageId: string, formId: 
   return result.rows[0] ?? null;
 }
 
-async function getCourseSnapshot(client: PoolClient, courseId: string | null, unitId: string | null) {
+async function getCourseSnapshot(
+  client: PoolClient,
+  courseId: string | null,
+  unitId: string | null,
+) {
   if (!courseId || !unitId) {
     return null;
   }
@@ -1452,7 +1549,11 @@ async function getCourseByName(client: PoolClient, courseName: string, unitId: s
   return result.rows[0] ?? null;
 }
 
-async function getChannelSnapshot(client: PoolClient, channelId: string | null, unitId: string | null) {
+async function getChannelSnapshot(
+  client: PoolClient,
+  channelId: string | null,
+  unitId: string | null,
+) {
   if (!channelId || !unitId) {
     return null;
   }
@@ -1470,7 +1571,11 @@ async function getChannelSnapshot(client: PoolClient, channelId: string | null, 
   return result.rows[0] ?? null;
 }
 
-async function getChannelByName(client: PoolClient, channelName: string | null, unitId: string | null) {
+async function getChannelByName(
+  client: PoolClient,
+  channelName: string | null,
+  unitId: string | null,
+) {
   if (!channelName || !unitId) {
     return null;
   }
@@ -1598,9 +1703,10 @@ async function processEventById(eventId: string) {
     }
 
     if (event.lead_id && event.status === "processed") {
-      await client.query(`update app_meta_lead_events set status = 'duplicate', updated_at = now() where id = $1`, [
-        event.id,
-      ]);
+      await client.query(
+        `update app_meta_lead_events set status = 'duplicate', updated_at = now() where id = $1`,
+        [event.id],
+      );
       return { status: "duplicate", leadId: event.lead_id };
     }
 
@@ -1659,13 +1765,9 @@ async function processEventById(eventId: string) {
       attendance && !resolvedAttendance ? attendanceAssignment?.reason : campaignRouting.error;
     const targetUnitId = resolvedAttendance?.unit_id ?? form.unit_id;
     const course = resolvedAttendance
-      ? await getCourseSnapshot(
-          client,
-          resolvedAttendance.course_id,
-          resolvedAttendance.unit_id,
-        )
-      : (await getCourseSnapshot(client, form.course_id, form.unit_id)) ??
-        (await getCourseByName(client, mapped.courseName, form.unit_id));
+      ? await getCourseSnapshot(client, resolvedAttendance.course_id, resolvedAttendance.unit_id)
+      : ((await getCourseSnapshot(client, form.course_id, form.unit_id)) ??
+        (await getCourseByName(client, mapped.courseName, form.unit_id)));
     const channel =
       (await getChannelSnapshot(client, form.acquisition_channel_id, targetUnitId)) ??
       (resolvedAttendance
@@ -1679,12 +1781,14 @@ async function processEventById(eventId: string) {
     const leadCity = resolvedAttendance?.city ?? mapped.city;
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
     const leadPhone = mapped.phone || "";
+    const leadPhone2 = mapped.phone2 || "";
     const leadResult = await client.query<{ id: string }>(
       `
         insert into app_leads (
           unit_id,
           full_name,
           phone,
+          phone2,
           email,
           city,
           course_id,
@@ -1696,13 +1800,14 @@ async function processEventById(eventId: string) {
           stage,
           created_by
         )
-        values ($1, $2, $3, nullif($4, ''), nullif($5, ''), $6, $7, $8, $9, $10, nullif($11, ''), $12, $13)
+        values ($1, $2, $3, nullif($4, ''), nullif($5, ''), nullif($6, ''), $7, $8, $9, $10, $11, nullif($12, ''), $13, $14)
         returning id
       `,
       [
         targetUnitId,
         leadFullName,
         leadPhone,
+        leadPhone2,
         mapped.email,
         leadCity,
         course?.id ?? null,
@@ -1710,17 +1815,19 @@ async function processEventById(eventId: string) {
         course ? Number(course.value) : null,
         channel?.id ?? null,
         channel?.name ?? null,
-        cleanMetaLeadObservations([
-          mapped.observations,
-          event.ad_name ? `Anúncio: ${event.ad_name}` : "",
-          resolvedAttendance
-            ? `Roteamento: ${resolvedAttendance.course_name} - ${resolvedAttendance.city}-${resolvedAttendance.state}`
-            : routingError
-              ? `Roteamento padrão: ${routingError}`
-              : "",
-        ]
-          .filter(Boolean)
-          .join("\n")),
+        cleanMetaLeadObservations(
+          [
+            mapped.observations,
+            event.ad_name ? `Anúncio: ${event.ad_name}` : "",
+            resolvedAttendance
+              ? `Roteamento: ${resolvedAttendance.course_name} - ${resolvedAttendance.city}-${resolvedAttendance.state}`
+              : routingError
+                ? `Roteamento padrão: ${routingError}`
+                : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        ),
         form.initial_stage,
         assignment.userId,
       ],
@@ -1752,7 +1859,13 @@ async function processEventById(eventId: string) {
         event.page_id,
         form.id,
         assignment.reason,
-        JSON.stringify({ ...mapped, fullName: leadFullName, phone: leadPhone, city: leadCity }),
+        JSON.stringify({
+          ...mapped,
+          fullName: leadFullName,
+          phone: leadPhone,
+          phone2: leadPhone2,
+          city: leadCity,
+        }),
         resolvedAttendance?.id ?? null,
         assignment.userId,
         routingSource,
@@ -1953,9 +2066,10 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
   const event = eventResult.rows[0];
 
   if (event.lead_id || event.status === "processed") {
-    await queryDb(`update app_meta_lead_events set status = 'duplicate', updated_at = now() where id = $1`, [
-      event.id,
-    ]);
+    await queryDb(
+      `update app_meta_lead_events set status = 'duplicate', updated_at = now() where id = $1`,
+      [event.id],
+    );
     return { ok: true, status: 200, result: "duplicate" };
   }
 

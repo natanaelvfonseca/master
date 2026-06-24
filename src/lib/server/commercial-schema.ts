@@ -74,6 +74,7 @@ export async function ensureCommercialSchema() {
       unit_id uuid not null references app_units(id) on delete cascade,
       full_name text not null,
       phone text not null,
+      phone2 text,
       email text,
       course_id uuid references app_courses(id) on delete set null,
       course_name_snapshot text,
@@ -109,6 +110,7 @@ export async function ensureCommercialSchema() {
     );
 
     alter table app_leads add column if not exists city text;
+    alter table app_leads add column if not exists phone2 text;
     alter table app_leads add column if not exists first_contact_at timestamptz;
     alter table app_leads add column if not exists follow_up_count integer not null default 0 check (follow_up_count >= 0);
     alter table app_leads add column if not exists last_follow_up_at timestamptz;

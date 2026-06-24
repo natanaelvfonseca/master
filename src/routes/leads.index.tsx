@@ -94,6 +94,7 @@ function LeadsList() {
     const searchText = [
       lead.fullName,
       lead.phone,
+      lead.phone2,
       lead.email,
       lead.city,
       lead.courseName,
@@ -178,6 +179,9 @@ function LeadsList() {
                   <TableCell>
                     <div className="font-medium">{lead.fullName}</div>
                     <div className="text-xs text-muted-foreground">{lead.phone}</div>
+                    {lead.phone2 ? (
+                      <div className="text-xs text-muted-foreground">Telefone 2: {lead.phone2}</div>
+                    ) : null}
                   </TableCell>
                   <TableCell>{lead.courseName ?? "--"}</TableCell>
                   <TableCell>{lead.city ?? "--"}</TableCell>

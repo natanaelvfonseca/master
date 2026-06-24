@@ -55,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 type LeadFormState = {
   fullName: string;
   phone: string;
+  phone2: string;
   email: string;
   city: string;
   courseId: string;
@@ -166,6 +167,7 @@ function emptyLeadForm(unitId = ""): LeadFormState {
   return {
     fullName: "",
     phone: "",
+    phone2: "",
     email: "",
     city: "",
     courseId: "",
@@ -188,6 +190,7 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
   return {
     fullName: lead.fullName,
     phone: lead.phone,
+    phone2: lead.phone2 ?? "",
     email: lead.email ?? "",
     city: lead.city ?? "",
     courseId: lead.courseId ?? "",
@@ -596,6 +599,7 @@ function CRM() {
                   ...item,
                   fullName: payload.fullName,
                   phone: payload.phone,
+                  phone2: payload.phone2 || null,
                   email: payload.email || null,
                   city: payload.city || null,
                   courseId: payload.courseId || null,
@@ -1215,6 +1219,12 @@ function LeadPipelineCard({
             <Phone className="h-3.5 w-3.5" />
             <span className="truncate">{lead.phone}</span>
           </div>
+          {lead.phone2 ? (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" />
+              <span className="truncate">Telefone 2: {lead.phone2}</span>
+            </div>
+          ) : null}
           {lead.email ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
@@ -1599,6 +1609,18 @@ function CreateLeadDialog({
                 }
                 placeholder="(00) 00000-0000"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lead-phone-2">Telefone 2</Label>
+              <Input
+                id="lead-phone-2"
+                value={form.phone2}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, phone2: event.target.value }))
+                }
+                placeholder="Contato adicional"
               />
             </div>
 

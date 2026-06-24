@@ -196,6 +196,7 @@ const defaultMapping = JSON.stringify(
   [
     { source: "full_name", target: "fullName", required: false, transform: "none" },
     { source: "phone_number", target: "phone", required: false, transform: "phone_digits" },
+    { source: "phone_2", target: "phone2", required: false, transform: "phone_digits" },
     { source: "email", target: "email", required: false, transform: "lowercase" },
     { source: "qual_sua_cidade", target: "city", required: false, transform: "none" },
     { source: "qual_curso_voce_deseja", target: "courseName", required: false, transform: "none" },
@@ -294,7 +295,8 @@ function MetaAdsPage() {
 
   const canAccess = session ? canViewMetaAds(session.user.role) : false;
   const canManage = session ? canManageMetaAds(session.user.role) : false;
-  const pendingEvents = state?.events.filter((event) => event.status === "pending_configuration") ?? [];
+  const pendingEvents =
+    state?.events.filter((event) => event.status === "pending_configuration") ?? [];
   const configuredForms =
     state?.forms.filter((form) => form.status === "active" && form.unit_id).length ?? 0;
   const activeForms = state?.forms.filter((form) => form.status === "active").length ?? 0;
@@ -393,7 +395,8 @@ function MetaAdsPage() {
         status: form.status,
       });
     } else {
-      const page = state?.pages.find((item) => item.page_id === fromEvent?.page_id) ?? state?.pages[0];
+      const page =
+        state?.pages.find((item) => item.page_id === fromEvent?.page_id) ?? state?.pages[0];
       setFormConfig({
         ...emptyFormConfig(page?.id ?? ""),
         formName: fromEvent?.form_id ? `Formulário ${fromEvent.form_id}` : "",
@@ -417,8 +420,10 @@ function MetaAdsPage() {
   }
 
   const pageOptions = state?.pages ?? [];
-  const unitCourses = state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
-  const unitChannels = state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
+  const unitCourses =
+    state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
+  const unitChannels =
+    state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
   return (
     <div className="space-y-6">
       <PageHeader
@@ -444,7 +449,12 @@ function MetaAdsPage() {
         <MetricCard icon={RadioTower} label="Páginas" value={state?.pages.length ?? 0} />
         <MetricCard icon={FormInput} label="Formulários ativos" value={activeForms} />
         <MetricCard icon={RouteIcon} label="Configurados" value={configuredForms} />
-        <MetricCard icon={AlertTriangle} label="Pendentes" value={pendingEvents.length} tone="gold" />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Pendentes"
+          value={pendingEvents.length}
+          tone="gold"
+        />
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
@@ -472,7 +482,10 @@ function MetaAdsPage() {
                   readOnly={!canManage}
                   onReprocess={(event) => {
                     setBusyAction(event.id);
-                    void postAction({ action: "reprocessEvent", eventId: event.id }, "Evento reprocessado.");
+                    void postAction(
+                      { action: "reprocessEvent", eventId: event.id },
+                      "Evento reprocessado.",
+                    );
                   }}
                   onConfigure={(event) => openFormDialog(undefined, event)}
                   busyAction={busyAction}
@@ -484,14 +497,23 @@ function MetaAdsPage() {
                 <CardTitle className="text-base">Operação</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <SummaryLine label="Eventos recebidos" value={state?.integration.total_events_received ?? 0} />
-                <SummaryLine label="Leads criados" value={state?.integration.total_leads_created ?? 0} />
+                <SummaryLine
+                  label="Eventos recebidos"
+                  value={state?.integration.total_events_received ?? 0}
+                />
+                <SummaryLine
+                  label="Leads criados"
+                  value={state?.integration.total_leads_created ?? 0}
+                />
                 <SummaryLine label="Erros" value={state?.integration.total_errors ?? 0} />
                 <SummaryLine
                   label="Última comunicação"
                   value={formatDate(state?.integration.last_communication_at ?? null)}
                 />
-                <SummaryLine label="Callback" value={state?.integration.callback_url ?? "/api/webhooks/meta-leads"} />
+                <SummaryLine
+                  label="Callback"
+                  value={state?.integration.callback_url ?? "/api/webhooks/meta-leads"}
+                />
               </CardContent>
             </Card>
           </div>
@@ -532,8 +554,12 @@ function MetaAdsPage() {
                         <TableCell className="font-semibold">{page.page_name}</TableCell>
                         <TableCell>{page.page_id}</TableCell>
                         <TableCell>
-                          <Badge className={statusClass(page.token_status)}>{page.token_status}</Badge>
-                          <div className="mt-1 text-xs text-muted-foreground">{page.tokenMasked ?? "--"}</div>
+                          <Badge className={statusClass(page.token_status)}>
+                            {page.token_status}
+                          </Badge>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {page.tokenMasked ?? "--"}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge className={statusClass(page.subscription_status)}>
@@ -638,7 +664,10 @@ function MetaAdsPage() {
                 readOnly={!canManage}
                 onReprocess={(event) => {
                   setBusyAction(event.id);
-                  void postAction({ action: "reprocessEvent", eventId: event.id }, "Evento reprocessado.");
+                  void postAction(
+                    { action: "reprocessEvent", eventId: event.id },
+                    "Evento reprocessado.",
+                  );
                 }}
                 onConfigure={(event) => openFormDialog(undefined, event)}
                 busyAction={busyAction}
@@ -740,7 +769,11 @@ function MetaAdsPage() {
                 </Field>
                 <div className="md:col-span-2">
                   <Button type="submit" className="bg-gradient-primary" disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Settings2 className="h-4 w-4" />
+                    )}
                     Salvar configuração
                   </Button>
                 </div>
@@ -781,16 +814,20 @@ function MetaAdsPage() {
         <DialogContent className="border-primary/20 bg-card shadow-elegant">
           <DialogHeader>
             <DialogTitle>Duplicar configuração</DialogTitle>
-            <DialogDescription>
-              Copia destino e mapeamento para um novo Form ID.
-            </DialogDescription>
+            <DialogDescription>Copia destino e mapeamento para um novo Form ID.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Field label="Novo Form ID">
-              <Input value={duplicateFormId} onChange={(event) => setDuplicateFormId(event.target.value)} />
+              <Input
+                value={duplicateFormId}
+                onChange={(event) => setDuplicateFormId(event.target.value)}
+              />
             </Field>
             <Field label="Nome">
-              <Input value={duplicateName} onChange={(event) => setDuplicateName(event.target.value)} />
+              <Input
+                value={duplicateName}
+                onChange={(event) => setDuplicateName(event.target.value)}
+              />
             </Field>
           </div>
           <DialogFooter>
@@ -890,7 +927,14 @@ function IconAction({
   onClick: () => void;
 }) {
   return (
-    <Button type="button" size="icon" variant="ghost" onClick={onClick} aria-label={label} title={label}>
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
     </Button>
   );
@@ -933,7 +977,9 @@ function FormsTable({
             <TableCell>{form.initial_stage}</TableCell>
             <TableCell>{form.leads_received_count}</TableCell>
             <TableCell>
-              <Badge className={statusClass(form.status)}>{form.status === "active" ? "Ativo" : "Inativo"}</Badge>
+              <Badge className={statusClass(form.status)}>
+                {form.status === "active" ? "Ativo" : "Inativo"}
+              </Badge>
             </TableCell>
             <TableCell>
               <div className="flex justify-end gap-1.5">
@@ -1007,17 +1053,22 @@ function EventTable({
             <TableCell>
               {!readOnly ? (
                 <div className="flex justify-end gap-1.5">
-                {event.status === "pending_configuration" ? (
-                  <Button type="button" size="sm" variant="outline" onClick={() => onConfigure(event)}>
-                    Configurar formulário
-                  </Button>
-                ) : null}
-                <IconAction
-                  label="Reprocessar"
-                  icon={RefreshCw}
-                  loading={busyAction === event.id}
-                  onClick={() => onReprocess(event)}
-                />
+                  {event.status === "pending_configuration" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onConfigure(event)}
+                    >
+                      Configurar formulário
+                    </Button>
+                  ) : null}
+                  <IconAction
+                    label="Reprocessar"
+                    icon={RefreshCw}
+                    loading={busyAction === event.id}
+                    onClick={() => onReprocess(event)}
+                  />
                 </div>
               ) : null}
             </TableCell>
@@ -1049,21 +1100,48 @@ function PageDialog({
         <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Conectar Página</DialogTitle>
-            <DialogDescription>O token é criptografado no banco e exibido apenas mascarado.</DialogDescription>
+            <DialogDescription>
+              O token é criptografado no banco e exibido apenas mascarado.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-5">
             <Field label="Nome da Página">
-              <Input value={form.pageName} onChange={(event) => onFormChange((current) => ({ ...current, pageName: event.target.value }))} required />
+              <Input
+                value={form.pageName}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, pageName: event.target.value }))
+                }
+                required
+              />
             </Field>
             <Field label="Page ID">
-              <Input value={form.pageId} onChange={(event) => onFormChange((current) => ({ ...current, pageId: event.target.value }))} required />
+              <Input
+                value={form.pageId}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, pageId: event.target.value }))
+                }
+                required
+              />
             </Field>
             <Field label="Page Access Token">
-              <Input type="password" value={form.pageAccessToken} onChange={(event) => onFormChange((current) => ({ ...current, pageAccessToken: event.target.value }))} />
+              <Input
+                type="password"
+                value={form.pageAccessToken}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, pageAccessToken: event.target.value }))
+                }
+              />
             </Field>
             <Field label="Status">
-              <Select value={form.status} onValueChange={(value) => onFormChange((current) => ({ ...current, status: value as PageForm["status"] }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.status}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({ ...current, status: value as PageForm["status"] }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Ativa</SelectItem>
                   <SelectItem value="inactive">Inativa</SelectItem>
@@ -1072,8 +1150,12 @@ function PageDialog({
             </Field>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" className="bg-gradient-primary" disabled={saving}>Salvar Página</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="bg-gradient-primary" disabled={saving}>
+              Salvar Página
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1110,67 +1192,165 @@ function FormDialog({
         <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle>Configurar formulário</DialogTitle>
-            <DialogDescription>Destino e mapeamento ficam isolados por Page ID + Form ID.</DialogDescription>
+            <DialogDescription>
+              Destino e mapeamento ficam isolados por Page ID + Form ID.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-5 md:grid-cols-2">
             <Field label="Página">
-              <Select value={form.pageDbId} onValueChange={(value) => onFormChange((current) => ({ ...current, pageDbId: value }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <Select
+                value={form.pageDbId}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({ ...current, pageDbId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
                 <SelectContent>
-                  {pages.map((page) => <SelectItem key={page.id} value={page.id}>{page.page_name}</SelectItem>)}
+                  {pages.map((page) => (
+                    <SelectItem key={page.id} value={page.id}>
+                      {page.page_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Form ID">
-              <Input value={form.metaFormId} onChange={(event) => onFormChange((current) => ({ ...current, metaFormId: event.target.value }))} required />
+              <Input
+                value={form.metaFormId}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, metaFormId: event.target.value }))
+                }
+                required
+              />
             </Field>
             <Field label="Nome">
-              <Input value={form.formName} onChange={(event) => onFormChange((current) => ({ ...current, formName: event.target.value }))} required />
+              <Input
+                value={form.formName}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, formName: event.target.value }))
+                }
+                required
+              />
             </Field>
             <Field label="Unidade de fallback">
-              <Select value={form.unitId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, unitId: value === NO_SELECTION ? "" : value, courseId: "", acquisitionChannelId: "" }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.unitId || NO_SELECTION}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    unitId: value === NO_SELECTION ? "" : value,
+                    courseId: "",
+                    acquisitionChannelId: "",
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_SELECTION}>Pendente</SelectItem>
-                  {units.map((unit) => <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>)}
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Curso de fallback">
-              <Select value={form.courseId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, courseId: value === NO_SELECTION ? "" : value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.courseId || NO_SELECTION}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    courseId: value === NO_SELECTION ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_SELECTION}>Curso do formulário ou sem curso</SelectItem>
-                  {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Canal de aquisição">
-              <Select value={form.acquisitionChannelId || NO_SELECTION} onValueChange={(value) => onFormChange((current) => ({ ...current, acquisitionChannelId: value === NO_SELECTION ? "" : value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.acquisitionChannelId || NO_SELECTION}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    acquisitionChannelId: value === NO_SELECTION ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_SELECTION}>Sem canal</SelectItem>
-                  {channels.map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.name}</SelectItem>)}
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Funil">
-              <Input value={form.funnelName} onChange={(event) => onFormChange((current) => ({ ...current, funnelName: event.target.value }))} />
+              <Input
+                value={form.funnelName}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, funnelName: event.target.value }))
+                }
+              />
             </Field>
             <Field label="Etapa inicial">
-              <Select value={form.initialStage} onValueChange={(value) => onFormChange((current) => ({ ...current, initialStage: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.initialStage}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({ ...current, initialStage: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {stages.map((stage) => <SelectItem key={stage} value={stage}>{stage}</SelectItem>)}
+                  {stages.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Mapeamento de campos opcional">
-              <Textarea className="min-h-56 font-mono text-xs" value={form.fieldMapping} onChange={(event) => onFormChange((current) => ({ ...current, fieldMapping: event.target.value }))} />
+              <Textarea
+                className="min-h-56 font-mono text-xs"
+                value={form.fieldMapping}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, fieldMapping: event.target.value }))
+                }
+              />
             </Field>
             <Field label="Status">
-              <Select value={form.status} onValueChange={(value) => onFormChange((current) => ({ ...current, status: value as FormConfig["status"] }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.status}
+                onValueChange={(value) =>
+                  onFormChange((current) => ({ ...current, status: value as FormConfig["status"] }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Ativo</SelectItem>
                   <SelectItem value="inactive">Inativo</SelectItem>
@@ -1179,8 +1359,12 @@ function FormDialog({
             </Field>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" className="bg-gradient-primary" disabled={saving}>Salvar formulário</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="bg-gradient-primary" disabled={saving}>
+              Salvar formulário
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

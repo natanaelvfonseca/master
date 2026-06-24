@@ -17,6 +17,7 @@ type LeadRow = QueryResultRow & {
   unit_name: string;
   full_name: string;
   phone: string;
+  phone2: string | null;
   email: string | null;
   city: string | null;
   course_id: string | null;
@@ -49,6 +50,7 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     unitName: row.unit_name,
     fullName: row.full_name,
     phone: row.phone,
+    phone2: row.phone2,
     email: row.email,
     city: row.city,
     courseId: row.course_id,
@@ -68,6 +70,7 @@ function parseLeadPayload(body: unknown) {
   const data = body as {
     fullName?: unknown;
     phone?: unknown;
+    phone2?: unknown;
     email?: unknown;
     city?: unknown;
     courseId?: unknown;
@@ -79,6 +82,7 @@ function parseLeadPayload(body: unknown) {
   return {
     fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
     phone: typeof data?.phone === "string" ? data.phone.trim() : "",
+    phone2: typeof data?.phone2 === "string" ? data.phone2.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
     city: typeof data?.city === "string" ? data.city.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
@@ -183,6 +187,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               un.name as unit_name,
               l.full_name,
               l.phone,
+              l.phone2,
               l.email,
               l.city,
               l.course_id,
@@ -222,7 +227,10 @@ export const Route = createFileRoute("/api/crm/leads")({
         }
 
         if (!canOperateCrm(session.user.role)) {
-          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
+          return Response.json(
+            { ok: false, error: "Acesso somente para leitura." },
+            { status: 403 },
+          );
         }
 
         const body = await request.json().catch(() => null);
@@ -268,6 +276,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               unit_id,
               full_name,
               phone,
+              phone2,
               email,
               city,
               course_id,
@@ -278,13 +287,14 @@ export const Route = createFileRoute("/api/crm/leads")({
               observations,
               created_by
             )
-            values ($1, $2, $3, nullif($4, ''), nullif($5, ''), $6, $7, $8, $9, $10, nullif($11, ''), $12)
+            values ($1, $2, $3, nullif($4, ''), nullif($5, ''), nullif($6, ''), $7, $8, $9, $10, $11, nullif($12, ''), $13)
             returning
               id,
               unit_id,
               (select name from app_units where id = $1) as unit_name,
               full_name,
               phone,
+              phone2,
               email,
               city,
               course_id,
@@ -293,7 +303,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               acquisition_channel_id,
               acquisition_channel_name_snapshot,
               created_by,
-              $13::text as created_by_name,
+              $14::text as created_by_name,
               observations,
               stage,
               created_at::text
@@ -302,6 +312,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             unit.id,
             payload.fullName,
             payload.phone,
+            payload.phone2,
             payload.email,
             payload.city,
             course?.id ?? null,

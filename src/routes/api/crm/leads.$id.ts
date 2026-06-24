@@ -16,6 +16,7 @@ type LeadEditableRow = QueryResultRow & {
   created_by: string | null;
   full_name: string;
   phone: string;
+  phone2: string | null;
   email: string | null;
   city: string | null;
   course_id: string | null;
@@ -56,6 +57,7 @@ function parseLeadUpdate(body: unknown) {
   const data = body as {
     fullName?: unknown;
     phone?: unknown;
+    phone2?: unknown;
     email?: unknown;
     city?: unknown;
     courseId?: unknown;
@@ -67,6 +69,7 @@ function parseLeadUpdate(body: unknown) {
   return {
     fullName: typeof data?.fullName === "string" ? data.fullName.trim() : "",
     phone: typeof data?.phone === "string" ? data.phone.trim() : "",
+    phone2: typeof data?.phone2 === "string" ? data.phone2.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
     city: typeof data?.city === "string" ? data.city.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
@@ -179,7 +182,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         }
 
         if (!canOperateCrm(session.user.role)) {
-          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
+          return Response.json(
+            { ok: false, error: "Acesso somente para leitura." },
+            { status: 403 },
+          );
         }
 
         if (!isUuid(params.id)) {
@@ -199,6 +205,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               created_by,
               full_name,
               phone,
+              phone2,
               email,
               city,
               course_id,
@@ -241,6 +248,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         const hasLeadFields =
           payload.fullName ||
           payload.phone ||
+          payload.phone2 !== "" ||
           payload.email !== "" ||
           payload.city !== "" ||
           payload.courseId !== "" ||
@@ -284,41 +292,42 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               set
                 full_name = $2,
                 phone = $3,
-                email = nullif($4, ''),
-                city = nullif($5, ''),
-                course_id = $6,
-                course_name_snapshot = $7,
-                course_value_snapshot = $8,
-                acquisition_channel_id = $9,
-                acquisition_channel_name_snapshot = $10,
-                observations = nullif($11, ''),
-                stage = $12,
+                phone2 = nullif($4, ''),
+                email = nullif($5, ''),
+                city = nullif($6, ''),
+                course_id = $7,
+                course_name_snapshot = $8,
+                course_value_snapshot = $9,
+                acquisition_channel_id = $10,
+                acquisition_channel_name_snapshot = $11,
+                observations = nullif($12, ''),
+                stage = $13,
                 first_contact_at = case
-                  when $12 <> 'Novo lead' then coalesce(first_contact_at, now())
+                  when $13 <> 'Novo lead' then coalesce(first_contact_at, now())
                   else first_contact_at
                 end,
                 last_follow_up_at = case
-                  when $12 <> stage and $12 <> 'Novo lead' then now()
+                  when $13 <> stage and $13 <> 'Novo lead' then now()
                   else last_follow_up_at
                 end,
                 follow_up_count = case
-                  when $12 <> stage and $12 <> 'Novo lead' then follow_up_count + 1
+                  when $13 <> stage and $13 <> 'Novo lead' then follow_up_count + 1
                   else follow_up_count
                 end,
                 converted_at = case
-                  when $12 = 'Matriculado' then coalesce(converted_at, now())
+                  when $13 = 'Matriculado' then coalesce(converted_at, now())
                   else converted_at
                 end,
                 converted_by = case
-                  when $12 = 'Matriculado' then coalesce(converted_by, $13)
+                  when $13 = 'Matriculado' then coalesce(converted_by, $14)
                   else converted_by
                 end,
                 payment_status = case
-                  when $12 = 'Matriculado' then 'paid'
+                  when $13 = 'Matriculado' then 'paid'
                   else payment_status
                 end,
                 payment_confirmed_at = case
-                  when $12 = 'Matriculado' then coalesce(payment_confirmed_at, now())
+                  when $13 = 'Matriculado' then coalesce(payment_confirmed_at, now())
                   else payment_confirmed_at
                 end,
                 updated_at = now()
@@ -328,6 +337,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               params.id,
               payload.fullName,
               payload.phone,
+              payload.phone2,
               payload.email,
               payload.city,
               courseResult.course?.id ?? null,
@@ -409,7 +419,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         }
 
         if (!canOperateCrm(session.user.role)) {
-          return Response.json({ ok: false, error: "Acesso somente para leitura." }, { status: 403 });
+          return Response.json(
+            { ok: false, error: "Acesso somente para leitura." },
+            { status: 403 },
+          );
         }
 
         if (!isUuid(params.id)) {
