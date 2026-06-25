@@ -48,6 +48,10 @@ type LocalConversationRow = QueryResultRow & {
   message_type: AttendanceMessageType | string | null;
 };
 
+type LocalSelfNameRow = QueryResultRow & {
+  contact_name: string;
+};
+
 type LocalMessageRow = QueryResultRow & {
   id: string;
   evolution_message_id: string;
@@ -146,6 +150,10 @@ function phoneFromJid(remoteJid: string) {
   return digitsOnly(remoteJid.split("@")[0]);
 }
 
+function isPhoneRemoteJid(remoteJid: string) {
+  return remoteJid.endsWith("@s.whatsapp.net") || remoteJid.endsWith("@c.us");
+}
+
 function phonesMatch(first: unknown, second: unknown) {
   const firstDigits = digitsOnly(first);
   const secondDigits = digitsOnly(second);
@@ -192,6 +200,34 @@ function formatContactName(remoteJid: string, name?: string | null, phone?: stri
   const cleanPhone = typeof phone === "string" ? digitsOnly(phone) : "";
 
   return cleanName || cleanPhone || phoneFromJid(remoteJid) || remoteJid;
+}
+
+function isPhoneLikeName(value: unknown) {
+  const normalized = normalizeText(value);
+  const digits = digitsOnly(normalized);
+  const onlyPhoneChars = normalized.replace(/[+\d\s().-]/g, "") === "";
+
+  return digits.length >= 10 && onlyPhoneChars;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function timestampsClose(first: string | null, second: string | null) {
+  const firstTime = new Date(first ?? 0).getTime();
+  const secondTime = new Date(second ?? 0).getTime();
+
+  if (!firstTime || !secondTime) {
+    return false;
+  }
+
+  return Math.abs(firstTime - secondTime) <= 120_000;
 }
 
 function toIsoDate(value: unknown): string | null {
@@ -428,12 +464,16 @@ async function fetchLocalConversations(
   userId: string,
   ownPhone?: string | null,
 ) {
-  const result = await queryDb<LocalConversationRow>(
-    `
+  const [result, selfNameResult] = await Promise.all([
+    queryDb<LocalConversationRow>(
+      `
       select
         remote_jid,
         (array_agg(phone order by sent_at desc))[1] as phone,
-        (array_agg(nullif(contact_name, '') order by sent_at desc))[1] as contact_name,
+        coalesce(
+          (array_agg(nullif(contact_name, '') order by sent_at desc) filter (where direction = 'inbound'))[1],
+          (array_agg(nullif(contact_name, '') order by sent_at desc))[1]
+        ) as contact_name,
         (array_agg(content order by sent_at desc))[1] as last_message,
         max(sent_at)::text as last_message_at,
         (array_agg(message_type order by sent_at desc))[1] as message_type
@@ -443,21 +483,46 @@ async function fetchLocalConversations(
         and user_id = $3
       group by remote_jid
     `,
-    [instanceId, unitId, userId],
-  );
+      [instanceId, unitId, userId],
+    ),
+    queryDb<LocalSelfNameRow>(
+      `
+        select contact_name
+        from app_whatsapp_messages
+        where instance_id = $1
+          and unit_id = $2
+          and user_id = $3
+          and direction = 'outbound'
+          and nullif(contact_name, '') is not null
+        group by contact_name
+        having count(distinct remote_jid) > 1
+        order by count(*) desc
+        limit 5
+      `,
+      [instanceId, unitId, userId],
+    ),
+  ]);
+  const selfNames = new Set(selfNameResult.rows.map((row) => normalizeText(row.contact_name)));
 
   return result.rows
     .filter((row) => !isOwnRemoteJid(row.remote_jid, ownPhone))
-    .map<AttendanceConversation>((row) => ({
-      remoteJid: row.remote_jid,
-      phone: row.phone,
-      contactName: formatContactName(row.remote_jid, row.contact_name, row.phone),
-      profilePictureUrl: null,
-      lastMessage: row.last_message || "[Mensagem]",
-      lastMessageAt: row.last_message_at,
-      unreadCount: 0,
-      messageType: normalizeMessageType(row.message_type),
-    }));
+    .map<AttendanceConversation>((row) => {
+      const formattedName = formatContactName(row.remote_jid, row.contact_name, row.phone);
+      const contactName = selfNames.has(normalizeText(formattedName))
+        ? row.phone || phoneFromJid(row.remote_jid)
+        : formattedName;
+
+      return {
+        remoteJid: row.remote_jid,
+        phone: row.phone,
+        contactName,
+        profilePictureUrl: null,
+        lastMessage: row.last_message || "[Mensagem]",
+        lastMessageAt: row.last_message_at,
+        unreadCount: 0,
+        messageType: normalizeMessageType(row.message_type),
+      };
+    });
 }
 
 async function fetchRemoteChats(
@@ -544,6 +609,110 @@ async function fetchRemoteChats(
   };
 }
 
+function conversationTime(value: AttendanceConversation) {
+  return new Date(value.lastMessageAt ?? 0).getTime();
+}
+
+function chooseConversationBase(
+  first: AttendanceConversation,
+  second: AttendanceConversation,
+): AttendanceConversation {
+  if (isPhoneRemoteJid(first.remoteJid) && !isPhoneRemoteJid(second.remoteJid)) {
+    return first;
+  }
+
+  if (isPhoneRemoteJid(second.remoteJid) && !isPhoneRemoteJid(first.remoteJid)) {
+    return second;
+  }
+
+  if (second.profilePictureUrl && !first.profilePictureUrl) {
+    return second;
+  }
+
+  return conversationTime(second) > conversationTime(first) ? second : first;
+}
+
+function mergeConversationData(
+  first: AttendanceConversation,
+  second: AttendanceConversation,
+): AttendanceConversation {
+  const base = chooseConversationBase(first, second);
+  const other = base === first ? second : first;
+  const baseNameLooksLikePhone = isPhoneLikeName(base.contactName);
+  const otherNameLooksLikePhone = isPhoneLikeName(other.contactName);
+  const otherIsNewer = conversationTime(other) > conversationTime(base);
+  const useOtherName =
+    Boolean(other.contactName) &&
+    (!base.contactName ||
+      baseNameLooksLikePhone ||
+      (!otherNameLooksLikePhone && other.contactName.length > base.contactName.length));
+
+  return {
+    ...base,
+    phone:
+      isPhoneRemoteJid(base.remoteJid) || !isPhoneRemoteJid(other.remoteJid)
+        ? base.phone || other.phone
+        : other.phone || base.phone,
+    contactName: useOtherName ? other.contactName : base.contactName,
+    profilePictureUrl: base.profilePictureUrl ?? other.profilePictureUrl,
+    lastMessage: otherIsNewer ? other.lastMessage : base.lastMessage,
+    lastMessageAt: otherIsNewer ? other.lastMessageAt : base.lastMessageAt,
+    messageType: otherIsNewer ? other.messageType : base.messageType,
+    unreadCount: Math.max(base.unreadCount, other.unreadCount),
+  };
+}
+
+function areMirrorConversations(first: AttendanceConversation, second: AttendanceConversation) {
+  if (first.remoteJid === second.remoteJid) {
+    return true;
+  }
+
+  if (
+    phonesMatch(
+      first.phone || phoneFromJid(first.remoteJid),
+      second.phone || phoneFromJid(second.remoteJid),
+    )
+  ) {
+    return true;
+  }
+
+  const hasDifferentJidKind =
+    isPhoneRemoteJid(first.remoteJid) !== isPhoneRemoteJid(second.remoteJid);
+
+  if (!hasDifferentJidKind) {
+    return false;
+  }
+
+  const sameName =
+    Boolean(normalizeText(first.contactName)) &&
+    normalizeText(first.contactName) === normalizeText(second.contactName);
+  const sameLastMessage =
+    Boolean(normalizeText(first.lastMessage)) &&
+    normalizeText(first.lastMessage) === normalizeText(second.lastMessage);
+  const oneNameLooksLikePhone =
+    isPhoneLikeName(first.contactName) || isPhoneLikeName(second.contactName);
+
+  return (
+    (sameName || oneNameLooksLikePhone) &&
+    sameLastMessage &&
+    timestampsClose(first.lastMessageAt, second.lastMessageAt)
+  );
+}
+
+function dedupeMirrorConversations(conversations: Array<AttendanceConversation>) {
+  return conversations.reduce<Array<AttendanceConversation>>((items, conversation) => {
+    const index = items.findIndex((item) => areMirrorConversations(item, conversation));
+
+    if (index === -1) {
+      items.push(conversation);
+      return items;
+    }
+
+    items[index] = mergeConversationData(items[index], conversation);
+    return items;
+  }, []);
+}
+
 function mergeConversations(
   localConversations: Array<AttendanceConversation>,
   remoteConversations: Array<AttendanceConversation>,
@@ -566,22 +735,18 @@ function mergeConversations(
       new Date(conversation.lastMessageAt ?? 0).getTime() >
       new Date(current.lastMessageAt ?? 0).getTime();
 
-    map.set(conversation.remoteJid, {
-      ...current,
-      phone: current.phone || conversation.phone,
-      contactName:
-        current.contactName === current.phone || !current.contactName
-          ? conversation.contactName
-          : current.contactName,
-      profilePictureUrl: current.profilePictureUrl ?? conversation.profilePictureUrl,
-      lastMessage: localIsNewer ? conversation.lastMessage : current.lastMessage,
-      lastMessageAt: localIsNewer ? conversation.lastMessageAt : current.lastMessageAt,
-      messageType: localIsNewer ? conversation.messageType : current.messageType,
-      unreadCount: Math.max(current.unreadCount, conversation.unreadCount),
-    });
+    map.set(
+      conversation.remoteJid,
+      mergeConversationData(current, {
+        ...conversation,
+        lastMessage: localIsNewer ? conversation.lastMessage : current.lastMessage,
+        lastMessageAt: localIsNewer ? conversation.lastMessageAt : current.lastMessageAt,
+        messageType: localIsNewer ? conversation.messageType : current.messageType,
+      }),
+    );
   });
 
-  return Array.from(map.values()).sort((first, second) =>
+  return dedupeMirrorConversations(Array.from(map.values())).sort((first, second) =>
     compareIsoDesc(first.lastMessageAt, second.lastMessageAt),
   );
 }
