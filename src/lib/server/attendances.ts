@@ -66,6 +66,12 @@ type LocalMessageRow = QueryResultRow & {
   total_count: number | string;
 };
 
+type AttendanceMediaFile = {
+  buffer: Buffer;
+  mimeType: string;
+  fileName: string;
+};
+
 export function canUseGlobalAttendanceUnitFilter(role: UserRole) {
   return role === "MASTER" || role === "CEO";
 }
@@ -262,6 +268,25 @@ function isHttpOrDataUrl(value: unknown) {
   return typeof value === "string" && (/^https?:\/\//i.test(value) || value.startsWith("data:"));
 }
 
+function parseDataUrl(value: string) {
+  const match = value.match(/^data:([^;,]+)(?:;[^,]*)?;base64,(.+)$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    mimeType: match[1],
+    base64: match[2],
+  };
+}
+
+function isBase64Like(value: string) {
+  const clean = value.replace(/\s/g, "");
+
+  return clean.length > 40 && /^[A-Za-z0-9+/]+=*$/.test(clean);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -305,6 +330,152 @@ function extractArray(value: unknown, depth = 0): Array<unknown> {
   }
 
   return [];
+}
+
+function extractStringByKeys(value: unknown, keys: Array<string>, depth = 0): string | null {
+  if (!value || depth > 5) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractStringByKeys(item, keys, depth + 1);
+
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const record = asRecord(value);
+
+  for (const key of keys) {
+    const found = record[key];
+
+    if (typeof found === "string" && found.trim()) {
+      return found.trim();
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = extractStringByKeys(nested, keys, depth + 1);
+
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
+function extractBase64(value: unknown): string | null {
+  if (typeof value === "string") {
+    if (value.startsWith("data:")) {
+      return parseDataUrl(value)?.base64 ?? null;
+    }
+
+    return isBase64Like(value) ? value.replace(/\s/g, "") : null;
+  }
+
+  const found = extractStringByKeys(value, [
+    "base64",
+    "b64",
+    "dataUrl",
+    "data_url",
+    "media",
+    "file",
+    "buffer",
+  ]);
+
+  if (!found) {
+    return null;
+  }
+
+  if (found.startsWith("data:")) {
+    return parseDataUrl(found)?.base64 ?? null;
+  }
+
+  return isBase64Like(found) ? found.replace(/\s/g, "") : null;
+}
+
+function extractMimeType(value: unknown, fallback: string) {
+  const dataUrl = extractStringByKeys(value, ["dataUrl", "data_url", "base64", "media", "file"]);
+
+  if (dataUrl?.startsWith("data:")) {
+    return parseDataUrl(dataUrl)?.mimeType ?? fallback;
+  }
+
+  return (
+    extractStringByKeys(value, [
+      "mimetype",
+      "mimeType",
+      "mime_type",
+      "contentType",
+      "content-type",
+    ]) ?? fallback
+  );
+}
+
+function extensionFromMimeType(mimeType: string) {
+  const normalized = mimeType.toLowerCase();
+
+  if (normalized.includes("jpeg")) return "jpg";
+  if (normalized.includes("png")) return "png";
+  if (normalized.includes("webp")) return "webp";
+  if (normalized.includes("gif")) return "gif";
+  if (normalized.includes("mp4")) return "mp4";
+  if (normalized.includes("webm")) return "webm";
+  if (normalized.includes("ogg")) return "ogg";
+  if (normalized.includes("mpeg")) return "mp3";
+  if (normalized.includes("pdf")) return "pdf";
+
+  return "bin";
+}
+
+function defaultMimeType(type?: string | null) {
+  if (type === "image") return "image/jpeg";
+  if (type === "video") return "video/mp4";
+  if (type === "audio") return "audio/ogg";
+  if (type === "document") return "application/octet-stream";
+
+  return "application/octet-stream";
+}
+
+function mediaProxyUrl(params: {
+  consultantId: string;
+  unitId: string | null;
+  remoteJid: string;
+  messageId: string;
+  direction: AttendanceMessageDirection;
+  type: AttendanceMessageType;
+}) {
+  if (!params.messageId || params.type === "text" || params.type === "unknown") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams({
+    consultantId: params.consultantId,
+    remoteJid: params.remoteJid,
+    messageId: params.messageId,
+    direction: params.direction,
+    type: params.type,
+  });
+
+  if (params.unitId) {
+    searchParams.set("unitId", params.unitId);
+  }
+
+  return `/api/atendimentos/midia?${searchParams.toString()}`;
 }
 
 function inferMessageType(message: unknown, raw?: unknown): AttendanceMessageType {
@@ -916,6 +1087,35 @@ function mergeMessages(
   return sortedDesc.slice(offset, offset + limit).reverse();
 }
 
+function withMediaProxyUrls(
+  messages: Array<AttendanceMessage>,
+  params: { consultantId: string; unitId: string | null; remoteJid: string },
+) {
+  return messages.map<AttendanceMessage>((message) => {
+    if (message.type === "text" || message.type === "unknown") {
+      return message;
+    }
+
+    if (message.mediaUrl?.startsWith("data:")) {
+      return message;
+    }
+
+    const proxiedMediaUrl = mediaProxyUrl({
+      consultantId: params.consultantId,
+      unitId: params.unitId,
+      remoteJid: params.remoteJid,
+      messageId: message.id,
+      direction: message.direction,
+      type: message.type,
+    });
+
+    return {
+      ...message,
+      mediaUrl: proxiedMediaUrl ?? message.mediaUrl,
+    };
+  });
+}
+
 export async function listAttendanceConsultants(session: AuthSession, requestedUnitId?: string) {
   const scope = getAttendanceUnitScope(session, requestedUnitId);
 
@@ -1093,7 +1293,14 @@ export async function listAttendanceMessages(
     }
   }
 
-  const messages = mergeMessages(local.messages, remote.messages, offset, limit);
+  const messages = withMediaProxyUrls(
+    mergeMessages(local.messages, remote.messages, offset, limit),
+    {
+      consultantId: consultant.id,
+      unitId: params.unitId ?? consultant.unit_id,
+      remoteJid,
+    },
+  );
   const total = Math.max(local.total, remote.total, offset + messages.length);
 
   return {
@@ -1105,5 +1312,68 @@ export async function listAttendanceMessages(
       hasMore: total > offset + limit,
       total,
     },
+  };
+}
+
+export async function getAttendanceMedia(
+  session: AuthSession,
+  params: {
+    consultantId: string;
+    unitId?: string | null;
+    remoteJid: string;
+    messageId: string;
+    direction?: string | null;
+    type?: string | null;
+  },
+): Promise<AttendanceMediaFile | null> {
+  const remoteJid = params.remoteJid.trim();
+  const messageId = params.messageId.trim();
+  const consultant = await getConsultantInstance(session, params.consultantId, params.unitId);
+
+  if (
+    !consultant ||
+    consultant.status !== "connected" ||
+    !remoteJid ||
+    !messageId ||
+    remoteJid.endsWith("@g.us") ||
+    isOwnRemoteJid(remoteJid, consultant.phone_number)
+  ) {
+    return null;
+  }
+
+  const type = normalizeMessageType(params.type);
+  const fallbackMimeType = defaultMimeType(type);
+  const fromMe = params.direction === "outbound";
+  const payload = await requestEvolution(
+    `/chat/getBase64FromMediaMessage/${encodeURIComponent(consultant.instance_name)}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        message: {
+          key: {
+            id: messageId,
+            remoteJid,
+            fromMe,
+          },
+        },
+        convertToMp4: false,
+      }),
+    },
+  );
+  const base64 = extractBase64(payload);
+
+  if (!base64) {
+    return null;
+  }
+
+  const mimeType = extractMimeType(payload, fallbackMimeType);
+  const fileName =
+    extractStringByKeys(payload, ["fileName", "filename", "file_name", "title"]) ??
+    `atendimento-${messageId}.${extensionFromMimeType(mimeType)}`;
+
+  return {
+    buffer: Buffer.from(base64, "base64"),
+    mimeType,
+    fileName,
   };
 }

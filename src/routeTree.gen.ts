@@ -57,6 +57,7 @@ import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-ple
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAtendimentosMidiaRouteImport } from './routes/api/atendimentos/midia'
 import { Route as ApiAtendimentosMensagensRouteImport } from './routes/api/atendimentos/mensagens'
 import { Route as ApiAtendimentosConversasRouteImport } from './routes/api/atendimentos/conversas'
 import { Route as ApiAtendimentosConsultoresRouteImport } from './routes/api/atendimentos/consultores'
@@ -307,6 +308,11 @@ const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   path: '/api/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAtendimentosMidiaRoute = ApiAtendimentosMidiaRouteImport.update({
+  id: '/api/atendimentos/midia',
+  path: '/api/atendimentos/midia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAtendimentosMensagensRoute =
   ApiAtendimentosMensagensRouteImport.update({
     id: '/api/atendimentos/mensagens',
@@ -387,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
   '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
   '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
+  '/api/atendimentos/midia': typeof ApiAtendimentosMidiaRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -445,6 +452,7 @@ export interface FileRoutesByTo {
   '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
   '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
   '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
+  '/api/atendimentos/midia': typeof ApiAtendimentosMidiaRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -504,6 +512,7 @@ export interface FileRoutesById {
   '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
   '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
   '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
+  '/api/atendimentos/midia': typeof ApiAtendimentosMidiaRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -564,6 +573,7 @@ export interface FileRouteTypes {
     | '/api/atendimentos/consultores'
     | '/api/atendimentos/conversas'
     | '/api/atendimentos/mensagens'
+    | '/api/atendimentos/midia'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -622,6 +632,7 @@ export interface FileRouteTypes {
     | '/api/atendimentos/consultores'
     | '/api/atendimentos/conversas'
     | '/api/atendimentos/mensagens'
+    | '/api/atendimentos/midia'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -680,6 +691,7 @@ export interface FileRouteTypes {
     | '/api/atendimentos/consultores'
     | '/api/atendimentos/conversas'
     | '/api/atendimentos/mensagens'
+    | '/api/atendimentos/midia'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -739,6 +751,7 @@ export interface RootRouteChildren {
   ApiAtendimentosConsultoresRoute: typeof ApiAtendimentosConsultoresRoute
   ApiAtendimentosConversasRoute: typeof ApiAtendimentosConversasRoute
   ApiAtendimentosMensagensRoute: typeof ApiAtendimentosMensagensRoute
+  ApiAtendimentosMidiaRoute: typeof ApiAtendimentosMidiaRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
@@ -1095,6 +1108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/atendimentos/midia': {
+      id: '/api/atendimentos/midia'
+      path: '/api/atendimentos/midia'
+      fullPath: '/api/atendimentos/midia'
+      preLoaderRoute: typeof ApiAtendimentosMidiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/atendimentos/mensagens': {
       id: '/api/atendimentos/mensagens'
       path: '/api/atendimentos/mensagens'
@@ -1238,6 +1258,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAtendimentosConsultoresRoute: ApiAtendimentosConsultoresRoute,
   ApiAtendimentosConversasRoute: ApiAtendimentosConversasRoute,
   ApiAtendimentosMensagensRoute: ApiAtendimentosMensagensRoute,
+  ApiAtendimentosMidiaRoute: ApiAtendimentosMidiaRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
