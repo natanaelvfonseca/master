@@ -138,13 +138,58 @@ function normalizeMessageType(value: unknown): AttendanceMessageType {
   return raw ? "unknown" : "text";
 }
 
+function digitsOnly(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 function phoneFromJid(remoteJid: string) {
-  return remoteJid.split("@")[0]?.replace(/\D/g, "") ?? "";
+  return digitsOnly(remoteJid.split("@")[0]);
+}
+
+function phonesMatch(first: unknown, second: unknown) {
+  const firstDigits = digitsOnly(first);
+  const secondDigits = digitsOnly(second);
+
+  if (!firstDigits || !secondDigits) {
+    return false;
+  }
+
+  if (firstDigits === secondDigits) {
+    return true;
+  }
+
+  if (Math.min(firstDigits.length, secondDigits.length) < 10) {
+    return false;
+  }
+
+  return firstDigits.endsWith(secondDigits) || secondDigits.endsWith(firstDigits);
+}
+
+function normalizeRemoteJid(value: unknown) {
+  const remoteJid = String(value ?? "").trim();
+
+  if (!remoteJid || !remoteJid.includes("@")) {
+    return "";
+  }
+
+  return remoteJid;
+}
+
+function isOwnRemoteJid(remoteJid: string, ownPhone?: string | null) {
+  return Boolean(ownPhone && phonesMatch(phoneFromJid(remoteJid), ownPhone));
+}
+
+function pickConversationRemoteJid(candidates: Array<unknown>, ownPhone?: string | null) {
+  const remoteJids = candidates
+    .map(normalizeRemoteJid)
+    .filter((remoteJid) => remoteJid && !remoteJid.endsWith("@g.us"));
+
+  return remoteJids.find((remoteJid) => !isOwnRemoteJid(remoteJid, ownPhone)) ?? "";
 }
 
 function formatContactName(remoteJid: string, name?: string | null, phone?: string | null) {
   const cleanName = typeof name === "string" ? name.trim() : "";
-  const cleanPhone = typeof phone === "string" ? phone.replace(/\D/g, "") : "";
+  const cleanPhone = typeof phone === "string" ? digitsOnly(phone) : "";
 
   return cleanName || cleanPhone || phoneFromJid(remoteJid) || remoteJid;
 }
@@ -377,7 +422,12 @@ async function getConsultantInstance(
   return result.rows[0] ?? null;
 }
 
-async function fetchLocalConversations(instanceId: string, unitId: string, userId: string) {
+async function fetchLocalConversations(
+  instanceId: string,
+  unitId: string,
+  userId: string,
+  ownPhone?: string | null,
+) {
   const result = await queryDb<LocalConversationRow>(
     `
       select
@@ -396,19 +446,26 @@ async function fetchLocalConversations(instanceId: string, unitId: string, userI
     [instanceId, unitId, userId],
   );
 
-  return result.rows.map<AttendanceConversation>((row) => ({
-    remoteJid: row.remote_jid,
-    phone: row.phone,
-    contactName: formatContactName(row.remote_jid, row.contact_name, row.phone),
-    profilePictureUrl: null,
-    lastMessage: row.last_message || "[Mensagem]",
-    lastMessageAt: row.last_message_at,
-    unreadCount: 0,
-    messageType: normalizeMessageType(row.message_type),
-  }));
+  return result.rows
+    .filter((row) => !isOwnRemoteJid(row.remote_jid, ownPhone))
+    .map<AttendanceConversation>((row) => ({
+      remoteJid: row.remote_jid,
+      phone: row.phone,
+      contactName: formatContactName(row.remote_jid, row.contact_name, row.phone),
+      profilePictureUrl: null,
+      lastMessage: row.last_message || "[Mensagem]",
+      lastMessageAt: row.last_message_at,
+      unreadCount: 0,
+      messageType: normalizeMessageType(row.message_type),
+    }));
 }
 
-async function fetchRemoteChats(instanceName: string, limit: number, offset: number) {
+async function fetchRemoteChats(
+  instanceName: string,
+  limit: number,
+  offset: number,
+  ownPhone?: string | null,
+) {
   const payload = await requestEvolution(`/chat/findChats/${encodeURIComponent(instanceName)}`, {
     method: "POST",
     body: JSON.stringify({
@@ -429,16 +486,26 @@ async function fetchRemoteChats(instanceName: string, limit: number, offset: num
         const key = asRecord(item.key);
         const chat = asRecord(item.chat);
         const itemMessages = Array.isArray(item.messages) ? item.messages : [];
-        const remoteJid = String(
-          firstValue(item.remoteJid, item.jid, item.id, key.remoteJid, chat.remoteJid) ?? "",
+        const lastMessage = firstValue(item.lastMessage, item.message, itemMessages[0], {}) ?? {};
+        const lastMessageRecord = asRecord(lastMessage);
+        const lastMessagePayload = asRecord(lastMessageRecord.message);
+        const lastMessageKey = asRecord(firstValue(lastMessageRecord.key, lastMessagePayload.key));
+        const remoteJid = pickConversationRemoteJid(
+          [
+            lastMessageKey.remoteJid,
+            key.remoteJid,
+            chat.remoteJid,
+            item.remoteJid,
+            item.jid,
+            item.id,
+          ],
+          ownPhone,
         );
 
         if (!remoteJid || remoteJid.endsWith("@g.us")) {
           return null;
         }
 
-        const lastMessage = firstValue(item.lastMessage, item.message, itemMessages[0], {}) ?? {};
-        const lastMessageRecord = asRecord(lastMessage);
         const message = firstValue(lastMessageRecord.message, lastMessage) ?? {};
         const messageType = inferMessageType(message, lastMessage);
         const phone = phoneFromJid(remoteJid);
@@ -526,7 +593,7 @@ function mapRemoteMessage(rawItem: unknown): AttendanceMessage | null {
   const message = firstValue(itemMessage.message, item.message, item) ?? {};
   const chat = asRecord(item.chat);
   const remoteJid = String(
-    firstValue(key.remoteJid, item.remoteJid, item.jid, item.chatId, chat.remoteJid) ?? "",
+    firstValue(key.remoteJid, chat.remoteJid, item.remoteJid, item.jid, item.chatId) ?? "",
   );
 
   if (!remoteJid || remoteJid.endsWith("@g.us")) {
@@ -772,13 +839,19 @@ export async function listAttendanceConversations(
     consultant.instance_id,
     consultant.unit_id,
     consultant.id,
+    consultant.phone_number,
   );
   let remoteConversations: Array<AttendanceConversation> = [];
   let remoteTotal = 0;
 
   if (consultant.status === "connected") {
     try {
-      const remote = await fetchRemoteChats(consultant.instance_name, limit, offset);
+      const remote = await fetchRemoteChats(
+        consultant.instance_name,
+        limit,
+        offset,
+        consultant.phone_number,
+      );
       remoteConversations = remote.chats;
       remoteTotal = remote.total;
     } catch {
@@ -828,7 +901,12 @@ export async function listAttendanceMessages(
   const offset = safeOffset(params.offset);
   const consultant = await getConsultantInstance(session, params.consultantId, params.unitId);
 
-  if (!consultant || !remoteJid || remoteJid.endsWith("@g.us")) {
+  if (
+    !consultant ||
+    !remoteJid ||
+    remoteJid.endsWith("@g.us") ||
+    isOwnRemoteJid(remoteJid, consultant.phone_number)
+  ) {
     return null;
   }
 
