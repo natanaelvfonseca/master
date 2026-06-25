@@ -48,6 +48,9 @@ export async function ensureEvolutionSchema() {
         direction text not null check (direction in ('inbound', 'outbound')),
         message_type text not null default 'text',
         content text not null default '',
+        media_url text,
+        media_mime_type text,
+        media_file_name text,
         sent_at timestamptz not null,
         created_at timestamptz not null default now(),
         unique (instance_id, evolution_message_id)
@@ -73,6 +76,12 @@ export async function ensureEvolutionSchema() {
 
       alter table app_whatsapp_messages
         add column if not exists user_id uuid references app_users(id) on delete cascade;
+      alter table app_whatsapp_messages
+        add column if not exists media_url text;
+      alter table app_whatsapp_messages
+        add column if not exists media_mime_type text;
+      alter table app_whatsapp_messages
+        add column if not exists media_file_name text;
       update app_whatsapp_messages message
       set user_id = instance.user_id
       from app_whatsapp_instances instance
@@ -101,6 +110,16 @@ function evolutionConfig() {
   return { url, apiKey };
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function firstValue(...values: Array<unknown>) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
 async function evolutionFetch(path: string, init: RequestInit = {}) {
   const { url, apiKey } = evolutionConfig();
   const response = await fetch(`${url}${path}`, {
@@ -112,7 +131,7 @@ async function evolutionFetch(path: string, init: RequestInit = {}) {
     },
   });
   const text = await response.text();
-  let data: any = {};
+  let data: unknown = {};
 
   if (text) {
     try {
@@ -123,16 +142,21 @@ async function evolutionFetch(path: string, init: RequestInit = {}) {
   }
 
   if (!response.ok) {
+    const dataRecord = asRecord(data);
     const detail =
-      typeof data?.message === "string"
-        ? data.message
-        : typeof data?.error === "string"
-          ? data.error
+      typeof dataRecord.message === "string"
+        ? dataRecord.message
+        : typeof dataRecord.error === "string"
+          ? dataRecord.error
           : text;
     throw new Error(detail || `Evolution API respondeu com status ${response.status}.`);
   }
 
   return data;
+}
+
+export async function requestEvolution(path: string, init: RequestInit = {}) {
+  return evolutionFetch(path, init);
 }
 
 function instancePart(value: string) {
@@ -144,9 +168,11 @@ function instancePart(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-function connectionState(data: any) {
+function connectionState(data: unknown) {
+  const dataRecord = asRecord(data);
+  const instanceRecord = asRecord(dataRecord.instance);
   const raw = String(
-    data?.instance?.state ?? data?.state ?? data?.connectionStatus ?? "",
+    firstValue(instanceRecord.state, dataRecord.state, dataRecord.connectionStatus) ?? "",
   ).toLowerCase();
 
   if (["open", "connected", "conected"].includes(raw)) return "connected";
@@ -154,8 +180,10 @@ function connectionState(data: any) {
   return "disconnected";
 }
 
-function qrCodeFrom(data: any) {
-  const value = data?.base64 ?? data?.qrcode?.base64 ?? data?.code ?? null;
+function qrCodeFrom(data: unknown) {
+  const dataRecord = asRecord(data);
+  const qrcodeRecord = asRecord(dataRecord.qrcode);
+  const value = firstValue(dataRecord.base64, qrcodeRecord.base64, dataRecord.code);
 
   if (typeof value !== "string" || !value) return null;
   if (value.startsWith("data:image/")) return value;
@@ -171,21 +199,31 @@ function publicWebhookUrl(requestUrl: string, secret: string) {
   return `${origin}/api/webhooks/evolution?token=${encodeURIComponent(secret)}`;
 }
 
-function remoteInstanceName(item: any) {
+function remoteInstanceName(item: unknown) {
+  const itemRecord = asRecord(item);
+  const instanceRecord = asRecord(itemRecord.instance);
+
   return String(
-    item?.name ?? item?.instanceName ?? item?.instance?.instanceName ?? item?.instance?.name ?? "",
+    firstValue(
+      itemRecord.name,
+      itemRecord.instanceName,
+      instanceRecord.instanceName,
+      instanceRecord.name,
+      "",
+    ),
   );
 }
 
 async function remoteInstanceExists(instanceName: string) {
   const instances = await evolutionFetch("/instance/fetchInstances");
+  const instancesRecord = asRecord(instances);
   const items = Array.isArray(instances)
     ? instances
-    : Array.isArray(instances?.instances)
-      ? instances.instances
+    : Array.isArray(instancesRecord.instances)
+      ? instancesRecord.instances
       : [];
 
-  return items.some((item: any) => remoteInstanceName(item) === instanceName);
+  return items.some((item) => remoteInstanceName(item) === instanceName);
 }
 
 async function createRemoteInstance(instanceName: string) {
@@ -369,22 +407,36 @@ export async function disconnectEvolution(userId: string) {
   );
 }
 
-function eventName(payload: any) {
-  return String(payload?.event ?? payload?.type ?? "")
+function eventName(payload: unknown) {
+  const payloadRecord = asRecord(payload);
+
+  return String(firstValue(payloadRecord.event, payloadRecord.type, ""))
     .toLowerCase()
     .replace(/_/g, ".");
 }
 
-function extractMessage(payload: any) {
-  const data = payload?.data ?? {};
-  const message = data?.message ?? {};
-  const key = data?.key ?? message?.key ?? {};
+function extractMessage(payload: unknown) {
+  const payloadRecord = asRecord(payload);
+  const data = asRecord(payloadRecord.data);
+  const message = asRecord(data.message);
+  const key = asRecord(firstValue(data.key, message.key));
+  const extendedTextMessage = asRecord(message.extendedTextMessage);
+  const imageMessage = asRecord(message.imageMessage);
+  const videoMessage = asRecord(message.videoMessage);
+  const documentMessage = asRecord(message.documentMessage);
+  const media =
+    message.imageMessage ??
+    message.audioMessage ??
+    message.videoMessage ??
+    message.documentMessage ??
+    null;
+  const mediaRecord = asRecord(media);
   const content =
-    message?.conversation ??
-    message?.extendedTextMessage?.text ??
-    message?.imageMessage?.caption ??
-    message?.videoMessage?.caption ??
-    message?.documentMessage?.fileName ??
+    message.conversation ??
+    extendedTextMessage.text ??
+    imageMessage.caption ??
+    videoMessage.caption ??
+    documentMessage.fileName ??
     (message?.audioMessage ? "[Áudio]" : "");
   const type =
     message?.conversation || message?.extendedTextMessage
@@ -406,13 +458,33 @@ function extractMessage(payload: any) {
     contactName: String(data?.pushName ?? data?.notify ?? "").trim() || null,
     content: String(content || (type === "unknown" ? "[Mensagem]" : `[${type}]`)),
     type,
+    mediaUrl:
+      typeof media?.url === "string"
+        ? media.url
+        : typeof data?.mediaUrl === "string"
+          ? data.mediaUrl
+          : null,
+    mimeType:
+      typeof media?.mimetype === "string"
+        ? media.mimetype
+        : typeof media?.mimeType === "string"
+          ? media.mimeType
+          : null,
+    fileName:
+      typeof media?.fileName === "string"
+        ? media.fileName
+        : typeof message?.documentMessage?.title === "string"
+          ? message.documentMessage.title
+          : null,
     timestamp: Number(data?.messageTimestamp ?? payload?.date_time ?? Date.now() / 1000),
   };
 }
 
-export async function receiveEvolutionWebhook(payload: any, token: string | null) {
+export async function receiveEvolutionWebhook(payload: unknown, token: string | null) {
   await ensureEvolutionSchema();
-  const instanceName = String(payload?.instance ?? payload?.instanceName ?? "");
+  const payloadRecord = asRecord(payload);
+  const dataRecord = asRecord(payloadRecord.data);
+  const instanceName = String(firstValue(payloadRecord.instance, payloadRecord.instanceName, ""));
   if (!instanceName || !token) return { ok: false, status: 401 };
 
   const instanceResult = await queryDb<InstanceRow>(
@@ -429,8 +501,10 @@ export async function receiveEvolutionWebhook(payload: any, token: string | null
 
   const event = eventName(payload);
   if (event === "connection.update") {
-    const status = connectionState(payload?.data ?? payload);
-    const phone = String(payload?.data?.wuid ?? payload?.data?.phoneNumber ?? payload?.sender ?? "")
+    const status = connectionState(payloadRecord.data ?? payload);
+    const phone = String(
+      firstValue(dataRecord.wuid, dataRecord.phoneNumber, payloadRecord.sender, ""),
+    )
       .split("@")[0]
       .replace(/\D/g, "");
     await queryDb(
@@ -458,13 +532,17 @@ export async function receiveEvolutionWebhook(payload: any, token: string | null
         `
           insert into app_whatsapp_messages (
             unit_id, user_id, instance_id, evolution_message_id, remote_jid, phone,
-            contact_name, direction, message_type, content, sent_at
+            contact_name, direction, message_type, content, media_url, media_mime_type,
+            media_file_name, sent_at
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           on conflict (instance_id, evolution_message_id) do update
           set contact_name = coalesce(excluded.contact_name, app_whatsapp_messages.contact_name),
               content = excluded.content,
-              message_type = excluded.message_type
+              message_type = excluded.message_type,
+              media_url = coalesce(excluded.media_url, app_whatsapp_messages.media_url),
+              media_mime_type = coalesce(excluded.media_mime_type, app_whatsapp_messages.media_mime_type),
+              media_file_name = coalesce(excluded.media_file_name, app_whatsapp_messages.media_file_name)
         `,
         [
           instance.unit_id,
@@ -477,6 +555,9 @@ export async function receiveEvolutionWebhook(payload: any, token: string | null
           parsed.fromMe ? "outbound" : "inbound",
           parsed.type,
           parsed.content,
+          parsed.mediaUrl,
+          parsed.mimeType,
+          parsed.fileName,
           Number.isNaN(sentAt.getTime()) ? new Date() : sentAt,
         ],
       );

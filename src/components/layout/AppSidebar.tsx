@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  MessageCircle,
   MessageSquarePlus,
   Palette,
   Trophy,
@@ -40,6 +41,7 @@ import {
   canAccessSystemFeedback,
   canManageBrandPlen,
   canManageUnits,
+  canViewAttendances,
   canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
@@ -60,6 +62,7 @@ type NavigationItem = {
   metaAdsOnly?: boolean;
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
+  attendancesOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -79,6 +82,7 @@ const groups: Array<NavigationGroup> = [
       { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
+      { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, attendancesOnly: true },
     ],
   },
   {
@@ -130,6 +134,7 @@ export function AppSidebar() {
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
+  const canSeeAttendances = user ? canViewAttendances(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -153,7 +158,8 @@ export function AppSidebar() {
           (!item.managementOnly || canViewManagementArea) &&
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
-          (!item.systemFeedbackOnly || canViewSystemFeedback),
+          (!item.systemFeedbackOnly || canViewSystemFeedback) &&
+          (!item.attendancesOnly || canSeeAttendances),
       ),
     }))
     .filter((group) => group.items.length > 0);

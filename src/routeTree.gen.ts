@@ -23,6 +23,7 @@ import { Route as CrmRouteImport } from './routes/crm'
 import { Route as ConversasRouteImport } from './routes/conversas'
 import { Route as BrandingRouteImport } from './routes/branding'
 import { Route as BiRouteImport } from './routes/bi'
+import { Route as AtendimentosRouteImport } from './routes/atendimentos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
@@ -56,6 +57,9 @@ import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-ple
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAtendimentosMensagensRouteImport } from './routes/api/atendimentos/mensagens'
+import { Route as ApiAtendimentosConversasRouteImport } from './routes/api/atendimentos/conversas'
+import { Route as ApiAtendimentosConsultoresRouteImport } from './routes/api/atendimentos/consultores'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminUnitsRouteImport } from './routes/api/admin/units'
 import { Route as ApiGestaoCoursesIdRouteImport } from './routes/api/gestao/courses.$id'
@@ -130,6 +134,11 @@ const BrandingRoute = BrandingRouteImport.update({
 const BiRoute = BiRouteImport.update({
   id: '/bi',
   path: '/bi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AtendimentosRoute = AtendimentosRouteImport.update({
+  id: '/atendimentos',
+  path: '/atendimentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -298,6 +307,24 @@ const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   path: '/api/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAtendimentosMensagensRoute =
+  ApiAtendimentosMensagensRouteImport.update({
+    id: '/api/atendimentos/mensagens',
+    path: '/api/atendimentos/mensagens',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAtendimentosConversasRoute =
+  ApiAtendimentosConversasRouteImport.update({
+    id: '/api/atendimentos/conversas',
+    path: '/api/atendimentos/conversas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAtendimentosConsultoresRoute =
+  ApiAtendimentosConsultoresRouteImport.update({
+    id: '/api/atendimentos/consultores',
+    path: '/api/atendimentos/consultores',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin/users',
   path: '/api/admin/users',
@@ -326,6 +353,7 @@ const ApiCrmLeadsIdRoute = ApiCrmLeadsIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/atendimentos': typeof AtendimentosRoute
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
@@ -356,6 +384,9 @@ export interface FileRoutesByFullPath {
   '/leads/': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
+  '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
+  '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -380,6 +411,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/atendimentos': typeof AtendimentosRoute
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
@@ -410,6 +442,9 @@ export interface FileRoutesByTo {
   '/leads': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
+  '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
+  '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -435,6 +470,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/atendimentos': typeof AtendimentosRoute
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
@@ -465,6 +501,9 @@ export interface FileRoutesById {
   '/leads/': typeof LeadsIndexRoute
   '/api/admin/units': typeof ApiAdminUnitsRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/atendimentos/consultores': typeof ApiAtendimentosConsultoresRoute
+  '/api/atendimentos/conversas': typeof ApiAtendimentosConversasRoute
+  '/api/atendimentos/mensagens': typeof ApiAtendimentosMensagensRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
@@ -491,6 +530,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/atendimentos'
     | '/bi'
     | '/branding'
     | '/conversas'
@@ -521,6 +561,9 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/api/admin/units'
     | '/api/admin/users'
+    | '/api/atendimentos/consultores'
+    | '/api/atendimentos/conversas'
+    | '/api/atendimentos/mensagens'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -545,6 +588,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/atendimentos'
     | '/bi'
     | '/branding'
     | '/conversas'
@@ -575,6 +619,9 @@ export interface FileRouteTypes {
     | '/leads'
     | '/api/admin/units'
     | '/api/admin/users'
+    | '/api/atendimentos/consultores'
+    | '/api/atendimentos/conversas'
+    | '/api/atendimentos/mensagens'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -599,6 +646,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/atendimentos'
     | '/bi'
     | '/branding'
     | '/conversas'
@@ -629,6 +677,9 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/api/admin/units'
     | '/api/admin/users'
+    | '/api/atendimentos/consultores'
+    | '/api/atendimentos/conversas'
+    | '/api/atendimentos/mensagens'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
@@ -654,6 +705,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AtendimentosRoute: typeof AtendimentosRoute
   BiRoute: typeof BiRoute
   BrandingRoute: typeof BrandingRoute
   ConversasRoute: typeof ConversasRoute
@@ -684,6 +736,9 @@ export interface RootRouteChildren {
   LeadsIndexRoute: typeof LeadsIndexRoute
   ApiAdminUnitsRoute: typeof ApiAdminUnitsRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  ApiAtendimentosConsultoresRoute: typeof ApiAtendimentosConsultoresRoute
+  ApiAtendimentosConversasRoute: typeof ApiAtendimentosConversasRoute
+  ApiAtendimentosMensagensRoute: typeof ApiAtendimentosMensagensRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
@@ -800,6 +855,13 @@ declare module '@tanstack/react-router' {
       path: '/bi'
       fullPath: '/bi'
       preLoaderRoute: typeof BiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/atendimentos': {
+      id: '/atendimentos'
+      path: '/atendimentos'
+      fullPath: '/atendimentos'
+      preLoaderRoute: typeof AtendimentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -1033,6 +1095,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/atendimentos/mensagens': {
+      id: '/api/atendimentos/mensagens'
+      path: '/api/atendimentos/mensagens'
+      fullPath: '/api/atendimentos/mensagens'
+      preLoaderRoute: typeof ApiAtendimentosMensagensRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/atendimentos/conversas': {
+      id: '/api/atendimentos/conversas'
+      path: '/api/atendimentos/conversas'
+      fullPath: '/api/atendimentos/conversas'
+      preLoaderRoute: typeof ApiAtendimentosConversasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/atendimentos/consultores': {
+      id: '/api/atendimentos/consultores'
+      path: '/api/atendimentos/consultores'
+      fullPath: '/api/atendimentos/consultores'
+      preLoaderRoute: typeof ApiAtendimentosConsultoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/users': {
       id: '/api/admin/users'
       path: '/api/admin/users'
@@ -1121,6 +1204,7 @@ const ApiGestaoCoursesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AtendimentosRoute: AtendimentosRoute,
   BiRoute: BiRoute,
   BrandingRoute: BrandingRoute,
   ConversasRoute: ConversasRoute,
@@ -1151,6 +1235,9 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsIndexRoute: LeadsIndexRoute,
   ApiAdminUnitsRoute: ApiAdminUnitsRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
+  ApiAtendimentosConsultoresRoute: ApiAtendimentosConsultoresRoute,
+  ApiAtendimentosConversasRoute: ApiAtendimentosConversasRoute,
+  ApiAtendimentosMensagensRoute: ApiAtendimentosMensagensRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
