@@ -1081,30 +1081,8 @@ function CRM() {
         title="CRM Pipeline"
         description="Pipeline visual com lead score por IA, alertas de follow-up e priorização inteligente."
         actions={
-          <>
-            {canTransferUnitLeads ? (
-              <Button type="button" variant="outline" onClick={openTransferDialog}>
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-                Transferência de Lead
-              </Button>
-            ) : null}
-            {canOperatePipeline ? (
-              <Button
-                className="bg-gradient-primary text-primary-foreground"
-                onClick={openLeadDialog}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Lead
-              </Button>
-            ) : null}
-          </>
-        }
-      />
-
-      <Card className="overflow-hidden border-primary/10 bg-card/80 shadow-card">
-        <div className="grid gap-3 p-3">
-          <div className="flex justify-end">
-            <div className="relative w-full sm:max-w-xs lg:max-w-sm">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:items-end md:w-auto">
+            <div className="relative w-full sm:w-[360px] lg:w-[390px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -1113,120 +1091,130 @@ function CRM() {
                 className="h-9 pl-9 text-sm"
               />
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={filtersOpen ? "default" : "outline"}
-              onClick={() => setFiltersOpen((open) => !open)}
-              className={filtersOpen ? "bg-gradient-primary" : ""}
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-              {activeFilterCount ? (
-                <Badge className="ml-2 bg-primary text-primary-foreground">
-                  {activeFilterCount}
-                </Badge>
-              ) : null}
-            </Button>
-            {search || activeFilterCount ? (
-              <Button type="button" size="sm" variant="ghost" onClick={clearPipelineFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Limpar
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant={filtersOpen ? "default" : "outline"}
+                onClick={() => setFiltersOpen((open) => !open)}
+                className={filtersOpen ? "bg-gradient-primary" : ""}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Filtros
+                {activeFilterCount ? (
+                  <Badge className="ml-2 bg-primary text-primary-foreground">
+                    {activeFilterCount}
+                  </Badge>
+                ) : null}
               </Button>
-            ) : null}
+              {canTransferUnitLeads ? (
+                <Button type="button" variant="outline" onClick={openTransferDialog}>
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Transferência de Lead
+                </Button>
+              ) : null}
+              {canOperatePipeline ? (
+                <Button
+                  className="bg-gradient-primary text-primary-foreground"
+                  onClick={openLeadDialog}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Lead
+                </Button>
+              ) : null}
+              {search || activeFilterCount ? (
+                <Button type="button" variant="ghost" onClick={clearPipelineFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Limpar
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        }
+      />
+
+      {filtersOpen ? (
+        <div className="grid gap-3 rounded-2xl border border-primary/10 bg-card/80 p-3 shadow-card md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-2">
+            <Label>Curso</Label>
+            <Select
+              value={filters.courseId}
+              onValueChange={(value) => setFilters((current) => ({ ...current, courseId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os cursos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>Todos os cursos</SelectItem>
+                {courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id}>
+                    {course.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Origem</Label>
+            <Select
+              value={filters.channelId}
+              onValueChange={(value) => setFilters((current) => ({ ...current, channelId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todas as origens" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>Todas as origens</SelectItem>
+                {channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Responsável</Label>
+            <Select
+              value={filters.ownerId}
+              onValueChange={(value) => setFilters((current) => ({ ...current, ownerId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os responsáveis" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>Todos os responsáveis</SelectItem>
+                {ownerOptions.map((owner) => (
+                  <SelectItem key={owner.id} value={owner.id}>
+                    {owner.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Cidade</Label>
+            <Select
+              value={filters.city}
+              onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todas as cidades" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
+                {cityOptions.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-
-        {filtersOpen ? (
-          <div className="grid gap-3 border-t border-border bg-muted/25 p-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Curso</Label>
-              <Select
-                value={filters.courseId}
-                onValueChange={(value) =>
-                  setFilters((current) => ({ ...current, courseId: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os cursos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>Todos os cursos</SelectItem>
-                  {courses.map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Origem</Label>
-              <Select
-                value={filters.channelId}
-                onValueChange={(value) =>
-                  setFilters((current) => ({ ...current, channelId: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as origens" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>Todas as origens</SelectItem>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Responsável</Label>
-              <Select
-                value={filters.ownerId}
-                onValueChange={(value) => setFilters((current) => ({ ...current, ownerId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os responsáveis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>Todos os responsáveis</SelectItem>
-                  {ownerOptions.map((owner) => (
-                    <SelectItem key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Cidade</Label>
-              <Select
-                value={filters.city}
-                onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas as cidades" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
-                  {cityOptions.map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        ) : null}
-      </Card>
+      ) : null}
 
       <div className="overflow-x-auto pb-4">
         <div className="flex min-w-max gap-4">
