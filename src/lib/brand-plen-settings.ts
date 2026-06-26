@@ -25,6 +25,7 @@ export type BrandPlenSettings = {
 };
 
 export const MAX_BRAND_PLEN_REFERENCES_PER_TYPE = 4;
+export const DEFAULT_BRAND_PLEN_IMAGE_QUALITY: BrandImageQuality = "medium";
 
 export function buildDefaultBrandPlenSettings(unitId = ""): BrandPlenSettings {
   return {
@@ -33,7 +34,7 @@ export function buildDefaultBrandPlenSettings(unitId = ""): BrandPlenSettings {
     tonePrompt: promptRules.tom,
     requiredRules: promptRules.obrigatorias,
     forbiddenRules: promptRules.proibidas,
-    defaultQuality: "high",
+    defaultQuality: DEFAULT_BRAND_PLEN_IMAGE_QUALITY,
     logoDataUrl: null,
     referencesByPieceType: {},
     updatedAt: null,

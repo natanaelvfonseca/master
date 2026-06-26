@@ -403,7 +403,7 @@ function NovaCriacao() {
       overlayText: overlayText.trim() || null,
       model: "",
       size: "1024x1024",
-      quality: "high",
+      quality: "medium",
       format: "webp",
       errorMessage: null,
       publishedMaterialId: null,

@@ -47,7 +47,7 @@ export function ensureBrandPlenSettingsSchema() {
       tone_prompt text not null,
       required_rules text[] not null,
       forbidden_rules text[] not null,
-      default_quality text not null default 'high' check (default_quality in ('low', 'medium', 'high')),
+      default_quality text not null default 'medium' check (default_quality in ('low', 'medium', 'high')),
       logo_data_url text,
       references_by_piece_type jsonb not null default '{}'::jsonb,
       updated_by uuid references app_users(id) on delete set null,
@@ -59,7 +59,7 @@ export function ensureBrandPlenSettingsSchema() {
     alter table app_brand_plen_settings add column if not exists tone_prompt text;
     alter table app_brand_plen_settings add column if not exists required_rules text[];
     alter table app_brand_plen_settings add column if not exists forbidden_rules text[];
-    alter table app_brand_plen_settings add column if not exists default_quality text not null default 'high';
+    alter table app_brand_plen_settings add column if not exists default_quality text not null default 'medium';
     alter table app_brand_plen_settings add column if not exists logo_data_url text;
     alter table app_brand_plen_settings add column if not exists references_by_piece_type jsonb not null default '{}'::jsonb;
     alter table app_brand_plen_settings add column if not exists updated_by uuid references app_users(id) on delete set null;

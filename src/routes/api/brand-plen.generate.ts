@@ -64,7 +64,9 @@ type BrandLibraryRow = QueryResultRow & {
 
 const OPENAI_IMAGE_ENDPOINT = "https://api.openai.com/v1/images/generations";
 const OPENAI_IMAGE_EDIT_ENDPOINT = "https://api.openai.com/v1/images/edits";
-const DEFAULT_IMAGE_MODEL = "gpt-image-1.5";
+const DEFAULT_IMAGE_MODEL = "gpt-image-1-mini";
+const COST_SAVER_QUALITY_CAP: BrandImageQuality = "medium";
+const DEFAULT_MAX_EXTRA_REFERENCE_IMAGES = 1;
 const MAX_TEXT_LENGTH = 32000;
 const MAX_REFERENCE_DATA_URL_LENGTH = 8 * 1024 * 1024;
 const MAX_LIBRARY_DATA_URL_LENGTH = 12 * 1024 * 1024;
@@ -158,6 +160,48 @@ function readString(value: unknown, maxLength = 500) {
   return value.trim().slice(0, maxLength);
 }
 
+function readPositiveInteger(value: unknown, fallback: number, max = 4) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), 0), max);
+}
+
+function costSaverEnabled() {
+  return process.env.OPENAI_IMAGE_COST_SAVER?.trim().toLowerCase() !== "off";
+}
+
+function resolveImageModel() {
+  const configured = process.env.OPENAI_IMAGE_MODEL?.trim();
+
+  if (costSaverEnabled() && configured !== DEFAULT_IMAGE_MODEL) {
+    return DEFAULT_IMAGE_MODEL;
+  }
+
+  if (!configured) {
+    return DEFAULT_IMAGE_MODEL;
+  }
+
+  return configured;
+}
+
+function resolveImageQuality(quality: BrandImageQuality) {
+  if (!costSaverEnabled()) {
+    return quality;
+  }
+
+  return quality === "high" ? COST_SAVER_QUALITY_CAP : quality;
+}
+
+function maxExtraReferenceImages(hasSubjectPhoto: boolean) {
+  const fallback = hasSubjectPhoto ? 0 : DEFAULT_MAX_EXTRA_REFERENCE_IMAGES;
+
+  return readPositiveInteger(process.env.OPENAI_IMAGE_MAX_EXTRA_REFERENCES, fallback);
+}
+
 function isDataImageUrl(value: unknown) {
   return (
     typeof value === "string" &&
@@ -179,6 +223,39 @@ function toImageFile(dataUrl: string, index: number) {
   const blob = new Blob([bytes], { type: mimeType });
 
   return { blob, fileName: `brand-reference-${index + 1}.${extension}` };
+}
+
+function uniqueImages(images: Array<string>) {
+  const seen = new Set<string>();
+
+  return images.filter((image) => {
+    const key = image.slice(0, 160);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildReferenceImages({
+  logoDataUrl,
+  subjectPhotoDataUrl,
+  configuredReferenceImages,
+}: {
+  logoDataUrl: string;
+  subjectPhotoDataUrl: string;
+  configuredReferenceImages: Array<string>;
+}) {
+  return uniqueImages(
+    [
+      logoDataUrl,
+      subjectPhotoDataUrl,
+      ...configuredReferenceImages.slice(0, maxExtraReferenceImages(Boolean(subjectPhotoDataUrl))),
+    ].filter(Boolean),
+  );
 }
 
 function slugifyFileName(value: string) {
@@ -471,7 +548,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         await ensureBrandPlenGenerationSchema();
         const settings = await getBrandPlenSettings(unit.id);
         const logoDataUrl = settings.logoDataUrl || fallbackLogoDataUrl;
-        const quality = settings.defaultQuality;
+        const quality = resolveImageQuality(settings.defaultQuality);
         const configuredReferenceImages = (settings.referencesByPieceType[pieceType] ?? [])
           .map((reference) => reference.dataUrl)
           .filter(Boolean);
@@ -497,7 +574,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
           brandSettings: settings,
         }).slice(0, MAX_TEXT_LENGTH);
         const size = getBrandImageSize(pieceType);
-        const model = process.env.OPENAI_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL;
+        const model = resolveImageModel();
         const generationResult = await queryDb<BrandPlenGenerationRow>(
           `
             insert into app_brand_plen_generations (
@@ -561,11 +638,11 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
         const generation = generationResult.rows[0];
 
         try {
-          const referenceImages = [
+          const referenceImages = buildReferenceImages({
             logoDataUrl,
             subjectPhotoDataUrl,
-            ...configuredReferenceImages,
-          ].filter(Boolean);
+            configuredReferenceImages,
+          });
           const openAiResponse = referenceImages.length
             ? await postImageEdit({
                 apiKey,
