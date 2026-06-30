@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
   BookOpenCheck,
@@ -336,6 +336,16 @@ export const Route = createFileRoute("/crm")({
 });
 
 function CRM() {
+  const path = useRouterState({ select: (state) => state.location.pathname });
+
+  if (path !== "/crm" && path !== "/crm/") {
+    return <Outlet />;
+  }
+
+  return <CRMPipeline />;
+}
+
+function CRMPipeline() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
