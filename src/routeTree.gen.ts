@@ -28,6 +28,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
 import { Route as GestaoCadastroRouteImport } from './routes/gestao.cadastro'
+import { Route as CrmTransferenciaRouteImport } from './routes/crm.transferencia'
 import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
@@ -161,6 +162,11 @@ const GestaoCadastroRoute = GestaoCadastroRouteImport.update({
   id: '/gestao/cadastro',
   path: '/gestao/cadastro',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CrmTransferenciaRoute = CrmTransferenciaRouteImport.update({
+  id: '/transferencia',
+  path: '/transferencia',
+  getParentRoute: () => CrmRoute,
 } as any)
 const BrandPlenNovaRoute = BrandPlenNovaRouteImport.update({
   id: '/brand-plen/nova',
@@ -363,7 +369,7 @@ export interface FileRoutesByFullPath {
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
-  '/crm': typeof CrmRoute
+  '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
@@ -385,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -422,7 +429,7 @@ export interface FileRoutesByTo {
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
-  '/crm': typeof CrmRoute
+  '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads': typeof LeadsIndexRoute
@@ -482,7 +490,7 @@ export interface FileRoutesById {
   '/bi': typeof BiRoute
   '/branding': typeof BrandingRoute
   '/conversas': typeof ConversasRoute
-  '/crm': typeof CrmRoute
+  '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
   '/login': typeof LoginRoute
@@ -504,6 +512,7 @@ export interface FileRoutesById {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
   '/leads/': typeof LeadsIndexRoute
@@ -565,6 +574,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads/'
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads'
@@ -683,6 +694,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
     | '/leads/'
@@ -721,7 +733,7 @@ export interface RootRouteChildren {
   BiRoute: typeof BiRoute
   BrandingRoute: typeof BrandingRoute
   ConversasRoute: typeof ConversasRoute
-  CrmRoute: typeof CrmRoute
+  CrmRoute: typeof CrmRouteWithChildren
   EstrategiaRoute: typeof EstrategiaRoute
   FeedbackRoute: typeof FeedbackRoute
   LoginRoute: typeof LoginRoute
@@ -904,6 +916,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/gestao/cadastro'
       preLoaderRoute: typeof GestaoCadastroRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/crm/transferencia': {
+      id: '/crm/transferencia'
+      path: '/transferencia'
+      fullPath: '/crm/transferencia'
+      preLoaderRoute: typeof CrmTransferenciaRouteImport
+      parentRoute: typeof CrmRoute
     }
     '/brand-plen/nova': {
       id: '/brand-plen/nova'
@@ -1174,6 +1193,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CrmRouteChildren {
+  CrmTransferenciaRoute: typeof CrmTransferenciaRoute
+}
+
+const CrmRouteChildren: CrmRouteChildren = {
+  CrmTransferenciaRoute: CrmTransferenciaRoute,
+}
+
+const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
+
 interface ApiTrainingRouteChildren {
   ApiTrainingUploadRoute: typeof ApiTrainingUploadRoute
   ApiTrainingVideoRoute: typeof ApiTrainingVideoRoute
@@ -1228,7 +1257,7 @@ const rootRouteChildren: RootRouteChildren = {
   BiRoute: BiRoute,
   BrandingRoute: BrandingRoute,
   ConversasRoute: ConversasRoute,
-  CrmRoute: CrmRoute,
+  CrmRoute: CrmRouteWithChildren,
   EstrategiaRoute: EstrategiaRoute,
   FeedbackRoute: FeedbackRoute,
   LoginRoute: LoginRoute,

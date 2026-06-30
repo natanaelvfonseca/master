@@ -136,6 +136,11 @@ type ConsultantCandidateRow = QueryResultRow & {
   open_leads: string;
 };
 
+type DefaultMarketingOwnerRow = QueryResultRow & {
+  id: string;
+  name: string;
+};
+
 type CourseSnapshotRow = QueryResultRow & {
   id: string;
   name: string;
@@ -1473,6 +1478,62 @@ async function chooseConsultant(client: PoolClient, form: MetaFormRow) {
   };
 }
 
+async function defaultMarketingOwner(client: PoolClient, unitId: string | null) {
+  if (!unitId) {
+    return null;
+  }
+
+  const result = await client.query<DefaultMarketingOwnerRow>(
+    `
+      select u.id, u.name
+      from app_users u
+      where u.status = 'active'
+        and u.role = 'MARKETING'
+        and (
+          u.primary_unit_id = $1
+          or exists (
+            select 1
+            from app_user_units uu
+            where uu.user_id = u.id
+              and uu.unit_id = $1
+          )
+          or not exists (
+            select 1
+            from app_users scoped
+            where scoped.status = 'active'
+              and scoped.role = 'MARKETING'
+              and (
+                scoped.primary_unit_id = $1
+                or exists (
+                  select 1
+                  from app_user_units scoped_uu
+                  where scoped_uu.user_id = scoped.id
+                    and scoped_uu.unit_id = $1
+                )
+              )
+          )
+        )
+      order by
+        case
+          when u.primary_unit_id = $1 then 0
+          when exists (
+            select 1
+            from app_user_units uu
+            where uu.user_id = u.id
+              and uu.unit_id = $1
+          ) then 1
+          else 2
+        end,
+        u.created_at asc,
+        u.name asc
+      limit 1
+    `,
+    [unitId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 async function getFormForProcessing(client: PoolClient, pageId: string, formId: string) {
   const result = await client.query<MetaFormRow>(
     `
@@ -1777,6 +1838,17 @@ async function processEventById(eventId: string) {
       resolvedAttendance && attendanceAssignment
         ? attendanceAssignment
         : await chooseConsultant(client, form);
+    const marketingFallback = assignment.userId
+      ? null
+      : await defaultMarketingOwner(client, targetUnitId);
+    const finalAssignment = assignment.userId
+      ? assignment
+      : marketingFallback
+        ? {
+            userId: marketingFallback.id,
+            reason: `${assignment.reason} Lead atribuido automaticamente ao Marketing.`,
+          }
+        : assignment;
     const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
     const leadCity = resolvedAttendance?.city ?? mapped.city;
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
@@ -1829,7 +1901,7 @@ async function processEventById(eventId: string) {
             .join("\n"),
         ),
         form.initial_stage,
-        assignment.userId,
+        finalAssignment.userId,
       ],
     );
     const leadId = leadResult.rows[0].id;
@@ -1858,7 +1930,7 @@ async function processEventById(eventId: string) {
         leadId,
         event.page_id,
         form.id,
-        assignment.reason,
+        finalAssignment.reason,
         JSON.stringify({
           ...mapped,
           fullName: leadFullName,
@@ -1867,7 +1939,7 @@ async function processEventById(eventId: string) {
           city: leadCity,
         }),
         resolvedAttendance?.id ?? null,
-        assignment.userId,
+        finalAssignment.userId,
         routingSource,
         resolvedAttendance ? null : routingError,
       ],

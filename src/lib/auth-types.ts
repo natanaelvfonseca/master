@@ -97,6 +97,14 @@ export function canTransferLeads(role: UserRole) {
   return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
+export function canAccessLeadTransferCenter(role: UserRole) {
+  return canTransferLeads(role) || role === "MARKETING";
+}
+
+export function canTransferLeadsImmediately(role: UserRole) {
+  return role === "MARKETING";
+}
+
 export function canViewAttendances(role: UserRole) {
   return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }

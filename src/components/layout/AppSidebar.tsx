@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   BarChart3,
   Bot,
   BookOpenCheck,
@@ -38,6 +39,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import plenariusLogo from "@/assets/logo-plenarios-branca.png";
 import { useAuth } from "@/lib/auth";
 import {
+  canAccessLeadTransferCenter,
   canAccessSystemFeedback,
   canManageBrandPlen,
   canManageUnits,
@@ -63,6 +65,7 @@ type NavigationItem = {
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
   attendancesOnly?: boolean;
+  leadTransferOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -79,6 +82,12 @@ const groups: Array<NavigationGroup> = [
     label: "Comercial",
     items: [
       { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
+      {
+        title: "Transferência",
+        url: "/crm/transferencia",
+        icon: ArrowRightLeft,
+        leadTransferOnly: true,
+      },
       { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
@@ -135,6 +144,7 @@ export function AppSidebar() {
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeAttendances = user ? canViewAttendances(user.role) : false;
+  const canSeeLeadTransfer = user ? canAccessLeadTransferCenter(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -159,7 +169,8 @@ export function AppSidebar() {
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback) &&
-          (!item.attendancesOnly || canSeeAttendances),
+          (!item.attendancesOnly || canSeeAttendances) &&
+          (!item.leadTransferOnly || canSeeLeadTransfer),
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -172,6 +183,7 @@ export function AppSidebar() {
               (item) =>
                 item.url === "/" ||
                 item.url === "/crm" ||
+                item.url === "/crm/transferencia" ||
                 item.url === "/bi" ||
                 item.url === "/branding" ||
                 item.url === "/brand-plen/nova" ||

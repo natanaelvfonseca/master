@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
   BookOpenCheck,
@@ -28,7 +28,7 @@ import type {
 } from "@/lib/commercial-types";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { useAuth } from "@/lib/auth";
-import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
+import { canAccessLeadTransferCenter, canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -381,6 +381,7 @@ function CRM() {
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
   const canTransferUnitLeads = session ? canTransferLeads(session.user.role) : false;
+  const canAccessTransfers = session ? canAccessLeadTransferCenter(session.user.role) : false;
   const canOperatePipeline = session ? canOperateCrm(session.user.role) : false;
   const canRemoveLeads = canTransferUnitLeads;
   const canViewAcquisitionChannel = session?.user.role !== "CONSULTOR";
@@ -1106,10 +1107,12 @@ function CRM() {
                   </Badge>
                 ) : null}
               </Button>
-              {canTransferUnitLeads ? (
-                <Button type="button" variant="outline" onClick={openTransferDialog}>
+              {canAccessTransfers ? (
+                <Button type="button" variant="outline" asChild>
+                  <Link to="/crm/transferencia">
                   <ArrowRightLeft className="mr-2 h-4 w-4" />
                   Transferência de Lead
+                  </Link>
                 </Button>
               ) : null}
               {canOperatePipeline ? (
