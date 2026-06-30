@@ -341,7 +341,7 @@ export const Route = createFileRoute("/api/crm/transfer")({
               unit.id,
               session.user.id,
               immediateTransfer
-                ? "Transferencia imediata pela central de Marketing"
+                ? "Transferencia imediata pela central de transferencias"
                 : "Transferencia apos 48 horas",
             ],
           );

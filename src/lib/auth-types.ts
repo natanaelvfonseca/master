@@ -102,7 +102,7 @@ export function canAccessLeadTransferCenter(role: UserRole) {
 }
 
 export function canTransferLeadsImmediately(role: UserRole) {
-  return role === "MARKETING";
+  return role === "MASTER" || role === "MARKETING";
 }
 
 export function canViewAttendances(role: UserRole) {
