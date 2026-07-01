@@ -50,6 +50,7 @@ import {
   getAssignableRoles,
   getInitials,
   isExecutiveRole,
+  isMasterRole,
   ROLE_LABELS,
   type ManagedUser,
   type UnitSummary,
@@ -107,7 +108,7 @@ function UsersPage() {
     unitId: "",
   });
   const canChooseUnit = userRole
-    ? userRole === "MASTER" || isExecutiveRole(userRole) || userRole === "MARKETING"
+    ? isMasterRole(userRole) || isExecutiveRole(userRole) || userRole === "MARKETING"
     : false;
   const canDeleteUserRecords = userRole ? canDeleteUsers(userRole) : false;
   const canEditUserRecords = userRole ? canEditUsers(userRole) : false;
@@ -126,7 +127,7 @@ function UsersPage() {
       const sessionDefaultUnitId = session.activeUnit?.id || session.units[0]?.id || "";
       const currentUnitStillExists = session.units.some((unit) => unit.id === current.unitId);
       const nextUnitId =
-        session.user.role === "MASTER" ||
+        isMasterRole(session.user.role) ||
         isExecutiveRole(session.user.role) ||
         session.user.role === "MARKETING"
         ? currentUnitStillExists

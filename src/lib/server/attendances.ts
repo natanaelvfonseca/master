@@ -8,7 +8,7 @@ import type {
   AttendanceMessageType,
 } from "@/lib/attendance-types";
 import type { AuthSession, UserRole } from "@/lib/auth-types";
-import { canViewAttendances, isExecutiveRole } from "@/lib/auth-types";
+import { canViewAttendances, isExecutiveRole, isMasterRole } from "@/lib/auth-types";
 import { isUuid } from "@/lib/server/commercial-schema";
 import { queryDb } from "@/lib/server/db";
 import { ensureEvolutionSchema, requestEvolution } from "@/lib/server/evolution-whatsapp";
@@ -73,7 +73,7 @@ type AttendanceMediaFile = {
 };
 
 export function canUseGlobalAttendanceUnitFilter(role: UserRole) {
-  return role === "MASTER" || isExecutiveRole(role);
+  return isMasterRole(role) || isExecutiveRole(role);
 }
 
 export function requireAttendanceAccess(session: AuthSession | null) {

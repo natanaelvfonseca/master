@@ -5,6 +5,7 @@ import {
   canDeleteUsers,
   canEditManagedUser,
   canEditUsers,
+  isMasterRole,
   type ManagedUser,
   type UserRole,
 } from "@/lib/auth-types";
@@ -86,7 +87,7 @@ export const Route = createFileRoute("/api/admin/users")({
               end,
               u.name asc
           `,
-          [session.activeUnit.id, session.user.role === "MASTER"],
+          [session.activeUnit.id, isMasterRole(session.user.role)],
         );
 
         return Response.json(
@@ -111,7 +112,9 @@ export const Route = createFileRoute("/api/admin/users")({
         const password = typeof body?.password === "string" ? body.password : "";
         const role = typeof body?.role === "string" ? body.role : "";
         const requestedUnitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
-        const canChooseUnit = ["MASTER", "CEO", "CVO", "MARKETING"].includes(session.user.role);
+        const canChooseUnit =
+          isMasterRole(session.user.role) ||
+          ["CEO", "MARKETING"].includes(session.user.role);
         const unitId = canChooseUnit
           ? requestedUnitId || session.activeUnit.id
           : session.activeUnit.id;

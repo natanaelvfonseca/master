@@ -6,6 +6,7 @@ import {
   canRegisterUsers,
   getAssignableRoles,
   isExecutiveRole,
+  isMasterRole,
   type AuthSession,
   type UnitSummary,
   type UserRole,
@@ -282,7 +283,7 @@ export function clearSessionCookie() {
 }
 
 export async function getAccessibleUnits(userId: string, role: UserRole) {
-  if (role === "MASTER" || isExecutiveRole(role) || role === "MARKETING") {
+  if (isMasterRole(role) || isExecutiveRole(role) || role === "MARKETING") {
     const result = await queryDb<UserUnitRow>(
       `
         select id, name, slug

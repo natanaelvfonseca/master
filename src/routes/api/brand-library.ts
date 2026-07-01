@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
 import type { BrandLibraryMaterial, BrandLibraryMediaType } from "@/lib/brand-library-types";
+import { isMasterRole } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { getUnitFromBody, getUnitFromRequest } from "@/lib/server/commercial-schema";
 import { queryDb } from "@/lib/server/db";
@@ -172,7 +173,7 @@ export const Route = createFileRoute("/api/brand-library")({
           return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
-        if (session.user.role !== "MASTER") {
+        if (!isMasterRole(session.user.role)) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 

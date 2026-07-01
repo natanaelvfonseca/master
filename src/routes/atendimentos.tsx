@@ -47,7 +47,7 @@ import type {
   AttendanceMessageType,
 } from "@/lib/attendance-types";
 import { useAuth } from "@/lib/auth";
-import { canViewAttendances, getInitials, isExecutiveRole } from "@/lib/auth-types";
+import { canViewAttendances, getInitials, isExecutiveRole, isMasterRole } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
 type ConsultantsResponse = {
@@ -186,7 +186,7 @@ function AtendimentosPage() {
   const { session } = useAuth();
   const canAccess = session ? canViewAttendances(session.user.role) : false;
   const canUseUnitFilter =
-    session?.user.role === "MASTER" || Boolean(session && isExecutiveRole(session.user.role));
+    Boolean(session && (isMasterRole(session.user.role) || isExecutiveRole(session.user.role)));
   const [unitFilter, setUnitFilter] = React.useState(ATTENDANCE_ALL_UNITS);
   const [consultants, setConsultants] = React.useState<Array<AttendanceConsultant>>([]);
   const [loadingConsultants, setLoadingConsultants] = React.useState(true);

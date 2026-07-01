@@ -28,6 +28,7 @@ import { courses } from "@/lib/brand";
 import type { BrandLibraryMaterial, BrandLibraryMediaType } from "@/lib/brand-library-types";
 import type { CourseRecord } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
+import { isMasterRole } from "@/lib/auth-types";
 
 const defaultCourse = courses[0] ?? "Geral";
 const fallbackCourses = courses.length ? courses : [defaultCourse];
@@ -87,7 +88,7 @@ export const Route = createFileRoute("/brand-plen/biblioteca")({
 
 function Biblioteca() {
   const { session } = useAuth();
-  const isMaster = session?.user.role === "MASTER";
+  const isMaster = session ? isMasterRole(session.user.role) : false;
   const activeUnitId = session?.activeUnit?.id ?? "";
   const [materials, setMaterials] = React.useState<Array<BrandLibraryMaterial>>([]);
   const [dialogOpen, setDialogOpen] = React.useState(false);
