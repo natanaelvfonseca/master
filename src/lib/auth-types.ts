@@ -152,7 +152,13 @@ export function canViewLeadershipTraining(role: UserRole) {
 }
 
 export function canSubmitSystemFeedback(role: UserRole) {
-  return isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE" || role === "MARKETING";
+  return (
+    isMasterRole(role) ||
+    isExecutiveRole(role) ||
+    role === "DIRETOR" ||
+    role === "GERENTE" ||
+    role === "MARKETING"
+  );
 }
 
 export function canManageSystemFeedback(role: UserRole) {
