@@ -67,6 +67,12 @@ export async function ensureUserProfileSchema() {
           alter table app_users
           add constraint app_users_role_check
           check (role in ('MASTER', 'CEO', 'CVO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
+
+          update app_users
+          set role = 'CVO',
+              updated_at = now()
+          where lower(email) = lower('jrcunha@escolaplenarius.com')
+            and role = 'CEO';
         end
         $$
       `,
