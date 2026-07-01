@@ -79,6 +79,7 @@ export const Route = createFileRoute("/api/admin/users")({
               case u.role
                 when 'MASTER' then 1
                 when 'CEO' then 2
+                when 'CVO' then 2
                 when 'DIRETOR' then 3
                 when 'GERENTE' then 4
                 else 5
@@ -110,7 +111,7 @@ export const Route = createFileRoute("/api/admin/users")({
         const password = typeof body?.password === "string" ? body.password : "";
         const role = typeof body?.role === "string" ? body.role : "";
         const requestedUnitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
-        const canChooseUnit = ["MASTER", "CEO", "MARKETING"].includes(session.user.role);
+        const canChooseUnit = ["MASTER", "CEO", "CVO", "MARKETING"].includes(session.user.role);
         const unitId = canChooseUnit
           ? requestedUnitId || session.activeUnit.id
           : session.activeUnit.id;

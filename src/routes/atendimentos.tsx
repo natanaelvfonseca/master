@@ -47,7 +47,7 @@ import type {
   AttendanceMessageType,
 } from "@/lib/attendance-types";
 import { useAuth } from "@/lib/auth";
-import { canViewAttendances, getInitials } from "@/lib/auth-types";
+import { canViewAttendances, getInitials, isExecutiveRole } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
 
 type ConsultantsResponse = {
@@ -185,7 +185,8 @@ function typeIcon(type: AttendanceMessageType) {
 function AtendimentosPage() {
   const { session } = useAuth();
   const canAccess = session ? canViewAttendances(session.user.role) : false;
-  const canUseUnitFilter = session?.user.role === "MASTER" || session?.user.role === "CEO";
+  const canUseUnitFilter =
+    session?.user.role === "MASTER" || Boolean(session && isExecutiveRole(session.user.role));
   const [unitFilter, setUnitFilter] = React.useState(ATTENDANCE_ALL_UNITS);
   const [consultants, setConsultants] = React.useState<Array<AttendanceConsultant>>([]);
   const [loadingConsultants, setLoadingConsultants] = React.useState(true);
@@ -408,7 +409,7 @@ function AtendimentosPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            A central de atendimentos está disponível para Master, CEO, Diretor e Gerente.
+            A central de atendimentos está disponível para Master, CEO, CVO, Diretor e Gerente.
           </p>
         </div>
       </div>

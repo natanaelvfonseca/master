@@ -1,6 +1,7 @@
 export const USER_ROLES = [
   "MASTER",
   "CEO",
+  "CVO",
   "DIRETOR",
   "GERENTE",
   "MARKETING",
@@ -45,22 +46,27 @@ export type ManagedUser = {
 export const ROLE_LABELS: Record<UserRole, string> = {
   MASTER: "Master",
   CEO: "CEO",
+  CVO: "CVO",
   DIRETOR: "Diretor",
   GERENTE: "Gerente",
   MARKETING: "Marketing",
   CONSULTOR: "Consultor",
 };
 
+export function isExecutiveRole(role: UserRole) {
+  return role === "CEO" || role === "CVO";
+}
+
 export function canRegisterUsers(role: UserRole) {
-  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "MARKETING"].includes(role);
+  return ["MASTER", "CEO", "CVO", "DIRETOR", "GERENTE", "MARKETING"].includes(role);
 }
 
 export function canDeleteUsers(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "MARKETING";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "MARKETING";
 }
 
 export function canEditUsers(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "MARKETING";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "MARKETING";
 }
 
 export function canCreateUnits(role: UserRole) {
@@ -68,7 +74,7 @@ export function canCreateUnits(role: UserRole) {
 }
 
 export function canManageUnits(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "MARKETING";
+  return role === "MASTER" || isExecutiveRole(role) || role === "MARKETING";
 }
 
 export function canViewGrowth(role: UserRole) {
@@ -76,13 +82,13 @@ export function canViewGrowth(role: UserRole) {
 }
 
 export function canViewNetworkGrowth(role: UserRole) {
-  return role === "MASTER" || role === "CEO";
+  return role === "MASTER" || isExecutiveRole(role);
 }
 
 export function canViewManagement(role: UserRole) {
   return (
     role === "MASTER" ||
-    role === "CEO" ||
+    isExecutiveRole(role) ||
     role === "DIRETOR" ||
     role === "GERENTE" ||
     role === "MARKETING"
@@ -90,11 +96,11 @@ export function canViewManagement(role: UserRole) {
 }
 
 export function canViewStudents(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canTransferLeads(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canAccessLeadTransferCenter(role: UserRole) {
@@ -106,7 +112,7 @@ export function canTransferLeadsImmediately(role: UserRole) {
 }
 
 export function canViewAttendances(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canManageBrandPlen(role: UserRole) {
@@ -130,11 +136,11 @@ export function canViewAllUnitLeads(role: UserRole) {
 }
 
 export function canViewBrandPlenHistory(role: UserRole) {
-  return role === "MASTER" || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
+  return role === "MASTER" || isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canManageTraining(role: UserRole) {
-  return role === "MASTER" || role === "CEO";
+  return role === "MASTER" || isExecutiveRole(role);
 }
 
 export function canViewLeadershipTraining(role: UserRole) {
@@ -142,7 +148,7 @@ export function canViewLeadershipTraining(role: UserRole) {
 }
 
 export function canSubmitSystemFeedback(role: UserRole) {
-  return role === "CEO" || role === "DIRETOR" || role === "GERENTE" || role === "MARKETING";
+  return isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE" || role === "MARKETING";
 }
 
 export function canManageSystemFeedback(role: UserRole) {
@@ -155,10 +161,10 @@ export function canAccessSystemFeedback(role: UserRole) {
 
 export function getAssignableRoles(role: UserRole): Array<UserRole> {
   if (role === "MASTER") {
-    return ["CEO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"];
+    return ["CEO", "CVO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"];
   }
 
-  if (role === "CEO") {
+  if (isExecutiveRole(role)) {
     return ["DIRETOR", "GERENTE", "CONSULTOR"];
   }
 
@@ -182,7 +188,7 @@ export function canDeleteManagedUser(actorRole: UserRole, targetRole: UserRole) 
     return true;
   }
 
-  if (actorRole === "CEO") {
+  if (isExecutiveRole(actorRole)) {
     return targetRole === "DIRETOR" || targetRole === "GERENTE" || targetRole === "CONSULTOR";
   }
 

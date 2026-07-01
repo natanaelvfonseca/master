@@ -93,7 +93,7 @@ function UnitsPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Apenas master, CEO e Marketing podem gerenciar unidades.
+            Apenas Master, CEO, CVO e Marketing podem gerenciar unidades.
           </p>
         </div>
       </div>

@@ -5,6 +5,7 @@ import {
   canCreateUnits,
   canRegisterUsers,
   getAssignableRoles,
+  isExecutiveRole,
   type AuthSession,
   type UnitSummary,
   type UserRole,
@@ -65,7 +66,7 @@ export async function ensureUserProfileSchema() {
           alter table app_users drop constraint if exists app_users_role_check;
           alter table app_users
           add constraint app_users_role_check
-          check (role in ('MASTER', 'CEO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
+          check (role in ('MASTER', 'CEO', 'CVO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
         end
         $$
       `,
@@ -81,7 +82,7 @@ export async function ensureUserProfileSchema() {
 }
 
 export function isValidRole(role: string): role is UserRole {
-  return ["MASTER", "CEO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(role);
+  return ["MASTER", "CEO", "CVO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(role);
 }
 
 export async function hashPassword(password: string) {
@@ -275,7 +276,7 @@ export function clearSessionCookie() {
 }
 
 export async function getAccessibleUnits(userId: string, role: UserRole) {
-  if (role === "MASTER" || role === "CEO" || role === "MARKETING") {
+  if (role === "MASTER" || isExecutiveRole(role) || role === "MARKETING") {
     const result = await queryDb<UserUnitRow>(
       `
         select id, name, slug

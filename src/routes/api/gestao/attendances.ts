@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { canViewManagement } from "@/lib/auth-types";
+import { canViewManagement, isExecutiveRole } from "@/lib/auth-types";
 import {
   deleteCourseAttendance,
   listCourseAttendances,
@@ -31,7 +31,7 @@ async function authorize(request: Request, requestedUnitId: string) {
     return { response: Response.json({ ok: false, error: "Acesso negado." }, { status: 403 }) };
   }
 
-  const canChooseUnit = session.user.role === "MASTER" || session.user.role === "CEO";
+  const canChooseUnit = session.user.role === "MASTER" || isExecutiveRole(session.user.role);
   const unitId = canChooseUnit ? requestedUnitId || session.activeUnit.id : session.activeUnit.id;
 
   if (!session.units.some((unit) => unit.id === unitId)) {
