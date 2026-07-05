@@ -32,3 +32,8 @@ dist-ssr
 *.sln
 *.sw?
 .env*
+
+# Plena local secrets/data
+plenarius-legacy-pulse/pagina-html/plena-config.php
+plenarius-legacy-pulse/pagina-html/plena-data/
+plenarius-legacy-pulse/pagina-html/*.lock

@@ -40,6 +40,7 @@ import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
+import { Route as ApiWebhooksPlenaLeadsRouteImport } from './routes/api/webhooks/plena-leads'
 import { Route as ApiWebhooksMetaLeadsRouteImport } from './routes/api/webhooks/meta-leads'
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.video'
@@ -221,6 +222,11 @@ const ApiDashboardRoute = ApiDashboardRouteImport.update({
 const ApiBrandLibraryRoute = ApiBrandLibraryRouteImport.update({
   id: '/api/brand-library',
   path: '/api/brand-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksPlenaLeadsRoute = ApiWebhooksPlenaLeadsRouteImport.update({
+  id: '/api/webhooks/plena-leads',
+  path: '/api/webhooks/plena-leads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksMetaLeadsRoute = ApiWebhooksMetaLeadsRouteImport.update({
@@ -419,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
+  '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -479,6 +486,7 @@ export interface FileRoutesByTo {
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
+  '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -540,6 +548,7 @@ export interface FileRoutesById {
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
+  '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
@@ -602,6 +611,7 @@ export interface FileRouteTypes {
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
+    | '/api/webhooks/plena-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -662,6 +672,7 @@ export interface FileRouteTypes {
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
+    | '/api/webhooks/plena-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
+    | '/api/webhooks/plena-leads'
     | '/api/crm/leads/$id'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
@@ -780,6 +792,7 @@ export interface RootRouteChildren {
   ApiIntegrationsMetaAdsRoute: typeof ApiIntegrationsMetaAdsRoute
   ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
   ApiWebhooksMetaLeadsRoute: typeof ApiWebhooksMetaLeadsRoute
+  ApiWebhooksPlenaLeadsRoute: typeof ApiWebhooksPlenaLeadsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -999,6 +1012,13 @@ declare module '@tanstack/react-router' {
       path: '/api/brand-library'
       fullPath: '/api/brand-library'
       preLoaderRoute: typeof ApiBrandLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/plena-leads': {
+      id: '/api/webhooks/plena-leads'
+      path: '/api/webhooks/plena-leads'
+      fullPath: '/api/webhooks/plena-leads'
+      preLoaderRoute: typeof ApiWebhooksPlenaLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/meta-leads': {
@@ -1304,6 +1324,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntegrationsMetaAdsRoute: ApiIntegrationsMetaAdsRoute,
   ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,
   ApiWebhooksMetaLeadsRoute: ApiWebhooksMetaLeadsRoute,
+  ApiWebhooksPlenaLeadsRoute: ApiWebhooksPlenaLeadsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
