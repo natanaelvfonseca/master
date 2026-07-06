@@ -9,8 +9,14 @@ export type GrowthScope = {
 
 export type GrowthMetrics = {
   leadsReceived: number;
+  newLeads: number;
   qualifiedLeads: number;
   enrollments: number;
+  proposals: number;
+  pendingPayments: number;
+  uncontactedLeads: number;
+  overdueFollowUps: number;
+  todayFollowUps: number;
   conversionRate: number;
   followUpRate: number;
   averageTicket: number;
@@ -19,6 +25,11 @@ export type GrowthMetrics = {
   activeChannels: number;
   paidChannels: number;
   revenue: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
+  proposalPotential: number;
+  pendingPaymentPotential: number;
+  leadsWithoutCourseValue: number;
   metaLeads: number;
   campaignCount: number;
   averageFirstContactHours: number;
@@ -28,6 +39,8 @@ export type GrowthSourceMetric = {
   source: string;
   leads: number;
   enrollments: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
   conversionRate: number;
 };
 
@@ -35,6 +48,8 @@ export type GrowthCourseMetric = {
   course: string;
   leads: number;
   enrollments: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
   conversionRate: number;
 };
 
@@ -50,6 +65,8 @@ export type GrowthUnitMetric = {
   name: string;
   leads: number;
   enrollments: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
   conversionRate: number;
 };
 
@@ -77,6 +94,10 @@ export type GrowthConsultantMetric = {
   leads: number;
   qualifiedLeads: number;
   enrollments: number;
+  proposals: number;
+  pendingPayments: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
   conversionRate: number;
   followUpRate: number;
 };
