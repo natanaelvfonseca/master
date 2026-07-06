@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bot,
   BookOpenCheck,
+  BrainCircuit,
   Building2,
   ClipboardList,
   GraduationCap,
@@ -92,6 +93,7 @@ const groups: Array<NavigationGroup> = [
       { title: "Ranking", url: "/ranking", icon: Trophy },
       { title: "Conversas IA", url: "/conversas", icon: Bot },
       { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, attendancesOnly: true },
+      { title: "IA Comercial", url: "/ia-comercial", icon: BrainCircuit, attendancesOnly: true },
     ],
   },
   {

@@ -17,6 +17,7 @@ import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as MetaAdsRouteImport } from './routes/meta-ads'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as IaComercialRouteImport } from './routes/ia-comercial'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -37,6 +38,7 @@ import { Route as ApiTrainingRouteImport } from './routes/api/training'
 import { Route as ApiSystemFeedbackRouteImport } from './routes/api/system-feedback'
 import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ApiIaComercialRouteImport } from './routes/api/ia-comercial'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
@@ -47,6 +49,8 @@ import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.vide
 import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upload'
 import { Route as ApiIntegrationsMetaAdsRouteImport } from './routes/api/integrations/meta-ads'
 import { Route as ApiIntegrationsEvolutionRouteImport } from './routes/api/integrations/evolution'
+import { Route as ApiIaComercialScriptsRouteImport } from './routes/api/ia-comercial.scripts'
+import { Route as ApiIaComercialAnalisesRouteImport } from './routes/api/ia-comercial.analises'
 import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
@@ -107,6 +111,11 @@ const MetaAdsRoute = MetaAdsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IaComercialRoute = IaComercialRouteImport.update({
+  id: '/ia-comercial',
+  path: '/ia-comercial',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -209,6 +218,11 @@ const ApiProfileRoute = ApiProfileRouteImport.update({
   path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIaComercialRoute = ApiIaComercialRouteImport.update({
+  id: '/api/ia-comercial',
+  path: '/api/ia-comercial',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGrowthRoute = ApiGrowthRouteImport.update({
   id: '/api/growth',
   path: '/api/growth',
@@ -260,6 +274,16 @@ const ApiIntegrationsEvolutionRoute =
     path: '/api/integrations/evolution',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiIaComercialScriptsRoute = ApiIaComercialScriptsRouteImport.update({
+  id: '/scripts',
+  path: '/scripts',
+  getParentRoute: () => ApiIaComercialRoute,
+} as any)
+const ApiIaComercialAnalisesRoute = ApiIaComercialAnalisesRouteImport.update({
+  id: '/analises',
+  path: '/analises',
+  getParentRoute: () => ApiIaComercialRoute,
+} as any)
 const ApiHealthDbRoute = ApiHealthDbRouteImport.update({
   id: '/api/health/db',
   path: '/api/health/db',
@@ -378,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
   '/perfil': typeof PerfilRoute
@@ -389,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
+  '/api/ia-comercial': typeof ApiIaComercialRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
@@ -419,6 +445,8 @@ export interface FileRoutesByFullPath {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/ia-comercial/analises': typeof ApiIaComercialAnalisesRoute
+  '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
@@ -439,6 +467,7 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
   '/perfil': typeof PerfilRoute
@@ -450,6 +479,7 @@ export interface FileRoutesByTo {
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
+  '/api/ia-comercial': typeof ApiIaComercialRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
@@ -480,6 +510,8 @@ export interface FileRoutesByTo {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/ia-comercial/analises': typeof ApiIaComercialAnalisesRoute
+  '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
@@ -501,6 +533,7 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
   '/perfil': typeof PerfilRoute
@@ -512,6 +545,7 @@ export interface FileRoutesById {
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
+  '/api/ia-comercial': typeof ApiIaComercialRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
@@ -542,6 +576,8 @@ export interface FileRoutesById {
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
   '/api/health/db': typeof ApiHealthDbRoute
+  '/api/ia-comercial/analises': typeof ApiIaComercialAnalisesRoute
+  '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
   '/api/training/upload': typeof ApiTrainingUploadRoute
@@ -564,6 +600,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/ia-comercial'
     | '/login'
     | '/meta-ads'
     | '/perfil'
@@ -575,6 +612,7 @@ export interface FileRouteTypes {
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
+    | '/api/ia-comercial'
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
@@ -605,6 +643,8 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/ia-comercial/analises'
+    | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
@@ -625,6 +665,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/ia-comercial'
     | '/login'
     | '/meta-ads'
     | '/perfil'
@@ -636,6 +677,7 @@ export interface FileRouteTypes {
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
+    | '/api/ia-comercial'
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
@@ -666,6 +708,8 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/ia-comercial/analises'
+    | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
@@ -686,6 +730,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/ia-comercial'
     | '/login'
     | '/meta-ads'
     | '/perfil'
@@ -697,6 +742,7 @@ export interface FileRouteTypes {
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
+    | '/api/ia-comercial'
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
@@ -727,6 +773,8 @@ export interface FileRouteTypes {
     | '/api/gestao/channels'
     | '/api/gestao/courses'
     | '/api/health/db'
+    | '/api/ia-comercial/analises'
+    | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
     | '/api/training/upload'
@@ -748,6 +796,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EstrategiaRoute: typeof EstrategiaRoute
   FeedbackRoute: typeof FeedbackRoute
+  IaComercialRoute: typeof IaComercialRoute
   LoginRoute: typeof LoginRoute
   MetaAdsRoute: typeof MetaAdsRoute
   PerfilRoute: typeof PerfilRoute
@@ -759,6 +808,7 @@ export interface RootRouteChildren {
   ApiBrandLibraryRoute: typeof ApiBrandLibraryRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
   ApiGrowthRoute: typeof ApiGrowthRoute
+  ApiIaComercialRoute: typeof ApiIaComercialRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRoute
   ApiRankingRoute: typeof ApiRankingRoute
   ApiSystemFeedbackRoute: typeof ApiSystemFeedbackRoute
@@ -851,6 +901,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ia-comercial': {
+      id: '/ia-comercial'
+      path: '/ia-comercial'
+      fullPath: '/ia-comercial'
+      preLoaderRoute: typeof IaComercialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -993,6 +1050,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ia-comercial': {
+      id: '/api/ia-comercial'
+      path: '/api/ia-comercial'
+      fullPath: '/api/ia-comercial'
+      preLoaderRoute: typeof ApiIaComercialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/growth': {
       id: '/api/growth'
       path: '/api/growth'
@@ -1062,6 +1126,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/integrations/evolution'
       preLoaderRoute: typeof ApiIntegrationsEvolutionRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/ia-comercial/scripts': {
+      id: '/api/ia-comercial/scripts'
+      path: '/scripts'
+      fullPath: '/api/ia-comercial/scripts'
+      preLoaderRoute: typeof ApiIaComercialScriptsRouteImport
+      parentRoute: typeof ApiIaComercialRoute
+    }
+    '/api/ia-comercial/analises': {
+      id: '/api/ia-comercial/analises'
+      path: '/analises'
+      fullPath: '/api/ia-comercial/analises'
+      preLoaderRoute: typeof ApiIaComercialAnalisesRouteImport
+      parentRoute: typeof ApiIaComercialRoute
     }
     '/api/health/db': {
       id: '/api/health/db'
@@ -1223,6 +1301,20 @@ const CrmRouteChildren: CrmRouteChildren = {
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 
+interface ApiIaComercialRouteChildren {
+  ApiIaComercialAnalisesRoute: typeof ApiIaComercialAnalisesRoute
+  ApiIaComercialScriptsRoute: typeof ApiIaComercialScriptsRoute
+}
+
+const ApiIaComercialRouteChildren: ApiIaComercialRouteChildren = {
+  ApiIaComercialAnalisesRoute: ApiIaComercialAnalisesRoute,
+  ApiIaComercialScriptsRoute: ApiIaComercialScriptsRoute,
+}
+
+const ApiIaComercialRouteWithChildren = ApiIaComercialRoute._addFileChildren(
+  ApiIaComercialRouteChildren,
+)
+
 interface ApiTrainingRouteChildren {
   ApiTrainingUploadRoute: typeof ApiTrainingUploadRoute
   ApiTrainingVideoRoute: typeof ApiTrainingVideoRoute
@@ -1280,6 +1372,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRouteWithChildren,
   EstrategiaRoute: EstrategiaRoute,
   FeedbackRoute: FeedbackRoute,
+  IaComercialRoute: IaComercialRoute,
   LoginRoute: LoginRoute,
   MetaAdsRoute: MetaAdsRoute,
   PerfilRoute: PerfilRoute,
@@ -1291,6 +1384,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBrandLibraryRoute: ApiBrandLibraryRoute,
   ApiDashboardRoute: ApiDashboardRoute,
   ApiGrowthRoute: ApiGrowthRoute,
+  ApiIaComercialRoute: ApiIaComercialRouteWithChildren,
   ApiProfileRoute: ApiProfileRoute,
   ApiRankingRoute: ApiRankingRoute,
   ApiSystemFeedbackRoute: ApiSystemFeedbackRoute,
