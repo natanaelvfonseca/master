@@ -564,6 +564,9 @@ function phoneFieldValue(fields: Record<string, string>) {
     "celular",
     "phone",
     "whatsapp",
+    "whatsapp_number",
+    "numero_do_whatsapp",
+    "número_do_whatsapp",
     "whats",
     "contato",
   ]);
@@ -621,6 +624,9 @@ function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) 
     "celular2",
     "whatsapp_2",
     "whatsapp2",
+    "whatsapp_number",
+    "numero_do_whatsapp",
+    "número_do_whatsapp",
     "whats_2",
     "contato_2",
   ]);
@@ -715,6 +721,9 @@ function shouldHideMetaObservationField(fieldName: string, mappedRuleSources: Se
     "celular2",
     "phone",
     "whatsapp",
+    "whatsapp_number",
+    "numero_do_whatsapp",
+    "número_do_whatsapp",
     "whatsapp_2",
     "whatsapp2",
     "whats",
@@ -723,6 +732,14 @@ function shouldHideMetaObservationField(fieldName: string, mappedRuleSources: Se
     "e_mail",
     "city",
     "cidade",
+    "qual_cidade_voce_mora",
+    "qual_cidade_você_mora",
+    "em_qual_cidade_voce_mora",
+    "em_qual_cidade_você_mora",
+    "cidade_onde_mora",
+    "cidade_que_mora",
+    "onde_voce_mora",
+    "onde_você_mora",
     "course",
     "curso",
     "curso_de_interesse",
@@ -750,6 +767,22 @@ function cleanMetaLeadObservations(value: string) {
       );
     })
     .join("\n");
+}
+
+function cityFieldValue(fields: Record<string, string>) {
+  return firstField(fields, [
+    "city",
+    "cidade",
+    "qual_cidade_voce_mora",
+    "qual_cidade_você_mora",
+    "em_qual_cidade_voce_mora",
+    "em_qual_cidade_você_mora",
+    "qual_sua_cidade",
+    "cidade_onde_mora",
+    "cidade_que_mora",
+    "onde_voce_mora",
+    "onde_você_mora",
+  ]);
 }
 
 export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMapping>) {
@@ -784,7 +817,7 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
     mapped.phone = phoneFieldValue(sourceFields);
     mapped.phone2 = phone2FieldValue(sourceFields, mapped.phone);
     mapped.email = firstField(sourceFields, ["email", "e-mail"]);
-    mapped.city = firstField(sourceFields, ["city", "cidade", "qual_sua_cidade"]);
+    mapped.city = cityFieldValue(sourceFields);
     mapped.courseName = firstField(sourceFields, [
       "course",
       "curso",
@@ -810,6 +843,8 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
       rawValue = phone2FieldValue(sourceFields, mapped.phone || phoneFieldValue(sourceFields));
     } else if (!rawValue && rule.target === "email") {
       rawValue = firstField(sourceFields, ["email", "e_mail"]);
+    } else if (!rawValue && rule.target === "city") {
+      rawValue = cityFieldValue(sourceFields);
     }
 
     const value = transformValue(rawValue.trim(), rule.transform);
@@ -1917,7 +1952,7 @@ async function processEventById(eventId: string) {
           }
         : assignment;
     const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
-    const leadCity = resolvedAttendance?.city ?? mapped.city;
+    const leadCity = mapped.city || resolvedAttendance?.city || "";
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
     const leadPhone = mapped.phone || "";
     const leadPhone2 = mapped.phone2 || "";
