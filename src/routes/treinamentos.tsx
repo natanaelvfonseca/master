@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { canManageTraining, canViewLeadershipTraining } from "@/lib/auth-types";
 import {
   TRAINING_TRAILS,
@@ -953,6 +954,7 @@ function Treinamentos() {
 
   return (
     <div className="space-y-6 overflow-x-hidden" onContextMenu={(event) => event.preventDefault()}>
+      <PremiumBlockedPopup />
       <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#C2410C_38%,#F97316_74%,#FF8A1F_100%)] p-5 text-white shadow-[0_30px_90px_-50px_rgba(194,65,12,0.95)] md:p-7">
         <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,.1)_1px,transparent_1px)] [background-size:34px_34px]" />
         <div className="absolute left-0 top-0 h-px w-full animate-pulse bg-gradient-to-r from-transparent via-gold to-transparent" />

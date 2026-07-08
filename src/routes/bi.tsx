@@ -31,6 +31,7 @@ import {
   YAxis,
 } from "recharts";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { StatCard } from "@/components/layout/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -103,6 +104,7 @@ function BI() {
 
   return (
     <div className="space-y-6">
+      <PremiumBlockedPopup />
       <PageHeader
         eyebrow="Crescimento"
         title="Relatórios"

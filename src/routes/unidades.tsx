@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Building2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -205,6 +206,7 @@ function UnitsPage() {
 
   return (
     <div className="space-y-6">
+      <PremiumBlockedPopup />
       <PageHeader
         eyebrow="Administração"
         title="Unidades"

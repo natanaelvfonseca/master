@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { canViewStudents } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -208,6 +209,7 @@ function LeadsList() {
 
   return (
     <div>
+      <PremiumBlockedPopup />
       <PageHeader
         eyebrow="Comercial"
         title="Alunos"

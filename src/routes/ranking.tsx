@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Award, Crown, Flame, Medal, Trophy, Zap, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -131,6 +132,7 @@ function Ranking() {
 
   return (
     <div className="ranking-elite-shell -m-4 min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-5 text-foreground md:-m-6 md:px-6 md:py-7 lg:-m-8 lg:px-8 lg:py-8">
+      <PremiumBlockedPopup />
       <div className="ranking-light-beams" />
       <div className="ranking-energy-lines" />
 

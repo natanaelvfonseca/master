@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -393,6 +394,7 @@ function SalesAiPage() {
 
   return (
     <div className="space-y-6">
+      <PremiumBlockedPopup />
       <PageHeader
         eyebrow="Comercial"
         title="IA Comercial"
