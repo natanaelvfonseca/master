@@ -124,7 +124,7 @@ function formatDate(value: string) {
 }
 
 export const Route = createFileRoute("/feedback")({
-  head: () => ({ meta: [{ title: "Feedback do Sistema · Plenarius" }] }),
+  head: () => ({ meta: [{ title: "Feedback do Sistema · Master" }] }),
   component: FeedbackPage,
 });
 
@@ -356,7 +356,7 @@ function FeedbackPage() {
         }
       />
 
-      <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#0B2A6F_42%,#1746B8_100%)] p-5 text-white shadow-[0_28px_90px_-48px_rgba(11,42,111,0.95)] md:p-6">
+      <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#C2410C_42%,#F97316_100%)] p-5 text-white shadow-[0_28px_90px_-48px_rgba(194,65,12,0.95)] md:p-6">
         <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.14)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,.1)_1px,transparent_1px)] [background-size:32px_32px]" />
         <div className="absolute right-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-gold to-transparent" />
         <div className="relative grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_360px] md:items-center">
@@ -386,7 +386,7 @@ function FeedbackPage() {
       <div className={cn("grid min-w-0 gap-6", canSubmit && "xl:grid-cols-[420px_minmax(0,1fr)]")}>
         {canSubmit ? (
           <Card className="min-w-0 overflow-hidden border-primary/15 shadow-elegant">
-            <CardHeader className="border-b bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_100%)] p-5 text-white">
+            <CardHeader className="border-b bg-[linear-gradient(135deg,#C2410C_0%,#F97316_100%)] p-5 text-white">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Send className="h-4 w-4 text-gold" />
                 Novo feedback
@@ -662,7 +662,7 @@ function TicketCard({
           </div>
 
           {canManage ? (
-            <div className="min-w-0 border-t bg-[linear-gradient(180deg,rgba(220,232,255,.56),rgba(255,255,255,.88))] p-4 lg:border-l lg:border-t-0">
+            <div className="min-w-0 border-t bg-[linear-gradient(180deg,rgba(255,244,234,.56),rgba(255,255,255,.88))] p-4 lg:border-l lg:border-t-0">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <div className="space-y-2">
                   <Label>Status</Label>

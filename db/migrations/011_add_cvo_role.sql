@@ -7,5 +7,5 @@ alter table app_users
 update app_users
 set role = 'CVO',
     updated_at = now()
-where lower(email) = lower('jrcunha@escolaplenarius.com')
+where lower(email) = lower('jrcunha@escolamaster.com')
   and role = 'CEO';

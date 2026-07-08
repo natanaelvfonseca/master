@@ -8,8 +8,6 @@ import {
   Building2,
   ClipboardList,
   GraduationCap,
-  History,
-  Images,
   Infinity as InfinityIcon,
   KanbanSquare,
   LayoutDashboard,
@@ -17,10 +15,8 @@ import {
   Megaphone,
   MessageCircle,
   MessageSquarePlus,
-  Palette,
   Trophy,
   UserCog,
-  Wand2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -37,15 +33,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
   canAccessLeadTransferCenter,
   canAccessSystemFeedback,
-  canManageBrandPlen,
   canManageUnits,
   canViewAttendances,
-  canViewBrandPlenHistory,
   canViewGrowth,
   canViewManagement,
   canViewStudents,
@@ -59,8 +53,6 @@ type NavigationItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  brandAdminOnly?: boolean;
-  brandHistoryOnly?: boolean;
   managementOnly?: boolean;
   metaAdsOnly?: boolean;
   studentViewOnly?: boolean;
@@ -104,15 +96,6 @@ const groups: Array<NavigationGroup> = [
     ],
   },
   {
-    label: "Brand Plen",
-    items: [
-      { title: "Nova Criação", url: "/brand-plen/nova", icon: Wand2 },
-      { title: "Biblioteca", url: "/brand-plen/biblioteca", icon: Images },
-      { title: "Brand Kit", url: "/brand-plen/kit", icon: Palette, brandAdminOnly: true },
-      { title: "Histórico", url: "/brand-plen/historico", icon: History, brandHistoryOnly: true },
-    ],
-  },
-  {
     label: "Área de Membros",
     items: [{ title: "Treinamentos", url: "/treinamentos", icon: BookOpenCheck }],
   },
@@ -139,8 +122,6 @@ export function AppSidebar() {
   const user = session?.user;
   const activeUnit = session?.activeUnit;
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
-  const canViewBrandAdmin = user ? canManageBrandPlen(user.role) : false;
-  const canViewBrandHistory = user ? canViewBrandPlenHistory(user.role) : false;
   const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
@@ -165,8 +146,6 @@ export function AppSidebar() {
       ...group,
       items: group.items.filter(
         (item) =>
-          (!item.brandAdminOnly || canViewBrandAdmin) &&
-          (!item.brandHistoryOnly || canViewBrandHistory) &&
           (!item.managementOnly || canViewManagementArea) &&
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
@@ -188,9 +167,6 @@ export function AppSidebar() {
                 item.url === "/crm/transferencia" ||
                 item.url === "/bi" ||
                 item.url === "/branding" ||
-                item.url === "/brand-plen/nova" ||
-                item.url === "/brand-plen/biblioteca" ||
-                item.url === "/brand-plen/kit" ||
                 item.url === "/gestao/cadastro" ||
                 item.url === "/meta-ads" ||
                 item.url === "/treinamentos" ||
@@ -220,12 +196,12 @@ export function AppSidebar() {
         <div className="px-2 py-3">
           <div className="flex items-center justify-center px-1 py-1">
             <img
-              src={plenariusLogo}
-              alt="Plenarius"
+              src={masterLogo}
+              alt="Master"
               className={cn("object-contain", collapsed ? "h-8 w-8" : "h-14 w-full")}
             />
           </div>
-          {!collapsed && <div className="sr-only">Planarius Growth Hub</div>}
+          {!collapsed && <div className="sr-only">Master Growth Hub</div>}
         </div>
       </SidebarHeader>
 
@@ -247,7 +223,7 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={active}
-                        className="relative transition-all duration-200 hover:translate-x-0.5 hover:shadow-[0_12px_28px_-22px_rgba(63,115,216,0.95)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_30px_-22px_rgba(63,115,216,1)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold [&>svg]:transition-transform [&>svg]:duration-200 hover:[&>svg]:scale-110"
+                        className="relative transition-all duration-200 hover:translate-x-0.5 hover:shadow-[0_12px_28px_-22px_rgba(255,138,31,0.95)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_30px_-22px_rgba(255,138,31,1)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold [&>svg]:transition-transform [&>svg]:duration-200 hover:[&>svg]:scale-110"
                       >
                         <Link to={item.url} onClick={closeMobileSidebar}>
                           <item.icon className="h-4 w-4" />
@@ -285,7 +261,7 @@ export function AppSidebar() {
                 </Avatar>
                 <div className="min-w-0 leading-tight">
                   <div className="truncate text-sm font-semibold text-sidebar-foreground">
-                    {user?.name ?? "Plenarius"}
+                    {user?.name ?? "Master"}
                   </div>
                   <div className="truncate text-xs text-sidebar-foreground/70">
                     {user ? ROLE_LABELS[user.role] : "Growth Hub"}

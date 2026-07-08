@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/recuperacao")({
-  head: () => ({ meta: [{ title: "Recuperação · Planarius" }] }),
+  head: () => ({ meta: [{ title: "Recuperação · Master" }] }),
   component: Recovery,
 });
 

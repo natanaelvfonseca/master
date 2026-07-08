@@ -210,7 +210,7 @@ export function Topbar() {
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-[min(92vw,380px)] p-0">
-            <div className="border-b bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_100%)] p-4 text-white">
+            <div className="border-b bg-[linear-gradient(135deg,#C2410C_0%,#F97316_100%)] p-4 text-white">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-bold">Notificações</div>

@@ -43,7 +43,7 @@ type ProfileResponse = {
 };
 
 export const Route = createFileRoute("/perfil")({
-  head: () => ({ meta: [{ title: "Perfil - Plenarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Perfil - Master Growth Hub" }] }),
   component: ProfilePage,
 });
 
@@ -254,7 +254,7 @@ function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="flex flex-col items-center gap-4 rounded-lg border border-primary/10 bg-primary/5 px-5 py-6 text-center">
-                <Avatar className="h-28 w-28 border-4 border-background shadow-[0_18px_40px_-24px_rgba(23,70,184,0.95)]">
+                <Avatar className="h-28 w-28 border-4 border-background shadow-[0_18px_40px_-24px_rgba(249,115,22,0.95)]">
                   <AvatarImage
                     src={form.avatarUrl || undefined}
                     alt={form.name || "Perfil"}
@@ -266,7 +266,7 @@ function ProfilePage() {
                 </Avatar>
                 <div className="space-y-1">
                   <div className="text-sm font-semibold">
-                    {form.name || user?.name || "Plenarius"}
+                    {form.name || user?.name || "Master"}
                   </div>
                   <div className="text-xs text-muted-foreground">{form.email || user?.email}</div>
                 </div>
@@ -305,11 +305,11 @@ function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-primary/20 bg-[linear-gradient(145deg,#0B2A6F_0%,#1746B8_58%,#071A42_100%)] text-white shadow-card">
+          <Card className="overflow-hidden border-primary/20 bg-[linear-gradient(145deg,#C2410C_0%,#F97316_58%,#071A42_100%)] text-white shadow-card">
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-4">
                 <img
-                  src="/iconplen-192.png"
+                  src="/icon-master-192.png"
                   alt="Growth Hub"
                   className="h-16 w-16 rounded-2xl shadow-[0_18px_38px_-18px_rgba(0,0,0,0.72)] ring-1 ring-white/15"
                 />

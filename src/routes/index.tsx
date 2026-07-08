@@ -104,7 +104,7 @@ function clampPercent(value: number) {
 }
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Dashboard Inicial · Plenarius Hub" }] }),
+  head: () => ({ meta: [{ title: "Dashboard Inicial · Master Hub" }] }),
   component: Dashboard,
 });
 
@@ -126,7 +126,7 @@ function Dashboard() {
     <div className="space-y-5">
       <DashboardHero
         greeting={greeting}
-        name={session?.user.name ?? "Plenarius"}
+        name={session?.user.name ?? "Master"}
         scopeLabel={scopeLabel}
         isConsultant={isConsultant}
         isLoading={isLoading}
@@ -251,7 +251,7 @@ function DashboardHero({
           <span>•</span>
           <span>{metricValue(isLoading, formatPercent(metrics.conversionRate))} conversão</span>
         </div>
-        <Button asChild variant="secondary" className="w-fit gap-2 bg-white text-[#0B2A6F]">
+        <Button asChild variant="secondary" className="w-fit gap-2 bg-white text-[#C2410C]">
           <Link to="/crm">
             Abrir CRM
             <ArrowRight className="h-4 w-4" />
@@ -464,8 +464,8 @@ function LeadRhythmChart({ data, isLoading }: { data: GrowthResponse | null; isL
               <AreaChart data={data.trend}>
                 <defs>
                   <linearGradient id="dashboardLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1746B8" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#1746B8" stopOpacity={0.02} />
+                    <stop offset="5%" stopColor="#F97316" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#F97316" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#D5E1F6" />
@@ -482,7 +482,7 @@ function LeadRhythmChart({ data, isLoading }: { data: GrowthResponse | null; isL
                   type="monotone"
                   dataKey="leads"
                   name="Leads"
-                  stroke="#1746B8"
+                  stroke="#F97316"
                   fill="url(#dashboardLeads)"
                   strokeWidth={2}
                 />
@@ -490,7 +490,7 @@ function LeadRhythmChart({ data, isLoading }: { data: GrowthResponse | null; isL
                   type="monotone"
                   dataKey="enrollments"
                   name="Matrículas"
-                  stroke="#E3AA2B"
+                  stroke="#1236C9"
                   fill="transparent"
                   strokeWidth={2}
                 />
@@ -545,7 +545,7 @@ function FunnelPanel({
                   tick={{ fontSize: 11 }}
                 />
                 <Tooltip />
-                <Bar dataKey="leads" name="Leads" fill="#3F73D8" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="leads" name="Leads" fill="#FF8A1F" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

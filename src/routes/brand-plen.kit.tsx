@@ -36,7 +36,7 @@ import {
 import type { BrandImageQuality } from "@/lib/generateBrandImage";
 import { useAuth } from "@/lib/auth";
 import { canManageBrandPlen } from "@/lib/auth-types";
-import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import masterLogo from "@/assets/master-logo.png";
 import { toast } from "sonner";
 
 type SettingsResponse = {
@@ -456,16 +456,16 @@ function BrandKit() {
               <CardTitle className="text-base">Logo obrigatório</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex h-40 items-center justify-center rounded-lg border bg-[#0B2A6F] p-4">
+              <div className="flex h-40 items-center justify-center rounded-lg border bg-[#C2410C] p-4">
                 <img
-                  src={settings.logoDataUrl ?? plenariusLogo}
-                  alt="Logo Plenarius"
+                  src={settings.logoDataUrl ?? masterLogo}
+                  alt="Logo Master"
                   className="max-h-28 max-w-[88%] object-contain"
                 />
               </div>
               <div className="rounded-lg border border-gold/30 bg-gold/5 p-3 text-xs text-muted-foreground">
                 O logo é enviado automaticamente em todas as gerações para manter a identidade da
-                Plenarius.
+                Master.
               </div>
               <div className="flex flex-wrap gap-2">
                 <input

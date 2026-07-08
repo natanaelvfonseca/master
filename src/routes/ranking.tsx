@@ -70,7 +70,7 @@ function progressWidth(value: number, max: number) {
 }
 
 export const Route = createFileRoute("/ranking")({
-  head: () => ({ meta: [{ title: "Ranking Plenárius - Planarius" }] }),
+  head: () => ({ meta: [{ title: "Ranking Master - Master" }] }),
   component: Ranking,
 });
 
@@ -176,7 +176,7 @@ function RankingHero({
         </div>
 
         <h1 className="max-w-4xl text-4xl font-extrabold leading-[1.02] text-[#071a42] md:text-6xl">
-          Ranking Plenárius - {activeUnitName}
+          Ranking Master - {activeUnitName}
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-[#526a9a] md:text-base">
           O topo é reservado para quem tem responsabilidade como resultado
@@ -446,7 +446,7 @@ function SpotlightPanel({ leader }: { leader: RankingMember | undefined }) {
       {leader ? (
         <div className="mt-6">
           <div className="ranking-leader-portrait">
-            <Crown className="absolute -top-6 left-1/2 h-12 w-12 -translate-x-1/2 text-gold drop-shadow-[0_8px_18px_rgba(227,170,43,0.45)]" />
+            <Crown className="absolute -top-6 left-1/2 h-12 w-12 -translate-x-1/2 text-gold drop-shadow-[0_8px_18px_rgba(18,54,201,0.45)]" />
             <Avatar className="h-32 w-32 border-4 border-gold/50 bg-white/10">
               <AvatarImage src={leader.avatarUrl ?? undefined} alt={leader.name} />
               <AvatarFallback className="bg-gradient-gold text-4xl font-extrabold text-gold-foreground">

@@ -1,10 +1,10 @@
 export const brandColors = [
-  { hex: "#0B2A6F", name: "Azul Profundo" },
-  { hex: "#1746B8", name: "Azul Royal" },
-  { hex: "#3F73D8", name: "Azul Médio Frio" },
-  { hex: "#DCE8FF", name: "Azul Claro Suave" },
+  { hex: "#C2410C", name: "Azul Profundo" },
+  { hex: "#F97316", name: "Azul Royal" },
+  { hex: "#FF8A1F", name: "Azul Médio Frio" },
+  { hex: "#FFF4EA", name: "Azul Claro Suave" },
   { hex: "#FFFFFF", name: "Branco" },
-  { hex: "#E3AA2B", name: "Dourado Mostarda" },
+  { hex: "#1236C9", name: "Dourado Mostarda" },
 ];
 
 export const pieceTypes = [
@@ -59,12 +59,12 @@ export const audiences = [
 ];
 
 const palettePairs = [
-  ["#0B2A6F", "#1746B8", "#3F73D8"],
-  ["#1746B8", "#3F73D8", "#DCE8FF"],
-  ["#0B2A6F", "#DCE8FF", "#E3AA2B"],
-  ["#1746B8", "#FFFFFF", "#E3AA2B"],
-  ["#0B2A6F", "#3F73D8", "#FFFFFF"],
-  ["#1746B8", "#DCE8FF", "#E3AA2B"],
+  ["#C2410C", "#F97316", "#FF8A1F"],
+  ["#F97316", "#FF8A1F", "#FFF4EA"],
+  ["#C2410C", "#FFF4EA", "#1236C9"],
+  ["#F97316", "#FFFFFF", "#1236C9"],
+  ["#C2410C", "#FF8A1F", "#FFFFFF"],
+  ["#F97316", "#FFF4EA", "#1236C9"],
 ];
 
 export const generatedImages = Array.from({ length: 18 }).map((_, i) => ({
@@ -83,7 +83,7 @@ export const generatedImages = Array.from({ length: 18 }).map((_, i) => ({
 
 export const promptRules = {
   obrigatorias: [
-    "Sempre exibir o logo da Plenarius com proteção mínima",
+    "Sempre exibir o logo da Master com proteção mínima",
     "Usar a paleta oficial: azul profundo, azul royal, azul médio frio, azul claro suave, branco e dourado mostarda",
     "Pessoas reais com aparência profissional e diversa",
     "Iluminação clean, forte e profissional",

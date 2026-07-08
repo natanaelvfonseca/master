@@ -40,7 +40,7 @@ import { useAuth } from "@/lib/auth";
 import { canViewNetworkGrowth } from "@/lib/auth-types";
 import { useGrowthData } from "@/lib/use-growth-data";
 
-const chartColors = ["#1746B8", "#E3AA2B", "#22C55E", "#3F73D8", "#0B2A6F", "#EF4444", "#06B6D4", "#8B5CF6"];
+const chartColors = ["#F97316", "#1236C9", "#22C55E", "#FF8A1F", "#C2410C", "#EF4444", "#06B6D4", "#8B5CF6"];
 
 const emptyMetrics = {
   leadsReceived: 0,
@@ -65,7 +65,7 @@ function formatDay(value: string) {
 }
 
 export const Route = createFileRoute("/branding")({
-  head: () => ({ meta: [{ title: "Marketing e Aquisição - Planarius" }] }),
+  head: () => ({ meta: [{ title: "Marketing e Aquisição - Master" }] }),
   component: Branding,
 });
 
@@ -124,16 +124,16 @@ function Branding() {
                 <AreaChart data={data.trend}>
                   <defs>
                     <linearGradient id="marketingLeads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3F73D8" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#3F73D8" stopOpacity={0.03} />
+                      <stop offset="5%" stopColor="#FF8A1F" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#FF8A1F" stopOpacity={0.03} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                   <XAxis dataKey="date" tickFormatter={formatDay} tickLine={false} axisLine={false} minTickGap={25} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                   <Tooltip labelFormatter={(value) => formatDay(String(value))} />
-                  <Area type="monotone" dataKey="leads" name="Leads" stroke="#1746B8" fill="url(#marketingLeads)" strokeWidth={2.5} />
-                  <Area type="monotone" dataKey="enrollments" name="Matrículas" stroke="#E3AA2B" fill="transparent" strokeWidth={2.5} />
+                  <Area type="monotone" dataKey="leads" name="Leads" stroke="#F97316" fill="url(#marketingLeads)" strokeWidth={2.5} />
+                  <Area type="monotone" dataKey="enrollments" name="Matrículas" stroke="#1236C9" fill="transparent" strokeWidth={2.5} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -166,8 +166,8 @@ function Branding() {
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="campaign" width={190} tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                   <Tooltip />
-                  <Bar dataKey="leads" name="Leads" fill="#1746B8" radius={[0, 5, 5, 0]} />
-                  <Bar dataKey="enrollments" name="Matrículas" fill="#E3AA2B" radius={[0, 5, 5, 0]} />
+                  <Bar dataKey="leads" name="Leads" fill="#F97316" radius={[0, 5, 5, 0]} />
+                  <Bar dataKey="enrollments" name="Matrículas" fill="#1236C9" radius={[0, 5, 5, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

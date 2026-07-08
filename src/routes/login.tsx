@@ -1,14 +1,13 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import anniversary30 from "@/assets/plenarius-30-anos.png";
-import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import masterLogo from "@/assets/master-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Login - Plenarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Login - Master Growth Hub" }] }),
   component: LoginPage,
 });
 
@@ -70,17 +69,17 @@ function LoginPage() {
         <div className="flex min-h-[42vh] flex-col justify-between overflow-hidden p-6 md:h-full md:min-h-0 md:px-8 md:py-7 lg:px-10 lg:py-8">
           <div>
             <img
-              src={plenariusLogo}
-              alt="Plenarius"
+              src={masterLogo}
+              alt="Master"
               className="h-20 w-auto object-contain md:h-[min(5rem,10vh)]"
             />
           </div>
           <div className="max-w-xl pb-4 pt-8 md:pb-0 md:pt-6">
-            <div className="pointer-events-none -ml-4 -mt-6 mb-6 w-[88vw] max-w-[390px] md:-ml-10 md:-mt-8 md:mb-5 md:w-[min(520px,46vh)] md:max-w-none lg:-ml-12 lg:w-[min(560px,49vh)]">
+            <div className="pointer-events-none mb-6 w-[82vw] max-w-[360px] rounded-lg bg-white/95 p-5 shadow-[0_30px_70px_rgba(0,0,0,0.22)] md:mb-5 md:w-[min(460px,42vh)] md:max-w-none">
               <img
-                src={anniversary30}
-                alt="30 anos Plenarius"
-                className="block aspect-square w-full object-cover drop-shadow-[0_30px_52px_rgba(0,0,0,0.28)]"
+                src={masterLogo}
+                alt="Master Educação Profissional"
+                className="block aspect-square w-full object-contain"
               />
             </div>
             <div className="relative z-10 mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">

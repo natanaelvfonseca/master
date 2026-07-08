@@ -142,7 +142,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/gestao/cadastro")({
-  head: () => ({ meta: [{ title: "Cadastro - Gestão - Plenarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Cadastro - Gestão - Master Growth Hub" }] }),
   component: CadastroPage,
 });
 
@@ -511,7 +511,7 @@ function CadastroPage() {
           <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-card to-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-[0_12px_28px_-18px_rgba(23,70,184,0.95)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-[0_12px_28px_-18px_rgba(249,115,22,0.95)]">
                   <BookOpenCheck className="h-5 w-5" />
                 </div>
                 <div>
@@ -604,7 +604,7 @@ function CadastroPage() {
           <CardHeader className="border-b border-border/70 bg-gradient-to-r from-gold/15 via-card to-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-gold text-gold-foreground shadow-[0_12px_28px_-18px_rgba(227,170,43,0.95)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-gold text-gold-foreground shadow-[0_12px_28px_-18px_rgba(18,54,201,0.95)]">
                   <RadioTower className="h-5 w-5" />
                 </div>
                 <div>
@@ -847,7 +847,7 @@ function MetricCard({
   return (
     <Card className="animate-panel-rise border-primary/10 bg-card/90 shadow-card">
       <CardContent className="flex items-center gap-4 p-5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-[0_0_24px_rgba(63,115,216,0.16)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary shadow-[0_0_24px_rgba(255,138,31,0.16)]">
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">

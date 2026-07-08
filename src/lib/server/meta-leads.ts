@@ -389,7 +389,7 @@ function encryptionKey() {
     process.env.APP_SECRET ||
     process.env.META_APP_SECRET ||
     process.env.DATABASE_URL ||
-    "plenarius-meta-local-dev-key";
+    "master-meta-local-dev-key";
 
   return createHash("sha256").update(secret).digest();
 }

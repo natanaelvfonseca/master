@@ -158,7 +158,7 @@ function ownerFilterMatches(lead: TransferLead, ownerId: string) {
 }
 
 export const Route = createFileRoute("/crm/transferencia")({
-  head: () => ({ meta: [{ title: "Transferência de Leads · Planarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Transferência de Leads · Master Growth Hub" }] }),
   component: LeadTransferCenter,
 });
 
@@ -588,7 +588,7 @@ function LeadTransferCenter() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-primary/10 bg-[linear-gradient(135deg,rgba(11,42,111,.05),rgba(63,115,216,.09),rgba(227,170,43,.08))] shadow-card">
+          <Card className="border-primary/10 bg-[linear-gradient(135deg,rgba(194,65,12,.05),rgba(255,138,31,.09),rgba(18,54,201,.08))] shadow-card">
             <CardContent className="space-y-4 p-5">
               <div>
                 <div className="text-sm font-bold text-primary">Novo responsável</div>

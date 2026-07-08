@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/estrategia")({
-  head: () => ({ meta: [{ title: "Visão Estratégica · Planarius" }] }),
+  head: () => ({ meta: [{ title: "Visão Estratégica · Master" }] }),
   component: Strategy,
 });
 

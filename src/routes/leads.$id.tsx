@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/leads/$id")({
-  head: ({ params }) => ({ meta: [{ title: `Aluno ${params.id} · Planarius` }] }),
+  head: ({ params }) => ({ meta: [{ title: `Aluno ${params.id} · Master` }] }),
   component: LeadDetail,
   notFoundComponent: () => (
     <div className="p-8">

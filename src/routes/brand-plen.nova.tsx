@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import plenariusLogo from "@/assets/logo-plenarios-branca.png";
+import masterLogo from "@/assets/master-logo.png";
 import type { BrandPlenGeneration } from "@/lib/brand-plen-types";
 import { useAuth } from "@/lib/auth";
 import { audiences, courses, objectives, pieceTypes, visualStyles } from "@/lib/brand";
@@ -189,7 +189,7 @@ async function loadAssetAsDataUrl(src: string) {
   const response = await fetch(src);
 
   if (!response.ok) {
-    throw new Error("Não foi possível carregar o logo da Plenarius.");
+    throw new Error("Não foi possível carregar o logo da Master.");
   }
 
   return readBlobAsDataUrl(await response.blob());
@@ -229,7 +229,7 @@ function upsertGeneration(
 function CreationPreview({ creation }: { creation: BrandPlenGeneration }) {
   if (creation.status === "generating") {
     return (
-      <div className="relative flex aspect-[4/5] min-h-[260px] overflow-hidden rounded-lg bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_48%,#3F73D8_100%)] text-white">
+      <div className="relative flex aspect-[4/5] min-h-[260px] overflow-hidden rounded-lg bg-[linear-gradient(135deg,#C2410C_0%,#F97316_48%,#FF8A1F_100%)] text-white">
         <div className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.18)_42%,transparent_72%)]" />
         <div className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <Loader2 className="h-9 w-9 animate-spin text-gold" />
@@ -276,7 +276,7 @@ function NovaCriacao() {
   const [audience, setAudience] = useState(audiences[0] ?? "");
   const [visualStyle, setVisualStyle] = useState(visualStyles[0] ?? "");
   const [description, setDescription] = useState(
-    "Imagem institucional para o curso, destacando ambiente profissional, alunos em prática real e a marca Plenarius como referência em educação profissionalizante.",
+    "Imagem institucional para o curso, destacando ambiente profissional, alunos em prática real e a marca Master como referência em educação profissionalizante.",
   );
   const [overlayText, setOverlayText] = useState("Transforme sua profissão. Matrículas abertas.");
   const [subjectPhotoDataUrl, setSubjectPhotoDataUrl] = useState<string | null>(null);
@@ -412,7 +412,7 @@ function NovaCriacao() {
     });
 
     try {
-      const logoDataUrl = await loadAssetAsDataUrl(plenariusLogo);
+      const logoDataUrl = await loadAssetAsDataUrl(masterLogo);
       const response = await fetch("/api/brand-plen/generate", {
         method: "POST",
         credentials: "same-origin",
@@ -501,10 +501,10 @@ function NovaCriacao() {
       <PageHeader
         eyebrow="Brand Plen · Diretor de Arte com IA"
         title="Nova Criação"
-        description="Crie imagens profissionais alinhadas à identidade da marca Plenarius."
+        description="Crie imagens profissionais alinhadas à identidade da marca Master."
         actions={
           <Badge className="border-gold/30 bg-gold/15 text-gold">
-            <Sparkles className="mr-1 h-3 w-3" /> IA Plenarius
+            <Sparkles className="mr-1 h-3 w-3" /> IA Master
           </Badge>
         }
       />
@@ -652,7 +652,7 @@ function NovaCriacao() {
               ) : (
                 <label
                   htmlFor="subject-photo"
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-primary/25 bg-[linear-gradient(135deg,rgba(11,42,111,.04),rgba(63,115,216,.09))] p-5 text-center transition hover:border-primary/45 hover:bg-primary/5"
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-primary/25 bg-[linear-gradient(135deg,rgba(194,65,12,.04),rgba(255,138,31,.09))] p-5 text-center transition hover:border-primary/45 hover:bg-primary/5"
                 >
                   <input
                     id="subject-photo"

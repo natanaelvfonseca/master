@@ -63,7 +63,7 @@ function formatDay(value: string) {
 }
 
 export const Route = createFileRoute("/bi")({
-  head: () => ({ meta: [{ title: "BI Comercial - Planarius" }] }),
+  head: () => ({ meta: [{ title: "BI Comercial - Master" }] }),
   component: BI,
 });
 
@@ -124,16 +124,16 @@ function BI() {
                 <AreaChart data={data.trend}>
                   <defs>
                     <linearGradient id="commercialLeads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1746B8" stopOpacity={0.38} />
-                      <stop offset="95%" stopColor="#1746B8" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#F97316" stopOpacity={0.38} />
+                      <stop offset="95%" stopColor="#F97316" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                   <XAxis dataKey="date" tickFormatter={formatDay} tickLine={false} axisLine={false} minTickGap={25} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                   <Tooltip labelFormatter={(value) => formatDay(String(value))} />
-                  <Area type="monotone" dataKey="leads" name="Leads" stroke="#1746B8" fill="url(#commercialLeads)" strokeWidth={2.5} />
-                  <Area type="monotone" dataKey="enrollments" name="Matrículas" stroke="#E3AA2B" fill="transparent" strokeWidth={2.5} />
+                  <Area type="monotone" dataKey="leads" name="Leads" stroke="#F97316" fill="url(#commercialLeads)" strokeWidth={2.5} />
+                  <Area type="monotone" dataKey="enrollments" name="Matrículas" stroke="#1236C9" fill="transparent" strokeWidth={2.5} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -150,7 +150,7 @@ function BI() {
                   <YAxis type="category" dataKey="stage" width={120} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Bar dataKey="leads" name="Leads" radius={[0, 5, 5, 0]}>
-                    {funnelData.map((item) => <Cell key={item.stage} fill={item.stage === "Matriculado" ? "#E3AA2B" : "#3F73D8"} />)}
+                    {funnelData.map((item) => <Cell key={item.stage} fill={item.stage === "Matriculado" ? "#1236C9" : "#FF8A1F"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

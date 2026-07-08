@@ -76,7 +76,7 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 });
 
 export const Route = createFileRoute("/ia-comercial")({
-  head: () => ({ meta: [{ title: "IA Comercial | Plenarius Hub" }] }),
+  head: () => ({ meta: [{ title: "IA Comercial | Master Hub" }] }),
   component: SalesAiPage,
 });
 
@@ -546,7 +546,7 @@ function ConsultantList({
                   className={cn(
                     "w-full rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/5",
                     selected
-                      ? "border-primary/40 bg-primary/10 shadow-[0_18px_42px_-28px_rgba(23,70,184,0.9)]"
+                      ? "border-primary/40 bg-primary/10 shadow-[0_18px_42px_-28px_rgba(249,115,22,0.9)]"
                       : "border-border bg-card",
                   )}
                 >

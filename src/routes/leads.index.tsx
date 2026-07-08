@@ -65,7 +65,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/leads/")({
-  head: () => ({ meta: [{ title: "Alunos · Planarius" }] }),
+  head: () => ({ meta: [{ title: "Alunos · Master" }] }),
   component: LeadsList,
 });
 

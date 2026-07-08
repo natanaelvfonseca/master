@@ -14,7 +14,7 @@ export const TRAINING_TRAILS = [
   {
     id: "escola",
     title: "Escola",
-    subtitle: "Cultura Plenarius",
+    subtitle: "Cultura Master",
     description: "História, posicionamento, cursos, diferenciais e padrão de atendimento.",
   },
   {

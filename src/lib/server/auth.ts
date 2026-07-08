@@ -15,7 +15,7 @@ import { queryDb } from "@/lib/server/db";
 
 const scrypt = promisify(scryptCallback);
 
-export const SESSION_COOKIE_NAME = "plenarius_session";
+export const SESSION_COOKIE_NAME = "master_session";
 const SESSION_TTL_DAYS = 7;
 const SESSION_TTL_SECONDS = SESSION_TTL_DAYS * 24 * 60 * 60;
 const LOGIN_LIMIT_WINDOW_MINUTES = 15;
@@ -72,7 +72,7 @@ export async function ensureUserProfileSchema() {
           update app_users
           set role = 'CVO',
               updated_at = now()
-          where lower(email) = lower('jrcunha@escolaplenarius.com')
+          where lower(email) = lower('jrcunha@escolamaster.com')
             and role = 'CEO';
         end
         $$

@@ -555,7 +555,7 @@ export const Route = createFileRoute("/api/brand-plen/generate")({
 
         if (!logoDataUrl) {
           return Response.json(
-            { ok: false, error: "Não foi possível carregar o logo obrigatório da Plenarius." },
+            { ok: false, error: "Não foi possível carregar o logo obrigatório da Master." },
             { status: 400 },
           );
         }

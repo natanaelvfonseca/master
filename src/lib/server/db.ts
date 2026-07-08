@@ -2,7 +2,7 @@ import { createServerOnlyFn } from "@tanstack/react-start";
 import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 declare global {
-  var __plenariusDbPool: Pool | undefined;
+  var __masterDbPool: Pool | undefined;
 }
 
 const getDatabaseUrl = createServerOnlyFn(() => {
@@ -16,20 +16,20 @@ const getDatabaseUrl = createServerOnlyFn(() => {
 });
 
 const getDbPool = createServerOnlyFn(async () => {
-  if (globalThis.__plenariusDbPool) {
-    return globalThis.__plenariusDbPool;
+  if (globalThis.__masterDbPool) {
+    return globalThis.__masterDbPool;
   }
 
   const { Pool } = await import("pg");
 
-  globalThis.__plenariusDbPool = new Pool({
+  globalThis.__masterDbPool = new Pool({
     connectionString: getDatabaseUrl(),
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: 30_000,
     max: 5,
   });
 
-  return globalThis.__plenariusDbPool;
+  return globalThis.__masterDbPool;
 });
 
 export async function queryDb<TRow extends QueryResultRow = QueryResultRow>(

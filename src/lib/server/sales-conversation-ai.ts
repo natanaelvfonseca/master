@@ -611,7 +611,7 @@ async function callOpenAiAnalysis({
 
   const model = process.env.OPENAI_ANALYSIS_MODEL?.trim() || DEFAULT_ANALYSIS_MODEL;
   const prompt = `
-Analise conversas comerciais reais de WhatsApp da Plenarius.
+Analise conversas comerciais reais de WhatsApp da Master.
 
 Curso/script de referência: ${courseName}
 Consultor avaliado: ${consultantName}

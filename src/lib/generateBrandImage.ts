@@ -34,7 +34,7 @@ const sizeByPieceType: Record<string, BrandImageSize> = {
 };
 
 /**
- * Monta automaticamente o prompt final usando o Brand Kit da Plenarius.
+ * Monta automaticamente o prompt final usando o Brand Kit da Master.
  * O usuário não precisa escrever prompt técnico.
  */
 export function getBrandImageSize(pieceType: string): BrandImageSize {
@@ -53,7 +53,7 @@ export function buildBrandImagePrompt(input: BrandImageInput) {
     : promptRules.proibidas;
 
   return [
-    `Crie uma peça de comunicação do tipo "${input.pieceType}" para a Escola Técnica Plenarius.`,
+    `Crie uma peça de comunicação do tipo "${input.pieceType}" para a Escola Técnica Master.`,
     input.unitName ? `Unidade: ${input.unitName}.` : "",
     `Objetivo: ${input.objective}. Curso: ${input.course}. Público-alvo: ${input.audience}.`,
     `Descrição: ${input.description}`,
@@ -63,7 +63,7 @@ export function buildBrandImagePrompt(input: BrandImageInput) {
     `Obrigatório: ${requiredRules.join("; ")}.`,
     `Proibido: ${forbiddenRules.join("; ")}.`,
     input.applyLogo
-      ? "Use o logo oficial da Plenarius enviado como imagem de referência. Preserve a marca, mantenha área de respiro e aplique em posição nobre sem distorção."
+      ? "Use o logo oficial da Master enviado como imagem de referência. Preserve a marca, mantenha área de respiro e aplique em posição nobre sem distorção."
       : "Não inclua o logo na arte.",
     input.overlayText
       ? `Texto exato na arte, em português e com alta legibilidade: "${input.overlayText}".`
@@ -73,7 +73,7 @@ export function buildBrandImagePrompt(input: BrandImageInput) {
       : "",
     input.referenceImageUrl ? `Referência visual: ${input.referenceImageUrl}.` : "",
     "Composição limpa, premium e institucional, com contraste forte, pessoas profissionais e diversas quando fizer sentido, sem aparência genérica de banco de imagens.",
-    "Resultado final: imagem pronta para campanha, com identidade Plenarius preservada e qualidade visual alta.",
+    "Resultado final: imagem pronta para campanha, com identidade Master preservada e qualidade visual alta.",
   ]
     .filter(Boolean)
     .join(" ");

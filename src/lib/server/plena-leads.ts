@@ -73,7 +73,7 @@ export function isAuthorizedPlenaWebhook(request: Request) {
 export function normalizePlenaLeadPayload(payload: unknown) {
   const data = payload as PlenaLeadPayload | null;
   const lead = typeof data?.lead === "object" && data.lead !== null ? data.lead : {};
-  const source = limitText(data?.source, 140) || "Plena - chat IA";
+  const source = limitText(data?.source, 140) || "Master IA - chat";
   const page = limitText(data?.page, 500);
   const doubt = limitText((lead as { doubt?: unknown; question?: unknown }).doubt, 1000);
   const question = limitText((lead as { question?: unknown }).question, 1000);
@@ -106,7 +106,7 @@ function buildObservations(payload: ReturnType<typeof normalizePlenaLeadPayload>
     lines.push(
       "Transcricao recente:",
       ...payload.transcript.map(
-        (message) => `${message.role === "assistant" ? "Plena" : "Aluno"}: ${message.content}`,
+        (message) => `${message.role === "assistant" ? "Master IA" : "Aluno"}: ${message.content}`,
       ),
     );
   }
@@ -165,7 +165,7 @@ export async function receivePlenaLeadWebhook(payload: unknown): Promise<PlenaLe
       normalized.phone,
       normalized.email,
       normalized.course,
-      "Plena IA",
+      "Master IA",
       buildObservations(normalized),
       normalized.createdAt,
       normalized.source,

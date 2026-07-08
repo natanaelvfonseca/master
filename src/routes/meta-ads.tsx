@@ -266,7 +266,7 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
 }
 
 export const Route = createFileRoute("/meta-ads")({
-  head: () => ({ meta: [{ title: "Meta Ads · Plenarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Meta Ads · Master Growth Hub" }] }),
   component: MetaAdsPage,
 });
 
@@ -492,7 +492,7 @@ function MetaAdsPage() {
                 />
               </CardContent>
             </Card>
-            <Card className="border-primary/10 bg-[linear-gradient(135deg,rgba(11,42,111,.04),rgba(227,170,43,.08))] shadow-card">
+            <Card className="border-primary/10 bg-[linear-gradient(135deg,rgba(194,65,12,.04),rgba(18,54,201,.08))] shadow-card">
               <CardHeader>
                 <CardTitle className="text-base">Operação</CardTitle>
               </CardHeader>

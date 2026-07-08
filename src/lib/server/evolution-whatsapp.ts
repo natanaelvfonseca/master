@@ -299,7 +299,7 @@ export async function connectEvolution(
   let instance = await getInstance(user.id);
   const unitName = instancePart(unit.name) || "unidade";
   const userEmail = instancePart(user.email) || createHash("sha256").update(user.id).digest("hex");
-  const desiredInstanceName = `plenarius_${unitName}_${userEmail}`.slice(0, 100);
+  const desiredInstanceName = `master_${unitName}_${userEmail}`.slice(0, 100);
 
   if (!instance) {
     const secret = randomBytes(24).toString("base64url");

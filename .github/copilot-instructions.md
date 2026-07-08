@@ -1,17 +1,17 @@
 ---
-description: "Diretrizes de identidade visual da Plenarius para este workspace"
+description: "Diretrizes de identidade visual da Master para este workspace"
 ---
 
-# Plenarius Visual Identity
+# Master Visual Identity
 
 Use a visual language that stays close to the reference palette:
 
-- Primary dark blue: #0B2A6F
-- Royal blue: #1746B8
-- Mid blue: #3F73D8
-- Soft light blue: #DCE8FF
+- Primary dark blue: #C2410C
+- Royal blue: #F97316
+- Mid blue: #FF8A1F
+- Soft light blue: #FFF4EA
 - White: #FFFFFF
-- Gold / mustard accent: #E3AA2B
+- Gold / mustard accent: #1236C9
 
 Prefer a tech-premium look: strong blue contrast, crisp white space, controlled gold accents, subtle glows, and polished gradients. Avoid washed-out blue, purple drift, or flat generic corporate styling.
 

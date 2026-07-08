@@ -155,7 +155,7 @@ const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
-const confettiPalette = ["#F7D34D", "#E3AA2B", "#22C55E", "#15803D"];
+const confettiPalette = ["#F7D34D", "#1236C9", "#22C55E", "#15803D"];
 const confettiPieces = Array.from({ length: 72 }, (_, index) => ({
   id: index,
   color: confettiPalette[index % confettiPalette.length],
@@ -331,7 +331,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/crm")({
-  head: () => ({ meta: [{ title: "CRM Pipeline · Planarius Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "CRM Pipeline · Master Growth Hub" }] }),
   component: CRM,
 });
 
@@ -1582,7 +1582,7 @@ function TransferLeadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(11,42,111,0.85)] sm:max-w-4xl">
+      <DialogContent className="max-h-[92vh] overflow-hidden border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(194,65,12,0.85)] sm:max-w-4xl">
         <div className="relative overflow-hidden bg-gradient-hero p-6 text-white">
           <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <DialogHeader className="space-y-2 text-left">
@@ -1703,7 +1703,7 @@ function TransferLeadDialog({
             </div>
           </div>
 
-          <div className="space-y-4 rounded-lg border border-primary/15 bg-[linear-gradient(135deg,rgba(11,42,111,.05),rgba(63,115,216,.08))] p-4">
+          <div className="space-y-4 rounded-lg border border-primary/15 bg-[linear-gradient(135deg,rgba(194,65,12,.05),rgba(255,138,31,.08))] p-4">
             <div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary">
                 <UserCheck className="h-4 w-4" />
@@ -1818,7 +1818,7 @@ function CreateLeadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(11,42,111,0.85),0_0_34px_rgba(63,115,216,0.22)] sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(194,65,12,0.85),0_0_34px_rgba(255,138,31,0.22)] sm:max-w-3xl">
         <form onSubmit={onSubmit}>
           <div className="relative overflow-hidden bg-gradient-hero p-6 text-primary-foreground">
             <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -2038,7 +2038,7 @@ function CreateLeadDialog({
             ) : null}
 
             {isEditMode ? (
-              <div className="space-y-4 rounded-xl border border-primary/15 bg-[linear-gradient(135deg,rgba(11,42,111,.05),rgba(63,115,216,.09),rgba(227,170,43,.08))] p-4 md:col-span-2">
+              <div className="space-y-4 rounded-xl border border-primary/15 bg-[linear-gradient(135deg,rgba(194,65,12,.05),rgba(255,138,31,.09),rgba(18,54,201,.08))] p-4 md:col-span-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-bold text-primary">

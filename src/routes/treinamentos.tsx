@@ -104,23 +104,23 @@ const PLAYBACK_RATES = ["0.75", "1", "1.25", "1.5", "2"] as const;
 const trailStyles: Record<TrainingTrailId, { ring: string; glow: string; icon: typeof Sparkles }> =
   {
     plataforma: {
-      ring: "from-[#3F73D8] to-[#DCE8FF]",
-      glow: "shadow-[0_20px_80px_-46px_rgba(63,115,216,0.95)]",
+      ring: "from-[#FF8A1F] to-[#FFF4EA]",
+      glow: "shadow-[0_20px_80px_-46px_rgba(255,138,31,0.95)]",
       icon: Layers3,
     },
     vendas: {
-      ring: "from-[#E3AA2B] to-[#FFFFFF]",
-      glow: "shadow-[0_20px_80px_-46px_rgba(227,170,43,0.95)]",
+      ring: "from-[#1236C9] to-[#FFFFFF]",
+      glow: "shadow-[0_20px_80px_-46px_rgba(18,54,201,0.95)]",
       icon: Crown,
     },
     escola: {
-      ring: "from-[#1746B8] to-[#3F73D8]",
-      glow: "shadow-[0_20px_80px_-46px_rgba(23,70,184,0.95)]",
+      ring: "from-[#F97316] to-[#FF8A1F]",
+      glow: "shadow-[0_20px_80px_-46px_rgba(249,115,22,0.95)]",
       icon: GraduationCap,
     },
     lideranca: {
-      ring: "from-[#0B2A6F] to-[#E3AA2B]",
-      glow: "shadow-[0_20px_80px_-46px_rgba(11,42,111,0.95)]",
+      ring: "from-[#C2410C] to-[#1236C9]",
+      glow: "shadow-[0_20px_80px_-46px_rgba(194,65,12,0.95)]",
       icon: ShieldCheck,
     },
   };
@@ -248,7 +248,7 @@ function TrainingPlaceholder({ trail }: { trail: TrainingTrailId }) {
   return (
     <div
       className={cn(
-        "relative flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_50%,#3F73D8_100%)] text-white",
+        "relative flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,#C2410C_0%,#F97316_50%,#FF8A1F_100%)] text-white",
         trailStyle.glow,
       )}
     >
@@ -397,7 +397,7 @@ function UploadDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !uploading && onOpenChange(nextOpen)}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-gold text-[#0B2A6F] hover:bg-gold/90">
+        <Button className="gap-2 bg-gold text-[#C2410C] hover:bg-gold/90">
           <Plus className="h-4 w-4" /> Nova aula
         </Button>
       </DialogTrigger>
@@ -953,7 +953,7 @@ function Treinamentos() {
 
   return (
     <div className="space-y-6 overflow-x-hidden" onContextMenu={(event) => event.preventDefault()}>
-      <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#0B2A6F_38%,#1746B8_74%,#3F73D8_100%)] p-5 text-white shadow-[0_30px_90px_-50px_rgba(11,42,111,0.95)] md:p-7">
+      <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#061B4D_0%,#C2410C_38%,#F97316_74%,#FF8A1F_100%)] p-5 text-white shadow-[0_30px_90px_-50px_rgba(194,65,12,0.95)] md:p-7">
         <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,.1)_1px,transparent_1px)] [background-size:34px_34px]" />
         <div className="absolute left-0 top-0 h-px w-full animate-pulse bg-gradient-to-r from-transparent via-gold to-transparent" />
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl" />
@@ -964,7 +964,7 @@ function Treinamentos() {
               <BookOpenCheck className="mr-1 h-3.5 w-3.5" /> Área de Membros
             </Badge>
             <h1 className="mt-5 text-3xl font-black tracking-tight md:text-5xl">
-              Trilha de aprendizagem Plenarius
+              Trilha de aprendizagem Master
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/78 md:text-base">
               {canViewLeadership
@@ -988,10 +988,10 @@ function Treinamentos() {
               <div
                 className="grid h-20 w-20 place-items-center rounded-full"
                 style={{
-                  background: `conic-gradient(#E3AA2B ${summary.progressPercent * 3.6}deg, rgba(255,255,255,.15) 0deg)`,
+                  background: `conic-gradient(#1236C9 ${summary.progressPercent * 3.6}deg, rgba(255,255,255,.15) 0deg)`,
                 }}
               >
-                <div className="grid h-14 w-14 place-items-center rounded-full bg-[#0B2A6F]">
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-[#C2410C]">
                   <Sparkles className="h-5 w-5 text-gold" />
                 </div>
               </div>
@@ -1003,7 +1003,7 @@ function Treinamentos() {
             <div className="mt-4 flex min-w-0 flex-wrap gap-2">
               <Button
                 variant="secondary"
-                className="min-w-0 flex-1 gap-2 bg-white text-[#0B2A6F] hover:bg-white/90"
+                className="min-w-0 flex-1 gap-2 bg-white text-[#C2410C] hover:bg-white/90"
                 onClick={() => loadTraining()}
                 disabled={loading}
               >
@@ -1085,7 +1085,7 @@ function Treinamentos() {
           <Card className="min-w-0 overflow-hidden border-primary/20 shadow-elegant">
             {selectedLesson ? (
               <>
-                <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))] p-4 md:p-5">
+                <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(194,65,12,.06),rgba(255,138,31,.12),rgba(18,54,201,.08))] p-4 md:p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="bg-primary/10 text-primary">Assistindo agora</Badge>
                     <Badge variant="secondary">{getTrail(selectedLesson.trail).title}</Badge>
@@ -1144,7 +1144,7 @@ function Treinamentos() {
           </Card>
 
           <Card className="min-w-0 overflow-hidden shadow-card">
-            <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(11,42,111,.06),rgba(63,115,216,.12),rgba(227,170,43,.08))]">
+            <CardHeader className="border-b bg-[linear-gradient(90deg,rgba(194,65,12,.06),rgba(255,138,31,.12),rgba(18,54,201,.08))]">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -1257,7 +1257,7 @@ function Treinamentos() {
 
         <aside className="min-w-0 space-y-4 xl:sticky xl:top-5 xl:self-start">
           <Card className="min-w-0 overflow-hidden border-primary/20 shadow-elegant">
-            <CardHeader className="border-b bg-[linear-gradient(135deg,#0B2A6F_0%,#1746B8_100%)] p-4 text-white">
+            <CardHeader className="border-b bg-[linear-gradient(135deg,#C2410C_0%,#F97316_100%)] p-4 text-white">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Film className="h-4 w-4 text-gold" />
                 Informações da aula
