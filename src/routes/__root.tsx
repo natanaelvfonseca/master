@@ -115,7 +115,10 @@ function RootComponent() {
 
   React.useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update())
+        .catch(() => undefined);
     }
 
     const handleBeforeInstallPrompt = (event: Event) => {
