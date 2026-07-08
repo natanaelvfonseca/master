@@ -1090,24 +1090,35 @@ function CRMPipeline() {
       <PageHeader
         eyebrow="Comercial"
         title="Leads"
-        description="Pipeline visual com lead score por IA, alertas de follow-up e priorização inteligente."
         actions={
           <div className="flex w-full flex-col items-stretch gap-2 sm:items-end md:w-auto">
-            <div className="relative w-full sm:w-[360px] lg:w-[390px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar lead..."
-                className="h-9 pl-9 text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {canOperatePipeline ? (
+              <Button
+                className="bg-gradient-primary text-primary-foreground"
+                onClick={openLeadDialog}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Lead
+              </Button>
+            ) : null}
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              {canAccessTransfers ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={openTransferDialog}
+                  aria-label="Transferência de Lead"
+                  title="Transferência de Lead"
+                >
+                  <Clock3 className="h-4 w-4" />
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant={filtersOpen ? "default" : "outline"}
                 onClick={() => setFiltersOpen((open) => !open)}
-                className={filtersOpen ? "bg-gradient-primary" : ""}
+                className={filtersOpen ? "bg-gradient-primary sm:w-auto" : "sm:w-auto"}
               >
                 <Filter className="mr-2 h-4 w-4" />
                 Filtros
@@ -1117,21 +1128,15 @@ function CRMPipeline() {
                   </Badge>
                 ) : null}
               </Button>
-              {canAccessTransfers ? (
-                <Button type="button" variant="outline" onClick={openTransferDialog}>
-                  <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Transferência de Lead
-                </Button>
-              ) : null}
-              {canOperatePipeline ? (
-                <Button
-                  className="bg-gradient-primary text-primary-foreground"
-                  onClick={openLeadDialog}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo Lead
-                </Button>
-              ) : null}
+              <div className="relative w-full sm:w-[300px] lg:w-[360px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar lead..."
+                  className="h-9 pl-9 text-sm"
+                />
+              </div>
               {search || activeFilterCount ? (
                 <Button type="button" variant="ghost" onClick={clearPipelineFilters}>
                   <X className="mr-2 h-4 w-4" />

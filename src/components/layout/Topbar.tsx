@@ -4,14 +4,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { cn } from "@/lib/utils";
@@ -44,8 +36,7 @@ function formatNotificationDate(value: string) {
 }
 
 export function Topbar() {
-  const { session, setActiveUnit } = useAuth();
-  const activeUnit = session?.activeUnit;
+  const { session } = useAuth();
   const [notifications, setNotifications] = React.useState<Array<CrmLeadTask>>([]);
   const [loadingNotifications, setLoadingNotifications] = React.useState(false);
   const [updatingTaskId, setUpdatingTaskId] = React.useState<string | null>(null);
@@ -175,32 +166,14 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/80 bg-white/90 px-4 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-xl">
-      <SidebarTrigger className="-ml-1" />
-      <div className="hidden items-center gap-2 md:flex">
-        {session && session.units.length > 1 ? (
-          <Select value={activeUnit?.id} onValueChange={(value) => void setActiveUnit(value)}>
-            <SelectTrigger className="h-9 w-[180px] rounded-lg border-border/90 bg-white shadow-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {session.units.map((unit) => (
-                <SelectItem key={unit.id} value={unit.id}>
-                  {unit.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : activeUnit ? (
-          <div className="flex h-9 items-center rounded-lg border border-border/90 bg-white px-3 text-sm font-medium shadow-sm">
-            {activeUnit.name}
-          </div>
-        ) : null}
-      </div>
-      <div className="ml-auto flex items-center gap-2">
+    <div className="fixed right-4 top-4 z-40 flex items-center gap-2">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative rounded-lg hover:bg-accent hover:text-accent-foreground">
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative rounded-xl border-border/80 bg-white/90 shadow-card backdrop-blur hover:bg-accent hover:text-accent-foreground"
+            >
               <Bell className="h-5 w-5" />
               {notifications.length ? (
                 <Badge className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-gold p-0 px-1 text-[10px] text-gold-foreground">
@@ -304,7 +277,6 @@ export function Topbar() {
             ) : null}
           </PopoverContent>
         </Popover>
-      </div>
-    </header>
+    </div>
   );
 }

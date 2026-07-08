@@ -25,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -174,12 +175,15 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 shadow-[12px_0_36px_-34px_rgba(15,23,42,0.45)]">
       <SidebarHeader className="border-b border-sidebar-border/80 bg-transparent">
         <div className="px-3 py-4">
-          <div className="flex items-center justify-center px-1 py-1">
-            <img
-              src={masterLogo}
-              alt="Master"
-              className={cn("object-contain", collapsed ? "h-8 w-8" : "h-16 w-full")}
-            />
+          <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
+            {!collapsed ? (
+              <img
+                src={masterLogo}
+                alt="Master"
+                className="h-16 min-w-0 flex-1 object-contain"
+              />
+            ) : null}
+            <SidebarTrigger className="shrink-0 rounded-lg border border-sidebar-border/80 bg-white/70 shadow-sm hover:bg-white" />
           </div>
           {!collapsed && <div className="sr-only">Master Growth Hub</div>}
         </div>
