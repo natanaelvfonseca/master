@@ -6,6 +6,7 @@ import {
   chooseAttendanceConsultant,
   ensureCourseAttendanceSchema,
   findCampaignAttendance,
+  parseCampaignRoute,
 } from "@/lib/server/course-attendances";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
@@ -563,12 +564,6 @@ function phoneFieldValue(fields: Record<string, string>) {
     "telefone",
     "celular",
     "phone",
-    "whatsapp",
-    "whatsapp_number",
-    "numero_do_whatsapp",
-    "número_do_whatsapp",
-    "whats",
-    "contato",
   ]);
 
   if (explicitValue) {
@@ -581,7 +576,8 @@ function phoneFieldValue(fields: Record<string, string>) {
 
     return (
       digits.length >= 8 &&
-      /phone|fone|telefone|tel|celular|whats|zap|contato|ddd/.test(normalizedName)
+      /phone|fone|telefone|tel|celular|ddd/.test(normalizedName) &&
+      !/whats|whatsapp|zap|contato/.test(normalizedName)
     );
   });
 
@@ -783,6 +779,20 @@ function cityFieldValue(fields: Record<string, string>) {
     "onde_voce_mora",
     "onde_você_mora",
   ]);
+}
+
+function campaignCityValue(campaignName: string | null, attendanceCity: string | null) {
+  if (attendanceCity) {
+    return attendanceCity;
+  }
+
+  if (!campaignName) {
+    return "";
+  }
+
+  const parsed = parseCampaignRoute(campaignName);
+
+  return "error" in parsed ? "" : parsed.city;
 }
 
 export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMapping>) {
@@ -1952,7 +1962,7 @@ async function processEventById(eventId: string) {
           }
         : assignment;
     const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
-    const leadCity = mapped.city || resolvedAttendance?.city || "";
+    const leadCity = campaignCityValue(event.campaign_name, resolvedAttendance?.city ?? null) || mapped.city;
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
     const leadPhone = mapped.phone || "";
     const leadPhone2 = mapped.phone2 || "";
