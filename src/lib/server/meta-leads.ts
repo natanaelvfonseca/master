@@ -510,6 +510,10 @@ function phoneTextLooksRelevant(fieldName: string, value: string) {
   const normalizedName = normalizeMetaFieldName(fieldName);
   const normalizedValue = normalizeMetaFieldName(value);
 
+  if (/url|link|inbox|psid|thread|facebook|business/.test(normalizedName)) {
+    return false;
+  }
+
   return /phone|fone|telefone|tel|celular|whats|whatsapp|zap|contato|ddd|descricao|description/.test(
     `${normalizedName}_${normalizedValue}`,
   );
@@ -540,6 +544,12 @@ function phoneCandidatesFromFields(fields: Record<string, string>) {
   const candidates: Array<{ value: string; relevant: boolean }> = [];
 
   for (const [fieldName, value] of Object.entries(fields)) {
+    const normalizedName = normalizeMetaFieldName(fieldName);
+
+    if (/url|link|inbox|psid|thread|facebook|business/.test(normalizedName)) {
+      continue;
+    }
+
     const fieldCandidates = extractPhoneCandidates(value);
 
     for (const candidate of fieldCandidates) {
@@ -627,7 +637,7 @@ function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) 
     "contato_2",
   ]);
 
-  if (explicitValue && isDifferentPhone(explicitValue)) {
+  if (explicitValue) {
     return explicitValue;
   }
 
