@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { KeyRound, Pencil, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,6 +89,7 @@ function UsersPage() {
   const [users, setUsers] = React.useState<Array<ManagedUser>>([]);
   const [units, setUnits] = React.useState<Array<UnitSummary>>([]);
   const [loading, setLoading] = React.useState(true);
+  const [premiumBlockedOpen, setPremiumBlockedOpen] = React.useState(false);
   const [createUserOpen, setCreateUserOpen] = React.useState(false);
   const [savingUser, setSavingUser] = React.useState(false);
   const [savingEdit, setSavingEdit] = React.useState(false);
@@ -314,6 +316,7 @@ function UsersPage() {
 
   return (
     <div className="space-y-6">
+      {premiumBlockedOpen ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Administração"
         title="Usuários"
@@ -323,7 +326,7 @@ function UsersPage() {
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               {session.activeUnit?.name ?? "Sem unidade ativa"}
             </Badge>
-            <Button type="button" onClick={() => setCreateUserOpen(true)}>
+            <Button type="button" onClick={() => setPremiumBlockedOpen(true)}>
               <UserPlus className="h-4 w-4" />
               Cadastrar usuário
             </Button>

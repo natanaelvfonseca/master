@@ -48,6 +48,7 @@ function UnitsPage() {
   const { session, refreshSession } = useAuth();
   const [units, setUnits] = React.useState<Array<UnitSummary>>([]);
   const [loading, setLoading] = React.useState(true);
+  const [premiumBlockedOpen, setPremiumBlockedOpen] = React.useState(false);
   const [createUnitOpen, setCreateUnitOpen] = React.useState(false);
   const [savingUnit, setSavingUnit] = React.useState(false);
   const [savingUnitEdit, setSavingUnitEdit] = React.useState(false);
@@ -206,7 +207,7 @@ function UnitsPage() {
 
   return (
     <div className="space-y-6">
-      <PremiumBlockedPopup />
+      {premiumBlockedOpen ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Administração"
         title="Unidades"
@@ -217,7 +218,7 @@ function UnitsPage() {
               {loading ? "Carregando..." : `${units.length} unidade(s)`}
             </Badge>
             {session.canCreateUnits ? (
-              <Button type="button" onClick={() => setCreateUnitOpen(true)}>
+              <Button type="button" onClick={() => setPremiumBlockedOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Nova unidade
               </Button>
