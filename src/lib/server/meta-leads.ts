@@ -501,6 +501,57 @@ function sourceFieldValue(fields: Record<string, string>, name: string) {
   return matchingEntry?.[1] ?? "";
 }
 
+function phoneDigits(value: string) {
+  return value.replace(/\D+/g, "");
+}
+
+function phoneTextLooksRelevant(fieldName: string, value: string) {
+  const normalizedName = normalizeMetaFieldName(fieldName);
+  const normalizedValue = normalizeMetaFieldName(value);
+
+  return /phone|fone|telefone|tel|celular|whats|whatsapp|zap|contato|ddd|descricao|description/.test(
+    `${normalizedName}_${normalizedValue}`,
+  );
+}
+
+function extractPhoneCandidates(value: string) {
+  const candidates = new Set<string>();
+  const matches = value.matchAll(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4,5}[-.\s]?\d{4}/g);
+
+  for (const match of matches) {
+    const candidate = match[0].trim();
+    const digits = phoneDigits(candidate);
+
+    if (digits.length >= 10 && digits.length <= 13) {
+      candidates.add(candidate);
+    }
+  }
+
+  const compactDigits = phoneDigits(value);
+  if (compactDigits.length >= 10 && compactDigits.length <= 13) {
+    candidates.add(value.trim());
+  }
+
+  return Array.from(candidates);
+}
+
+function phoneCandidatesFromFields(fields: Record<string, string>) {
+  const candidates: Array<{ value: string; relevant: boolean }> = [];
+
+  for (const [fieldName, value] of Object.entries(fields)) {
+    const fieldCandidates = extractPhoneCandidates(value);
+
+    for (const candidate of fieldCandidates) {
+      candidates.push({
+        value: candidate,
+        relevant: phoneTextLooksRelevant(fieldName, value),
+      });
+    }
+  }
+
+  return candidates;
+}
+
 function phoneFieldValue(fields: Record<string, string>) {
   const explicitValue = firstField(fields, [
     "phone_number",
@@ -523,7 +574,7 @@ function phoneFieldValue(fields: Record<string, string>) {
 
   const phoneLikeEntry = Object.entries(fields).find(([fieldName, value]) => {
     const normalizedName = normalizeMetaFieldName(fieldName);
-    const digits = value.replace(/\D+/g, "");
+    const digits = phoneDigits(value);
 
     return (
       digits.length >= 8 &&
@@ -535,19 +586,25 @@ function phoneFieldValue(fields: Record<string, string>) {
     return phoneLikeEntry[1];
   }
 
+  const relevantCandidate = phoneCandidatesFromFields(fields).find((candidate) => candidate.relevant);
+
+  if (relevantCandidate) {
+    return relevantCandidate.value;
+  }
+
   const valueLikePhone = Object.values(fields).find((value) => {
-    const digits = value.replace(/\D+/g, "");
+    const digits = phoneDigits(value);
 
     return digits.length >= 10 && digits.length <= 13;
   });
 
-  return valueLikePhone ?? "";
+  return valueLikePhone ?? phoneCandidatesFromFields(fields)[0]?.value ?? "";
 }
 
 function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) {
-  const primaryDigits = primaryPhone.replace(/\D+/g, "");
+  const primaryDigits = phoneDigits(primaryPhone);
   const isDifferentPhone = (value: string) => {
-    const digits = value.replace(/\D+/g, "");
+    const digits = phoneDigits(value);
     return Boolean(value) && (!primaryDigits || digits !== primaryDigits);
   };
   const explicitValue = firstField(fields, [
@@ -574,7 +631,7 @@ function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) 
 
   const phoneLikeEntry = Object.entries(fields).find(([fieldName, value]) => {
     const normalizedName = normalizeMetaFieldName(fieldName);
-    const digits = value.replace(/\D+/g, "");
+    const digits = phoneDigits(value);
 
     return (
       digits.length >= 8 &&
@@ -583,7 +640,17 @@ function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) 
     );
   });
 
-  return phoneLikeEntry?.[1] ?? "";
+  if (phoneLikeEntry?.[1]) {
+    return phoneLikeEntry[1];
+  }
+
+  return (
+    phoneCandidatesFromFields(fields).find(
+      (candidate) => candidate.relevant && isDifferentPhone(candidate.value),
+    )?.value ??
+    phoneCandidatesFromFields(fields).find((candidate) => isDifferentPhone(candidate.value))?.value ??
+    ""
+  );
 }
 
 function transformValue(value: string, transform: MetaFieldMapping["transform"]) {
