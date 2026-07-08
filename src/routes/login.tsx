@@ -64,106 +64,74 @@ function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen bg-gradient-hero text-primary-foreground md:h-dvh md:min-h-0 md:overflow-hidden">
-      <section className="grid min-h-screen w-full md:h-full md:min-h-0 md:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)]">
-        <div className="flex min-h-[42vh] flex-col justify-between overflow-hidden p-6 md:h-full md:min-h-0 md:px-8 md:py-7 lg:px-10 lg:py-8">
-          <div>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-hero p-4 text-foreground">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-elegant md:p-8"
+      >
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-6 flex max-w-[220px] items-center justify-center">
             <img
               src={masterLogo}
-              alt="Master"
-              className="h-20 w-auto object-contain md:h-[min(5rem,10vh)]"
+              alt="Master Educação Profissional"
+              className="block aspect-square w-full object-contain"
             />
           </div>
-          <div className="max-w-xl pb-4 pt-8 md:pb-0 md:pt-6">
-            <div className="pointer-events-none mb-6 w-[82vw] max-w-[360px] rounded-lg bg-white/95 p-5 shadow-[0_30px_70px_rgba(0,0,0,0.22)] md:mb-5 md:w-[min(460px,42vh)] md:max-w-none">
-              <img
-                src={masterLogo}
-                alt="Master Educação Profissional"
-                className="block aspect-square w-full object-contain"
+          <h2 className="text-2xl font-bold">Fazer Login</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="pl-9"
+                required
               />
             </div>
-            <div className="relative z-10 mb-4 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
-              Growth Hub
-            </div>
-            <h1 className="relative z-10 max-w-lg font-display text-3xl font-bold leading-tight md:text-[clamp(2rem,5vh,3rem)]">
-              A educação profissional
-              <br />
-              que transforma vidas.
-            </h1>
-            <p className="relative z-10 mt-4 max-w-lg text-sm leading-6 text-white/70">
-              Cada matrícula é o início
-              <br />
-              de uma nova história.
-            </p>
           </div>
-        </div>
 
-        <div className="flex items-center justify-center bg-background/95 p-4 text-foreground backdrop-blur md:p-8">
-          <form
-            onSubmit={handleSubmit}
-            className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-elegant md:p-8"
-          >
-            <div className="mb-7">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
-                Login seguro
-              </div>
-              <h2 className="mt-2 text-2xl font-bold">Entrar no sistema</h2>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="px-9"
+                required
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="pl-9"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="px-9"
-                    required
-                  />
-                  <button
-                    type="button"
-                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {error ? (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              ) : null}
-
-              <Button type="submit" className="h-10 w-full" disabled={loading}>
-                {loading ? "Entrando..." : "Entrar"}
-              </Button>
+          {error ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
             </div>
-          </form>
+          ) : null}
+
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
+          </Button>
         </div>
-      </section>
+      </form>
     </main>
   );
 }
