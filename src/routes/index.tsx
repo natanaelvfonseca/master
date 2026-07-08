@@ -128,29 +128,19 @@ function Dashboard() {
 function DashboardHero({
   greeting,
   name,
-  scopeLabel,
-  isConsultant,
-  isLoading,
-  metrics,
 }: {
   greeting: string;
   name: string;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-orange-200/50 bg-gradient-hero px-5 py-6 text-white shadow-[0_28px_70px_-45px_rgba(234,88,12,0.72)] md:px-7">
-      <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/14 blur-3xl" />
-      <div className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-gold/14 blur-3xl" />
-      <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.14)_48%,transparent_72%)]" />
-      <div className="absolute inset-x-0 top-0 h-px bg-white/45" />
-      <div className="relative">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-normal md:text-3xl">
-            {greeting}, {name}.
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/76">
-            Visão geral da Master Educação Profissionalizante
-          </p>
-        </div>
+    <section className="px-1 py-2">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-normal text-foreground md:text-3xl">
+          {greeting}, {name}.
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Visão geral da Master Educação Profissionalizante
+        </p>
       </div>
     </section>
   );
