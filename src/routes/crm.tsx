@@ -11,6 +11,7 @@ import {
   KanbanSquare,
   Loader2,
   Mail,
+  MapPin,
   Phone,
   Plus,
   Search,
@@ -1498,6 +1499,12 @@ function LeadPipelineCard({
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Mail className="h-3.5 w-3.5" />
               <span className="truncate">{lead.email}</span>
+            </div>
+          ) : null}
+          {lead.city ? (
+            <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <MapPin className="h-3.5 w-3.5 text-primary" />
+              <span className="truncate">Cidade: {lead.city}</span>
             </div>
           ) : null}
           {canViewLeadAge ? (
