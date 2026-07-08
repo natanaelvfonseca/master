@@ -88,9 +88,9 @@ const emptyMetrics: GrowthMetrics = {
 
 const toneClasses = {
   primary: "border-primary/20 bg-primary/10 text-primary",
-  gold: "border-gold/30 bg-gold/15 text-gold",
+  gold: "border-gold/20 bg-gold/10 text-gold",
   success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/30 bg-warning/15 text-warning",
+  warning: "border-warning/25 bg-warning/10 text-warning",
   danger: "border-destructive/20 bg-destructive/10 text-destructive",
 } as const;
 
@@ -205,11 +205,14 @@ function DashboardHero({
       ];
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-hero px-5 py-6 text-white shadow-elegant md:px-7">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gold" />
+    <section className="relative overflow-hidden rounded-2xl border border-orange-200/50 bg-gradient-hero px-5 py-6 text-white shadow-[0_28px_70px_-45px_rgba(234,88,12,0.72)] md:px-7">
+      <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/14 blur-3xl" />
+      <div className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-gold/14 blur-3xl" />
+      <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.14)_48%,transparent_72%)]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-white/45" />
       <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,.8fr)] xl:items-end">
         <div className="min-w-0">
-          <Badge className="border-white/15 bg-white/10 text-gold">
+          <Badge className="border-white/20 bg-white/14 text-white shadow-sm backdrop-blur">
             <Sparkles className="mr-1 h-3.5 w-3.5" />
             Últimos 30 dias
           </Badge>
@@ -227,13 +230,13 @@ function DashboardHero({
           {heroItems.map((item) => (
             <div
               key={item.label}
-              className="min-h-[116px] rounded-lg border border-white/12 bg-white/10 p-3.5 shadow-[inset_0_1px_rgba(255,255,255,0.14)] backdrop-blur"
+              className="min-h-[116px] rounded-xl border border-white/18 bg-white/14 p-3.5 shadow-[inset_0_1px_rgba(255,255,255,0.18),0_18px_36px_-30px_rgba(15,23,42,0.55)] backdrop-blur"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/62">
                   {item.label}
                 </span>
-                <item.icon className="h-4 w-4 shrink-0 text-gold" />
+                <item.icon className="h-4 w-4 shrink-0 text-white/82" />
               </div>
               <div className="mt-3 break-words text-xl font-extrabold tracking-normal text-white">
                 {item.value}
@@ -251,7 +254,7 @@ function DashboardHero({
           <span>•</span>
           <span>{metricValue(isLoading, formatPercent(metrics.conversionRate))} conversão</span>
         </div>
-        <Button asChild variant="secondary" className="w-fit gap-2 bg-white text-[#C2410C]">
+        <Button asChild variant="secondary" className="w-fit gap-2 bg-white text-primary shadow-lg shadow-orange-950/10 hover:bg-white/95 hover:text-primary">
           <Link to="/crm">
             Abrir CRM
             <ArrowRight className="h-4 w-4" />
@@ -425,7 +428,7 @@ function KpiTile({
   tone: keyof typeof toneClasses;
 }) {
   return (
-    <div className="group relative min-h-[136px] overflow-hidden rounded-lg border border-border bg-card p-4 shadow-card">
+    <div className="group relative min-h-[136px] overflow-hidden rounded-xl border border-border/80 bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -440,14 +443,14 @@ function KpiTile({
         </div>
       </div>
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{hint}</p>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-primary via-gold to-success opacity-0 transition-opacity group-hover:opacity-80" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-primary via-gold to-success opacity-0 transition-opacity group-hover:opacity-70" />
     </div>
   );
 }
 
 function LeadRhythmChart({ data, isLoading }: { data: GrowthResponse | null; isLoading: boolean }) {
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="h-4 w-4 text-primary" />
@@ -519,7 +522,7 @@ function FunnelPanel({
   title: string;
 }) {
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <LineChartIcon className="h-4 w-4 text-primary" />
@@ -600,7 +603,7 @@ function ConsultantPriorityPanel({
   ];
 
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-4 w-4 text-primary" />
@@ -658,7 +661,7 @@ function ConsultantMoneyPanel({
   ];
 
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <DollarSign className="h-4 w-4 text-gold" />
@@ -741,7 +744,7 @@ function ExecutivePulsePanel({
   ];
 
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Clock3 className="h-4 w-4 text-primary" />
@@ -777,7 +780,7 @@ function ConsultantPerformanceTable({
   const maxPotential = Math.max(...consultants.map((item) => item.pipelinePotential), 0);
 
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-4 w-4 text-primary" />
@@ -854,7 +857,7 @@ function SourcePanel({
   sourceMax: number;
 }) {
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4 text-gold" />
@@ -895,7 +898,7 @@ function CoursePanel({ data, isLoading }: { data: GrowthResponse | null; isLoadi
   const maxPotential = Math.max(...courses.map((course) => course.pipelinePotential), 0);
 
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <GraduationCap className="h-4 w-4 text-primary" />
@@ -955,7 +958,7 @@ function CoursePanel({ data, isLoading }: { data: GrowthResponse | null; isLoadi
 
 function UnitPanel({ data, isLoading }: { data: GrowthResponse; isLoading: boolean }) {
   return (
-    <Card className="overflow-hidden border-primary/15 shadow-card">
+    <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-4 w-4 text-primary" />

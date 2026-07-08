@@ -64,17 +64,17 @@ function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-hero p-4 text-foreground">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-elegant md:p-8"
+        className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 shadow-elegant md:p-8"
       >
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-6 flex max-w-[220px] items-center justify-center">
+          <div className="mx-auto mb-6 flex max-w-[290px] items-center justify-center">
             <img
               src={masterLogo}
               alt="Master Educação Profissional"
-              className="block aspect-square w-full object-contain"
+              className="block h-auto w-full object-contain"
             />
           </div>
           <h2 className="text-2xl font-bold">Fazer Login</h2>

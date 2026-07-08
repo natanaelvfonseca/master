@@ -191,25 +191,25 @@ export function AppSidebar() {
     : roleVisibleGroups;
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="px-2 py-3">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 shadow-[12px_0_36px_-34px_rgba(15,23,42,0.45)]">
+      <SidebarHeader className="border-b border-sidebar-border/80 bg-transparent">
+        <div className="px-3 py-4">
           <div className="flex items-center justify-center px-1 py-1">
             <img
               src={masterLogo}
               alt="Master"
-              className={cn("object-contain", collapsed ? "h-8 w-8" : "h-14 w-full")}
+              className={cn("object-contain", collapsed ? "h-8 w-8" : "h-16 w-full")}
             />
           </div>
           {!collapsed && <div className="sr-only">Master Growth Hub</div>}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-1">
+      <SidebarContent className="px-2 py-2">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             {!collapsed && (
-              <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/50">
+              <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">
                 {group.label}
               </SidebarGroupLabel>
             )}
@@ -223,7 +223,7 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={active}
-                        className="relative transition-all duration-200 hover:translate-x-0.5 hover:shadow-[0_12px_28px_-22px_rgba(255,138,31,0.95)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_30px_-22px_rgba(255,138,31,1)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-gold [&>svg]:transition-transform [&>svg]:duration-200 hover:[&>svg]:scale-110"
+                        className="relative text-sidebar-foreground/82 transition-all duration-200 hover:translate-x-0.5 hover:bg-white/85 hover:text-sidebar-accent-foreground hover:shadow-[0_14px_34px_-30px_rgba(15,23,42,0.45)] data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_14px_32px_-24px_rgba(249,115,22,0.55)] data-[active=true]:before:absolute data-[active=true]:before:left-0 data-[active=true]:before:top-1/2 data-[active=true]:before:h-5 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-r data-[active=true]:before:bg-primary [&>svg]:text-sidebar-foreground/65 [&>svg]:transition-all [&>svg]:duration-200 hover:[&>svg]:scale-110 hover:[&>svg]:text-sidebar-accent-foreground data-[active=true]:[&>svg]:text-sidebar-accent-foreground"
                       >
                         <Link to={item.url} onClick={closeMobileSidebar}>
                           <item.icon className="h-4 w-4" />
@@ -239,14 +239,14 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border/80">
         {!collapsed ? (
           <div className="m-2 space-y-2">
             <Link
               to="/perfil"
               title="Editar perfil"
               onClick={closeMobileSidebar}
-              className="block rounded-lg bg-sidebar-accent/60 p-3 transition hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              className="block rounded-xl border border-sidebar-border/80 bg-white/72 p-3 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9 border border-sidebar-border">
@@ -269,7 +269,7 @@ export function AppSidebar() {
                 </div>
               </div>
               {activeUnit ? (
-                <div className="mt-2 truncate rounded-md border border-sidebar-border/70 bg-sidebar/40 px-2 py-1 text-xs text-sidebar-foreground/75">
+                <div className="mt-2 truncate rounded-md border border-sidebar-border/70 bg-sidebar-accent/45 px-2 py-1 text-xs text-sidebar-foreground/75">
                   {activeUnit.name}
                 </div>
               ) : null}
@@ -310,7 +310,10 @@ function LogoutMenuItem({ onLogout }: { onLogout: () => Promise<void> }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton onClick={() => void onLogout()} className="text-sidebar-foreground/80">
+        <SidebarMenuButton
+          onClick={() => void onLogout()}
+          className="text-sidebar-foreground/75 hover:bg-white/85 hover:text-sidebar-accent-foreground"
+        >
           <LogOut className="h-4 w-4" />
           <span>Sair</span>
         </SidebarMenuButton>
