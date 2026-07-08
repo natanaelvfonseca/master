@@ -1,18 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
-  BookOpenCheck,
-  BrainCircuit,
-  Building2,
-  ClipboardList,
-  GraduationCap,
-  Infinity as InfinityIcon,
-  KanbanSquare,
-  LayoutDashboard,
+  ChartNoAxesCombined,
+  ClipboardPenLine,
+  ContactRound,
+  Gauge,
+  LibraryBig,
   LogOut,
-  MessageSquarePlus,
-  Trophy,
-  UserCog,
+  MapPinned,
+  Medal,
+  MessagesSquare,
+  RadioTower,
+  UserRoundCheck,
+  UsersRound,
+  WandSparkles,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -62,36 +62,36 @@ type NavigationGroup = {
 const groups: Array<NavigationGroup> = [
   {
     label: "Visão geral",
-    items: [{ title: "Dashboard", url: "/", icon: LayoutDashboard }],
+    items: [{ title: "Dashboard", url: "/", icon: Gauge }],
   },
   {
     label: "Comercial",
     items: [
-      { title: "Leads", url: "/crm", icon: KanbanSquare },
-      { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
-      { title: "IA Comercial", url: "/ia-comercial", icon: BrainCircuit, attendancesOnly: true },
+      { title: "Leads", url: "/crm", icon: ContactRound },
+      { title: "Alunos", url: "/leads", icon: UserRoundCheck, studentViewOnly: true },
+      { title: "IA Comercial", url: "/ia-comercial", icon: WandSparkles, attendancesOnly: true },
     ],
   },
   {
     label: "Crescimento",
-    items: [{ title: "Relatórios", url: "/bi", icon: BarChart3 }],
+    items: [{ title: "Relatórios", url: "/bi", icon: ChartNoAxesCombined }],
   },
   {
     label: "Área de Membros",
     items: [
-      { title: "Ranking", url: "/ranking", icon: Trophy },
-      { title: "Cursos", url: "/treinamentos", icon: BookOpenCheck },
+      { title: "Ranking", url: "/ranking", icon: Medal },
+      { title: "Cursos", url: "/treinamentos", icon: LibraryBig },
     ],
   },
   {
     label: "Gestão",
     items: [
-      { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardList, managementOnly: true },
-      { title: "Meta Ads", url: "/meta-ads", icon: InfinityIcon, metaAdsOnly: true },
+      { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardPenLine, managementOnly: true },
+      { title: "Meta Ads", url: "/meta-ads", icon: RadioTower, metaAdsOnly: true },
       {
         title: "Feedback",
         url: "/feedback",
-        icon: MessageSquarePlus,
+        icon: MessagesSquare,
         systemFeedbackOnly: true,
       },
     ],
@@ -161,9 +161,9 @@ export function AppSidebar() {
         {
           label: "Administração",
           items: [
-            { title: "Usuários", url: "/usuarios", icon: UserCog },
+            { title: "Usuários", url: "/usuarios", icon: UsersRound },
             ...(user && canManageUnits(user.role)
-              ? [{ title: "Unidades", url: "/unidades", icon: Building2 }]
+              ? [{ title: "Unidades", url: "/unidades", icon: MapPinned }]
               : []),
           ],
         },
