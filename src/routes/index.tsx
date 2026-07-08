@@ -1,9 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
-  Banknote,
   CalendarClock,
   CheckCircle2,
   Clock3,
@@ -13,9 +11,7 @@ import {
   LineChart as LineChartIcon,
   Phone,
   ReceiptText,
-  Sparkles,
   Target,
-  TrendingUp,
   UserCheck,
   Users,
   WalletCards,
@@ -32,8 +28,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -115,40 +109,18 @@ function Dashboard() {
   const { data, loading } = useGrowthData(scopeValue, Boolean(session && scopeValue), 30);
   const metrics = data?.metrics ?? emptyMetrics;
   const isLoading = authLoading || loading;
-  const isConsultant = session?.user.role === "CONSULTOR";
   const funnelData = data?.funnel.filter((item) => item.leads > 0) ?? [];
-  const sourceMax = Math.max(...(data?.sources.map((item) => item.leads) ?? [0]), 0);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const scopeLabel = data?.scope.label ?? session?.activeUnit?.name ?? "Operação comercial";
 
   return (
     <div className="space-y-5">
       <DashboardHero
         greeting={greeting}
         name={session?.user.name ?? "Master"}
-        scopeLabel={scopeLabel}
-        isConsultant={isConsultant}
-        isLoading={isLoading}
-        metrics={metrics}
       />
 
-      {isConsultant ? (
-        <ConsultantDashboard
-          data={data}
-          metrics={metrics}
-          isLoading={isLoading}
-          funnelData={funnelData}
-        />
-      ) : (
-        <ManagerDashboard
-          data={data}
-          metrics={metrics}
-          isLoading={isLoading}
-          funnelData={funnelData}
-          sourceMax={sourceMax}
-        />
-      )}
+      <DashboardOverview data={data} metrics={metrics} isLoading={isLoading} funnelData={funnelData} />
     </div>
   );
 }
@@ -163,109 +135,28 @@ function DashboardHero({
 }: {
   greeting: string;
   name: string;
-  scopeLabel: string;
-  isConsultant: boolean;
-  isLoading: boolean;
-  metrics: GrowthMetrics;
 }) {
-  const heroItems = isConsultant
-    ? [
-        {
-          label: "Potencial na carteira",
-          value: metricValue(isLoading, formatCurrency(metrics.pipelinePotential)),
-          icon: WalletCards,
-        },
-        {
-          label: "Perto de fechar",
-          value: metricValue(isLoading, formatCurrency(metrics.proposalPotential)),
-          icon: Flame,
-        },
-        {
-          label: "Taxas confirmadas",
-          value: metricValue(isLoading, formatCurrency(metrics.confirmedRevenue)),
-          icon: CheckCircle2,
-        },
-      ]
-    : [
-        {
-          label: "Receita confirmada",
-          value: metricValue(isLoading, formatCurrency(metrics.confirmedRevenue)),
-          icon: Banknote,
-        },
-        {
-          label: "Potencial total",
-          value: metricValue(isLoading, formatCurrency(metrics.pipelinePotential)),
-          icon: TrendingUp,
-        },
-        {
-          label: "Pagamento pendente",
-          value: metricValue(isLoading, formatCurrency(metrics.pendingPaymentPotential)),
-          icon: ReceiptText,
-        },
-      ];
-
   return (
     <section className="relative overflow-hidden rounded-2xl border border-orange-200/50 bg-gradient-hero px-5 py-6 text-white shadow-[0_28px_70px_-45px_rgba(234,88,12,0.72)] md:px-7">
       <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/14 blur-3xl" />
       <div className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-gold/14 blur-3xl" />
       <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.14)_48%,transparent_72%)]" />
       <div className="absolute inset-x-0 top-0 h-px bg-white/45" />
-      <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,.8fr)] xl:items-end">
+      <div className="relative">
         <div className="min-w-0">
-          <Badge className="border-white/20 bg-white/14 text-white shadow-sm backdrop-blur">
-            <Sparkles className="mr-1 h-3.5 w-3.5" />
-            Últimos 30 dias
-          </Badge>
-          <h1 className="mt-4 text-2xl font-bold tracking-normal md:text-3xl">
+          <h1 className="text-2xl font-bold tracking-normal md:text-3xl">
             {greeting}, {name}.
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/76">
-            {isConsultant
-              ? `${scopeLabel} · foco nos seus leads, nas próximas conversas e nas taxas que podem virar matrícula.`
-              : `${scopeLabel} · visão executiva de receita, potencial em aberto e ritmo comercial.`}
+            Visão geral da Master Educação Profissionalizante
           </p>
         </div>
-
-        <div className="grid gap-2 sm:grid-cols-3">
-          {heroItems.map((item) => (
-            <div
-              key={item.label}
-              className="min-h-[116px] rounded-xl border border-white/18 bg-white/14 p-3.5 shadow-[inset_0_1px_rgba(255,255,255,0.18),0_18px_36px_-30px_rgba(15,23,42,0.55)] backdrop-blur"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/62">
-                  {item.label}
-                </span>
-                <item.icon className="h-4 w-4 shrink-0 text-white/82" />
-              </div>
-              <div className="mt-3 break-words text-xl font-extrabold tracking-normal text-white">
-                {item.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2 text-xs text-white/72">
-          <span>{metricValue(isLoading, metrics.leadsReceived)} leads</span>
-          <span>•</span>
-          <span>{metricValue(isLoading, metrics.enrollments)} matrículas</span>
-          <span>•</span>
-          <span>{metricValue(isLoading, formatPercent(metrics.conversionRate))} conversão</span>
-        </div>
-        <Button asChild variant="secondary" className="w-fit gap-2 bg-white text-primary shadow-lg shadow-orange-950/10 hover:bg-white/95 hover:text-primary">
-          <Link to="/crm">
-            Abrir CRM
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
       </div>
     </section>
   );
 }
 
-function ConsultantDashboard({
+function DashboardOverview({
   data,
   metrics,
   isLoading,
@@ -278,138 +169,44 @@ function ConsultantDashboard({
 }) {
   const kpis = [
     {
-      label: "Potencial em aberto",
-      value: metricValue(isLoading, formatCurrency(metrics.pipelinePotential)),
-      hint: "Taxas dos meus leads ainda não matriculados",
-      icon: WalletCards,
-      tone: "gold" as const,
+      label: "Leads",
+      value: metricValue(isLoading, metrics.leadsReceived),
+      hint: `${metricValue(isLoading, metrics.newLeads)} novos no período`,
+      icon: Users,
+      tone: "primary" as const,
     },
     {
-      label: "Em proposta/pagamento",
-      value: metricValue(isLoading, formatCurrency(metrics.proposalPotential)),
-      hint: `${metricValue(isLoading, metrics.proposals + metrics.pendingPayments)} oportunidades próximas`,
-      icon: Flame,
-      tone: "warning" as const,
-    },
-    {
-      label: "Taxas confirmadas",
-      value: metricValue(isLoading, formatCurrency(metrics.confirmedRevenue)),
-      hint: `${metricValue(isLoading, metrics.enrollments)} matrículas no período`,
-      icon: CheckCircle2,
+      label: "Matrículas",
+      value: metricValue(isLoading, metrics.enrollments),
+      hint: `${metricValue(isLoading, formatPercent(metrics.conversionRate))} de conversão`,
+      icon: GraduationCap,
       tone: "success" as const,
     },
     {
-      label: "Conversão individual",
-      value: metricValue(isLoading, formatPercent(metrics.conversionRate)),
-      hint: `${metricValue(isLoading, metrics.qualifiedLeads)} leads qualificados`,
-      icon: LineChartIcon,
-      tone: "primary" as const,
+      label: "Follow-up",
+      value: metricValue(isLoading, metrics.todayFollowUps + metrics.overdueFollowUps),
+      hint: `${metricValue(isLoading, metrics.overdueFollowUps)} vencidos`,
+      icon: CalendarClock,
+      tone: "gold" as const,
     },
   ];
 
   return (
     <>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-3">
         {kpis.map((item) => (
           <KpiTile key={item.label} {...item} />
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,.75fr)]">
-        <LeadRhythmChart data={data} isLoading={isLoading} />
-        <ConsultantPriorityPanel metrics={metrics} isLoading={isLoading} />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(330px,.75fr)_minmax(0,1.45fr)]">
-        <ConsultantMoneyPanel metrics={metrics} isLoading={isLoading} />
-        <FunnelPanel funnelData={funnelData} isLoading={isLoading} title="Meu funil comercial" />
-      </div>
-    </>
-  );
-}
-
-function ManagerDashboard({
-  data,
-  metrics,
-  isLoading,
-  funnelData,
-  sourceMax,
-}: {
-  data: GrowthResponse | null;
-  metrics: GrowthMetrics;
-  isLoading: boolean;
-  funnelData: GrowthResponse["funnel"];
-  sourceMax: number;
-}) {
-  const kpis = [
-    {
-      label: "Receita confirmada",
-      value: metricValue(isLoading, formatCurrency(metrics.confirmedRevenue)),
-      hint: `${metricValue(isLoading, metrics.enrollments)} matrículas pagas/confirmadas`,
-      icon: Banknote,
-      tone: "success" as const,
-    },
-    {
-      label: "Potencial total",
-      value: metricValue(isLoading, formatCurrency(metrics.pipelinePotential)),
-      hint: "Taxas nos leads ainda em aberto",
-      icon: TrendingUp,
-      tone: "gold" as const,
-    },
-    {
-      label: "Pagamento pendente",
-      value: metricValue(isLoading, formatCurrency(metrics.pendingPaymentPotential)),
-      hint: `${metricValue(isLoading, metrics.pendingPayments)} leads nessa etapa`,
-      icon: ReceiptText,
-      tone: "warning" as const,
-    },
-    {
-      label: "Conversão",
-      value: metricValue(isLoading, formatPercent(metrics.conversionRate)),
-      hint: `${metricValue(isLoading, metrics.qualifiedLeads)} qualificados`,
-      icon: Target,
-      tone: "primary" as const,
-    },
-    {
-      label: "Sem contato",
-      value: metricValue(isLoading, metrics.uncontactedLeads),
-      hint: "Leads novos sem primeiro contato",
-      icon: Phone,
-      tone: metrics.uncontactedLeads > 0 ? ("danger" as const) : ("primary" as const),
-    },
-    {
-      label: "Follow-ups vencidos",
-      value: metricValue(isLoading, metrics.overdueFollowUps),
-      hint: "Tarefas pendentes fora do prazo",
-      icon: AlertTriangle,
-      tone: metrics.overdueFollowUps > 0 ? ("danger" as const) : ("success" as const),
-    },
-  ];
-
-  return (
-    <>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        {kpis.map((item) => (
-          <KpiTile key={item.label} {...item} />
-        ))}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,.75fr)]">
-        <LeadRhythmChart data={data} isLoading={isLoading} />
-        <FunnelPanel funnelData={funnelData} isLoading={isLoading} title="Distribuição no funil" />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,.8fr)]">
-        <ConsultantPerformanceTable data={data} isLoading={isLoading} />
-        <ExecutivePulsePanel metrics={metrics} isLoading={isLoading} />
-      </div>
+      <FunnelPanel funnelData={funnelData} isLoading={isLoading} title="Pipeline" />
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <SourcePanel data={data} isLoading={isLoading} sourceMax={sourceMax} />
+        <ConsultantPerformanceTable data={data} isLoading={isLoading} />
         <CoursePanel data={data} isLoading={isLoading} />
       </div>
 
-      {data?.units.length ? <UnitPanel data={data} isLoading={isLoading} /> : null}
+      <CampaignEfficiencyPanel data={data} isLoading={isLoading} />
     </>
   );
 }
@@ -521,6 +318,8 @@ function FunnelPanel({
   isLoading: boolean;
   title: string;
 }) {
+  const maxLeads = Math.max(...funnelData.map((item) => item.leads), 0);
+
   return (
     <Card className="overflow-hidden border-border/80 shadow-card">
       <CardHeader className="pb-2">
@@ -534,23 +333,43 @@ function FunnelPanel({
         {isLoading ? (
           <GrowthLoading />
         ) : funnelData.length ? (
-          <div className="h-[276px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={funnelData} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid horizontal={false} stroke="#D5E1F6" />
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="stage"
-                  width={124}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip />
-                <Bar dataKey="leads" name="Leads" fill="#FF8A1F" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]">
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={funnelData} layout="vertical" margin={{ left: 10 }}>
+                  <CartesianGrid horizontal={false} stroke="#D5E1F6" />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="stage"
+                    width={136}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip />
+                  <Bar dataKey="leads" name="Leads" fill="#FF8A1F" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-3">
+              {funnelData.map((stage) => (
+                <div key={stage.stage} className="rounded-lg border border-border bg-background/65 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-semibold">{stage.stage}</span>
+                    <span className="text-lg font-extrabold text-foreground">{stage.leads}</span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{
+                        width: `${maxLeads > 0 ? Math.max(6, Math.round((stage.leads / maxLeads) * 100)) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <GrowthEmptyPanel
@@ -675,7 +494,7 @@ function ConsultantMoneyPanel({
             key={item.label}
             label={item.label}
             value={item.value}
-            detail="Últimos 30 dias"
+            detail="Período atual"
             icon={item.icon}
             tone={item.tone}
           />
@@ -902,7 +721,7 @@ function CoursePanel({ data, isLoading }: { data: GrowthResponse | null; isLoadi
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <GraduationCap className="h-4 w-4 text-primary" />
-          Cursos e taxas em jogo
+          Performance por curso
         </CardTitle>
         <CardDescription>Onde o dinheiro está aberto e onde já virou matrícula.</CardDescription>
       </CardHeader>
@@ -949,6 +768,53 @@ function CoursePanel({ data, isLoading }: { data: GrowthResponse | null; isLoadi
             icon={GraduationCap}
             title="Sem cursos vinculados"
             description="Os valores aparecem quando os leads possuem curso e taxa configurados."
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CampaignEfficiencyPanel({
+  data,
+  isLoading,
+}: {
+  data: GrowthResponse | null;
+  isLoading: boolean;
+}) {
+  const campaigns = data?.campaigns.slice(0, 8) ?? [];
+  const campaignMax = Math.max(...campaigns.map((campaign) => campaign.leads), 0);
+
+  return (
+    <Card className="overflow-hidden border-border/80 shadow-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <LineChartIcon className="h-4 w-4 text-primary" />
+          Eficiência das campanhas
+        </CardTitle>
+        <CardDescription>Volume de leads, matrículas e conversão por campanha.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <GrowthLoading />
+        ) : campaigns.length ? (
+          <div className="space-y-4">
+            {campaigns.map((campaign) => (
+              <GrowthDataBar
+                key={campaign.campaign}
+                label={campaign.campaign}
+                value={campaign.leads}
+                max={campaignMax}
+                detail={`${campaign.enrollments} matrículas · ${formatPercent(campaign.conversionRate)}`}
+                accent={campaign.enrollments ? "success" : "primary"}
+              />
+            ))}
+          </div>
+        ) : (
+          <GrowthEmptyPanel
+            icon={LineChartIcon}
+            title="Sem campanhas no período"
+            description="As campanhas aparecem quando os leads entram com identificação de origem."
           />
         )}
       </CardContent>
