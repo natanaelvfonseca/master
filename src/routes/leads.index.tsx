@@ -74,6 +74,7 @@ function LeadsList() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
   const canViewStudentList = session ? canViewStudents(session.user.role) : false;
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -209,7 +210,7 @@ function LeadsList() {
 
   return (
     <div>
-      <PremiumBlockedPopup />
+      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Comercial"
         title="Alunos"

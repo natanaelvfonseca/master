@@ -82,6 +82,7 @@ function BI() {
   const [scopeValue, setScopeValue] = React.useState("");
   const [periodDays, setPeriodDays] = React.useState(30);
   const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
   const activeUnitId = session?.activeUnit?.id ?? "";
 
   React.useEffect(() => {
@@ -104,7 +105,7 @@ function BI() {
 
   return (
     <div className="space-y-6">
-      <PremiumBlockedPopup />
+      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Crescimento"
         title="Relatórios"

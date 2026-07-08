@@ -85,6 +85,7 @@ function Ranking() {
   const ranking = data?.ranking ?? [];
   const leader = ranking[0];
   const topTaxaFeita = Math.max(...ranking.map((member) => member.taxaFeita), 0);
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
 
   React.useEffect(() => {
     if (authLoading) {
@@ -132,7 +133,7 @@ function Ranking() {
 
   return (
     <div className="ranking-elite-shell -m-4 min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-5 text-foreground md:-m-6 md:px-6 md:py-7 lg:-m-8 lg:px-8 lg:py-8">
-      <PremiumBlockedPopup />
+      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <div className="ranking-light-beams" />
       <div className="ranking-energy-lines" />
 

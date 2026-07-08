@@ -57,6 +57,7 @@ function UnitsPage() {
   const [unitEditForm, setUnitEditForm] = React.useState<UnitEditForm | null>(null);
   const [deleteUnitTarget, setDeleteUnitTarget] = React.useState<UnitSummary | null>(null);
   const canManageUnitRecords = session ? canManageUnits(session.user.role) : false;
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
 
   const loadUnits = React.useCallback(async () => {
     if (!canManageUnitRecords) {
@@ -205,9 +206,18 @@ function UnitsPage() {
     }
   }
 
+  function handleOpenCreateUnit() {
+    if (isPremiumBlocked) {
+      setPremiumBlockedOpen(true);
+      return;
+    }
+
+    setCreateUnitOpen(true);
+  }
+
   return (
     <div className="space-y-6">
-      {premiumBlockedOpen ? <PremiumBlockedPopup /> : null}
+      {premiumBlockedOpen && isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Administração"
         title="Unidades"
@@ -218,7 +228,7 @@ function UnitsPage() {
               {loading ? "Carregando..." : `${units.length} unidade(s)`}
             </Badge>
             {session.canCreateUnits ? (
-              <Button type="button" onClick={() => setPremiumBlockedOpen(true)}>
+              <Button type="button" onClick={handleOpenCreateUnit}>
                 <Plus className="h-4 w-4" />
                 Nova unidade
               </Button>

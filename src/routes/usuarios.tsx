@@ -118,6 +118,7 @@ function UsersPage() {
   const defaultUnitId = defaultUnit?.id ?? "";
   const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
   const unitOptions = units.length ? units : (session?.units ?? []);
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
 
   React.useEffect(() => {
     if (!session) {
@@ -295,6 +296,15 @@ function UsersPage() {
     }
   }
 
+  function handleOpenCreateUser() {
+    if (isPremiumBlocked) {
+      setPremiumBlockedOpen(true);
+      return;
+    }
+
+    setCreateUserOpen(true);
+  }
+
   const normalizedSearch = search.trim().toLowerCase();
   const filteredUsers = normalizedSearch
     ? users.filter((user) => {
@@ -316,7 +326,7 @@ function UsersPage() {
 
   return (
     <div className="space-y-6">
-      {premiumBlockedOpen ? <PremiumBlockedPopup /> : null}
+      {premiumBlockedOpen && isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Administração"
         title="Usuários"
@@ -326,7 +336,7 @@ function UsersPage() {
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               {session.activeUnit?.name ?? "Sem unidade ativa"}
             </Badge>
-            <Button type="button" onClick={() => setPremiumBlockedOpen(true)}>
+            <Button type="button" onClick={handleOpenCreateUser}>
               <UserPlus className="h-4 w-4" />
               Cadastrar usuário
             </Button>

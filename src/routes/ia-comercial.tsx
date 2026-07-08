@@ -156,6 +156,7 @@ function firstScriptCourseForConsultant(
 function SalesAiPage() {
   const { session } = useAuth();
   const canAccess = session ? canViewAttendances(session.user.role) : false;
+  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
   const canUseUnitFilter =
     Boolean(session && (isMasterRole(session.user.role) || isExecutiveRole(session.user.role)));
   const [unitFilter, setUnitFilter] = React.useState(ATTENDANCE_ALL_UNITS);
@@ -394,7 +395,7 @@ function SalesAiPage() {
 
   return (
     <div className="space-y-6">
-      <PremiumBlockedPopup />
+      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
       <PageHeader
         eyebrow="Comercial"
         title="IA Comercial"
