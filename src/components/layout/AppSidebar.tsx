@@ -1,8 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  ArrowRightLeft,
   BarChart3,
-  Bot,
   BookOpenCheck,
   BrainCircuit,
   Building2,
@@ -12,8 +10,6 @@ import {
   KanbanSquare,
   LayoutDashboard,
   LogOut,
-  Megaphone,
-  MessageCircle,
   MessageSquarePlus,
   Trophy,
   UserCog,
@@ -25,7 +21,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -36,7 +31,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
-  canAccessLeadTransferCenter,
   canAccessSystemFeedback,
   canManageUnits,
   canViewAttendances,
@@ -58,7 +52,6 @@ type NavigationItem = {
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
   attendancesOnly?: boolean;
-  leadTransferOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -74,30 +67,21 @@ const groups: Array<NavigationGroup> = [
   {
     label: "Comercial",
     items: [
-      { title: "CRM Pipeline", url: "/crm", icon: KanbanSquare },
-      {
-        title: "Transferência",
-        url: "/crm/transferencia",
-        icon: ArrowRightLeft,
-        leadTransferOnly: true,
-      },
+      { title: "Leads", url: "/crm", icon: KanbanSquare },
       { title: "Alunos", url: "/leads", icon: GraduationCap, studentViewOnly: true },
-      { title: "Ranking", url: "/ranking", icon: Trophy },
-      { title: "Conversas IA", url: "/conversas", icon: Bot },
-      { title: "Atendimentos", url: "/atendimentos", icon: MessageCircle, attendancesOnly: true },
       { title: "IA Comercial", url: "/ia-comercial", icon: BrainCircuit, attendancesOnly: true },
     ],
   },
   {
     label: "Crescimento",
-    items: [
-      { title: "Comercial", url: "/bi", icon: BarChart3 },
-      { title: "Marketing", url: "/branding", icon: Megaphone },
-    ],
+    items: [{ title: "Relatórios", url: "/bi", icon: BarChart3 }],
   },
   {
     label: "Área de Membros",
-    items: [{ title: "Treinamentos", url: "/treinamentos", icon: BookOpenCheck }],
+    items: [
+      { title: "Ranking", url: "/ranking", icon: Trophy },
+      { title: "Cursos", url: "/treinamentos", icon: BookOpenCheck },
+    ],
   },
   {
     label: "Gestão",
@@ -127,7 +111,6 @@ export function AppSidebar() {
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeAttendances = user ? canViewAttendances(user.role) : false;
-  const canSeeLeadTransfer = user ? canAccessLeadTransferCenter(user.role) : false;
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -150,8 +133,7 @@ export function AppSidebar() {
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback) &&
-          (!item.attendancesOnly || canSeeAttendances) &&
-          (!item.leadTransferOnly || canSeeLeadTransfer),
+          (!item.attendancesOnly || canSeeAttendances),
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -164,9 +146,7 @@ export function AppSidebar() {
               (item) =>
                 item.url === "/" ||
                 item.url === "/crm" ||
-                item.url === "/crm/transferencia" ||
                 item.url === "/bi" ||
-                item.url === "/branding" ||
                 item.url === "/gestao/cadastro" ||
                 item.url === "/meta-ads" ||
                 item.url === "/treinamentos" ||
@@ -207,12 +187,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-2">
         {navGroups.map((group) => (
-          <SidebarGroup key={group.label}>
-            {!collapsed && (
-              <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/55">
-                {group.label}
-              </SidebarGroupLabel>
-            )}
+          <SidebarGroup key={group.label} className="py-0">
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {

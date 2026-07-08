@@ -331,7 +331,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/crm")({
-  head: () => ({ meta: [{ title: "CRM Pipeline · Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Leads · Master Growth Hub" }] }),
   component: CRM,
 });
 
@@ -539,7 +539,7 @@ function CRMPipeline() {
   );
 
   const loadTransferData = React.useCallback(async () => {
-    if (!activeUnitId || !canTransferUnitLeads) {
+    if (!activeUnitId || !canAccessTransfers) {
       setTransferLeads([]);
       setTransferConsultants([]);
       return;
@@ -569,7 +569,7 @@ function CRMPipeline() {
     } finally {
       setLoadingTransferData(false);
     }
-  }, [activeUnitId, canTransferUnitLeads]);
+  }, [activeUnitId, canAccessTransfers]);
 
   React.useEffect(() => {
     void loadLeads();
@@ -1089,7 +1089,7 @@ function CRMPipeline() {
       <ConversionConfetti runId={confettiRunId} />
       <PageHeader
         eyebrow="Comercial"
-        title="CRM Pipeline"
+        title="Leads"
         description="Pipeline visual com lead score por IA, alertas de follow-up e priorização inteligente."
         actions={
           <div className="flex w-full flex-col items-stretch gap-2 sm:items-end md:w-auto">
@@ -1118,11 +1118,9 @@ function CRMPipeline() {
                 ) : null}
               </Button>
               {canAccessTransfers ? (
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/crm/transferencia">
+                <Button type="button" variant="outline" onClick={openTransferDialog}>
                   <ArrowRightLeft className="mr-2 h-4 w-4" />
                   Transferência de Lead
-                  </Link>
                 </Button>
               ) : null}
               {canOperatePipeline ? (
