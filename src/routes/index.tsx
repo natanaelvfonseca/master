@@ -139,7 +139,7 @@ function DashboardHero({
           {greeting}, {name}.
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Visão geral da Master Educação Profissionalizante
+          Visão geral da Master Educação Profissional
         </p>
       </div>
     </section>
