@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export function PremiumBlockedPopup() {
   return (
-    <div className="fixed inset-0 z-[5] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+    <div className="fixed inset-y-0 left-0 right-0 z-[5] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm md:left-(--sidebar-width)">
       <div className="w-full max-w-md rounded-2xl border border-border/80 bg-white p-6 text-center shadow-elegant">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           <LockKeyhole className="h-6 w-6" />
