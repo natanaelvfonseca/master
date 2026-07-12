@@ -4,12 +4,14 @@ import {
   CheckCircle2,
   Download,
   KeyRound,
+  LockKeyhole,
   Mail,
   Save,
   Smartphone,
   Trash2,
   Upload,
   UserRound,
+  UnlockKeyhole,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -20,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
-import { getInitials } from "@/lib/auth-types";
+import { getInitials, isDevRole } from "@/lib/auth-types";
 import {
   consumeDeferredInstallPrompt,
   getDeferredInstallPrompt,
@@ -42,6 +44,13 @@ type ProfileResponse = {
   };
 };
 
+type SystemSettingsResponse = {
+  error?: string;
+  settings?: {
+    systemLocked: boolean;
+  };
+};
+
 export const Route = createFileRoute("/perfil")({
   head: () => ({ meta: [{ title: "Perfil - Master Growth Hub" }] }),
   component: ProfilePage,
@@ -51,6 +60,8 @@ function ProfilePage() {
   const { session, refreshSession } = useAuth();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [saving, setSaving] = React.useState(false);
+  const [savingSystemSettings, setSavingSystemSettings] = React.useState(false);
+  const [systemLocked, setSystemLocked] = React.useState(true);
   const [installPrompt, setInstallPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
   const [appInstalled, setAppInstalled] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -62,6 +73,7 @@ function ProfilePage() {
     confirmPassword: "",
   });
   const user = session?.user;
+  const canManageSystemLock = Boolean(user && isDevRole(user.role));
   const userId = user?.id;
   const userName = user?.name;
   const userEmail = user?.email;
@@ -82,6 +94,30 @@ function ProfilePage() {
       confirmPassword: "",
     }));
   }, [userId, userName, userEmail, userAvatarUrl]);
+
+  React.useEffect(() => {
+    if (!canManageSystemLock) {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/system-settings", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: SystemSettingsResponse | null) => {
+        if (!cancelled && data?.settings) {
+          setSystemLocked(data.settings.systemLocked);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canManageSystemLock]);
 
   React.useEffect(() => {
     setAppInstalled(isInstalledAsApp());
@@ -230,6 +266,34 @@ function ProfilePage() {
     });
   }
 
+  async function handleSystemLockChange(nextLocked: boolean) {
+    setSavingSystemSettings(true);
+
+    try {
+      const response = await fetch("/api/system-settings", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ systemLocked: nextLocked }),
+      });
+      const data = (await response.json().catch(() => ({}))) as SystemSettingsResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Não foi possível atualizar o bloqueio.");
+      }
+
+      setSystemLocked(Boolean(data.settings?.systemLocked));
+      toast.success(nextLocked ? "Sistema bloqueado para os usuários." : "Sistema liberado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar o bloqueio.");
+    } finally {
+      setSavingSystemSettings(false);
+    }
+  }
+
   const initials = user ? getInitials(form.name || user.name) : "PG";
 
   return (
@@ -304,6 +368,50 @@ function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          {canManageSystemLock ? (
+            <Card className="shadow-card">
+              <CardHeader className="flex-row items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  {systemLocked ? (
+                    <LockKeyhole className="h-4 w-4" />
+                  ) : (
+                    <UnlockKeyhole className="h-4 w-4" />
+                  )}
+                </div>
+                <CardTitle className="text-base">Acesso do sistema</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-primary/10 bg-primary/5 p-4">
+                  <div className="text-sm font-semibold">
+                    {systemLocked ? "Sistema bloqueado" : "Sistema liberado"}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Quando bloqueado, todos os usuários que não são Dev veem o aviso de área
+                    bloqueada e o contato com suporte.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={systemLocked ? "default" : "outline"}
+                  className={systemLocked ? "w-full bg-gradient-primary" : "w-full"}
+                  disabled={savingSystemSettings}
+                  onClick={() => void handleSystemLockChange(!systemLocked)}
+                >
+                  {systemLocked ? (
+                    <UnlockKeyhole className="h-4 w-4" />
+                  ) : (
+                    <LockKeyhole className="h-4 w-4" />
+                  )}
+                  {savingSystemSettings
+                    ? "Atualizando..."
+                    : systemLocked
+                      ? "Liberar sistema"
+                      : "Bloquear sistema"}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card className="overflow-hidden border-primary/20 bg-[linear-gradient(145deg,#C2410C_0%,#F97316_58%,#071A42_100%)] text-white shadow-card">
             <CardContent className="space-y-4 p-5">

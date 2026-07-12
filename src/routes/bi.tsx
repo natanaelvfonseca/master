@@ -31,7 +31,6 @@ import {
   YAxis,
 } from "recharts";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { StatCard } from "@/components/layout/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -81,9 +80,7 @@ function BI() {
   const { session, loading: authLoading } = useAuth();
   const [scopeValue, setScopeValue] = React.useState("");
   const [periodDays, setPeriodDays] = React.useState(30);
-  const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
-  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
-  const activeUnitId = session?.activeUnit?.id ?? "";
+  const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;  const activeUnitId = session?.activeUnit?.id ?? "";
 
   React.useEffect(() => {
     if (!session) return;
@@ -104,9 +101,7 @@ function BI() {
   const funnelData = data?.funnel.filter((item) => item.leads > 0) ?? [];
 
   return (
-    <div className="space-y-6">
-      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
-      <PageHeader
+    <div className="space-y-6">      <PageHeader
         eyebrow="Crescimento"
         title="Relatórios"
         description="Performance comercial, canais de aquisição, campanhas, conversão, receita e produtividade da equipe."

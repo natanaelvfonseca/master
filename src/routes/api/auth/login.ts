@@ -5,6 +5,7 @@ import {
   checkLoginRateLimit,
   createSessionCookie,
   createSessionForUser,
+  ensureUserProfileSchema,
   recordLoginAttempt,
   sanitizeEmail,
   verifyPassword,
@@ -51,6 +52,8 @@ export const Route = createFileRoute("/api/auth/login")({
             },
           );
         }
+
+        await ensureUserProfileSchema();
 
         const result = await queryDb<LoginUserRow>(
           `

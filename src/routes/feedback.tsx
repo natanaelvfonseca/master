@@ -762,7 +762,7 @@ function FeedbackAccessDenied() {
         </div>
         <h1 className="text-xl font-bold">Acesso restrito</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Feedback do sistema fica disponível para Master, CEO, CVO, Diretor, Gerente e Marketing.
+          Feedback do sistema fica disponível para Dev, CEO, CVO, Diretor, Gerente e Marketing.
         </p>
       </div>
     </div>

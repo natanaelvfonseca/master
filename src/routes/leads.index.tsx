@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth";
 import { canViewStudents } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -73,9 +72,7 @@ export const Route = createFileRoute("/leads/")({
 function LeadsList() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
-  const canViewStudentList = session ? canViewStudents(session.user.role) : false;
-  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
-  const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
+  const canViewStudentList = session ? canViewStudents(session.user.role) : false;  const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [filters, setFilters] = React.useState<StudentFilters>(() => emptyStudentFilters());
@@ -209,9 +206,7 @@ function LeadsList() {
   }
 
   return (
-    <div>
-      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
-      <PageHeader
+    <div>      <PageHeader
         eyebrow="Comercial"
         title="Alunos"
         description="Base de alunos convertidos quando a taxa foi confirmada no CRM Pipeline."

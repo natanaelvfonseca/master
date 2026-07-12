@@ -35,6 +35,7 @@ import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
 import { Route as BrandPlenBibliotecaRouteImport } from './routes/brand-plen.biblioteca'
 import { Route as ApiTrainingRouteImport } from './routes/api/training'
+import { Route as ApiSystemSettingsRouteImport } from './routes/api/system-settings'
 import { Route as ApiSystemFeedbackRouteImport } from './routes/api/system-feedback'
 import { Route as ApiRankingRouteImport } from './routes/api/ranking'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
@@ -201,6 +202,11 @@ const BrandPlenBibliotecaRoute = BrandPlenBibliotecaRouteImport.update({
 const ApiTrainingRoute = ApiTrainingRouteImport.update({
   id: '/api/training',
   path: '/api/training',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemSettingsRoute = ApiSystemSettingsRouteImport.update({
+  id: '/api/system-settings',
+  path: '/api/system-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSystemFeedbackRoute = ApiSystemFeedbackRouteImport.update({
@@ -418,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
+  '/api/system-settings': typeof ApiSystemSettingsRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -483,6 +490,7 @@ export interface FileRoutesByTo {
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
+  '/api/system-settings': typeof ApiSystemSettingsRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -549,6 +557,7 @@ export interface FileRoutesById {
   '/api/profile': typeof ApiProfileRoute
   '/api/ranking': typeof ApiRankingRoute
   '/api/system-feedback': typeof ApiSystemFeedbackRoute
+  '/api/system-settings': typeof ApiSystemSettingsRoute
   '/api/training': typeof ApiTrainingRouteWithChildren
   '/brand-plen/biblioteca': typeof BrandPlenBibliotecaRoute
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
@@ -616,6 +625,7 @@ export interface FileRouteTypes {
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
+    | '/api/system-settings'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -681,6 +691,7 @@ export interface FileRouteTypes {
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
+    | '/api/system-settings'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -746,6 +757,7 @@ export interface FileRouteTypes {
     | '/api/profile'
     | '/api/ranking'
     | '/api/system-feedback'
+    | '/api/system-settings'
     | '/api/training'
     | '/brand-plen/biblioteca'
     | '/brand-plen/historico'
@@ -812,6 +824,7 @@ export interface RootRouteChildren {
   ApiProfileRoute: typeof ApiProfileRoute
   ApiRankingRoute: typeof ApiRankingRoute
   ApiSystemFeedbackRoute: typeof ApiSystemFeedbackRoute
+  ApiSystemSettingsRoute: typeof ApiSystemSettingsRoute
   ApiTrainingRoute: typeof ApiTrainingRouteWithChildren
   BrandPlenBibliotecaRoute: typeof BrandPlenBibliotecaRoute
   BrandPlenHistoricoRoute: typeof BrandPlenHistoricoRoute
@@ -1027,6 +1040,13 @@ declare module '@tanstack/react-router' {
       path: '/api/training'
       fullPath: '/api/training'
       preLoaderRoute: typeof ApiTrainingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system-settings': {
+      id: '/api/system-settings'
+      path: '/api/system-settings'
+      fullPath: '/api/system-settings'
+      preLoaderRoute: typeof ApiSystemSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/system-feedback': {
@@ -1388,6 +1408,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProfileRoute: ApiProfileRoute,
   ApiRankingRoute: ApiRankingRoute,
   ApiSystemFeedbackRoute: ApiSystemFeedbackRoute,
+  ApiSystemSettingsRoute: ApiSystemSettingsRoute,
   ApiTrainingRoute: ApiTrainingRouteWithChildren,
   BrandPlenBibliotecaRoute: BrandPlenBibliotecaRoute,
   BrandPlenHistoricoRoute: BrandPlenHistoricoRoute,

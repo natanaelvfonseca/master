@@ -11,8 +11,10 @@ import appCss from "../styles.css?url";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { isDevRole } from "@/lib/auth-types";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
 const MARKETING_ALLOWED_PATHS = [
@@ -155,6 +157,7 @@ function RootComponent() {
 function AuthenticatedShell() {
   const { loading, session } = useAuth();
   const path = useRouterState({ select: (state) => state.location.pathname });
+  const [systemLocked, setSystemLocked] = React.useState(false);
 
   React.useEffect(() => {
     if (!loading && !session) {
@@ -167,6 +170,30 @@ function AuthenticatedShell() {
       window.location.replace(MARKETING_FALLBACK_PATH);
     }
   }, [loading, path, session]);
+
+  React.useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/system-settings", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { settings?: { systemLocked?: boolean } } | null) => {
+        if (!cancelled) {
+          setSystemLocked(Boolean(data?.settings?.systemLocked));
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   if (loading) {
     return (
@@ -184,6 +211,8 @@ function AuthenticatedShell() {
     return null;
   }
 
+  const showSystemLockedPopup = systemLocked && !isDevRole(session.user.role);
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -195,6 +224,7 @@ function AuthenticatedShell() {
           </main>
         </div>
       </div>
+      {showSystemLockedPopup ? <PremiumBlockedPopup /> : null}
       <Toaster />
     </SidebarProvider>
   );

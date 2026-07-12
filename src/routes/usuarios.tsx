@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { KeyRound, Pencil, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,9 +87,7 @@ function UsersPage() {
   const { session } = useAuth();
   const [users, setUsers] = React.useState<Array<ManagedUser>>([]);
   const [units, setUnits] = React.useState<Array<UnitSummary>>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [premiumBlockedOpen, setPremiumBlockedOpen] = React.useState(false);
-  const [createUserOpen, setCreateUserOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);  const [createUserOpen, setCreateUserOpen] = React.useState(false);
   const [savingUser, setSavingUser] = React.useState(false);
   const [savingEdit, setSavingEdit] = React.useState(false);
   const [deletingUser, setDeletingUser] = React.useState(false);
@@ -118,8 +115,6 @@ function UsersPage() {
   const defaultUnitId = defaultUnit?.id ?? "";
   const effectiveUnitId = canChooseUnit ? form.unitId : defaultUnitId || form.unitId;
   const unitOptions = units.length ? units : (session?.units ?? []);
-  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
-
   React.useEffect(() => {
     if (!session) {
       return;
@@ -297,11 +292,6 @@ function UsersPage() {
   }
 
   function handleOpenCreateUser() {
-    if (isPremiumBlocked) {
-      setPremiumBlockedOpen(true);
-      return;
-    }
-
     setCreateUserOpen(true);
   }
 
@@ -325,9 +315,7 @@ function UsersPage() {
     : users;
 
   return (
-    <div className="space-y-6">
-      {premiumBlockedOpen && isPremiumBlocked ? <PremiumBlockedPopup /> : null}
-      <PageHeader
+    <div className="space-y-6">      <PageHeader
         eyebrow="Administração"
         title="Usuários"
         description="Cadastre e gerencie as pessoas vinculadas à unidade ativa."

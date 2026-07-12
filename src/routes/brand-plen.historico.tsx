@@ -292,7 +292,7 @@ function BrandAdminAccessDenied() {
         </div>
         <h1 className="text-xl font-bold">Acesso restrito</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          O histórico do Brand Plen fica disponível para Master, CEO, CVO, Diretor e Gerente.
+          O histórico do Brand Plen fica disponível para Dev, CEO, CVO, Diretor e Gerente.
         </p>
       </div>
     </div>

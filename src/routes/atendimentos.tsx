@@ -409,7 +409,7 @@ function AtendimentosPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            A central de atendimentos está disponível para Master, CEO, CVO, Diretor e Gerente.
+            A central de atendimentos está disponível para Dev, CEO, CVO, Diretor e Gerente.
           </p>
         </div>
       </div>

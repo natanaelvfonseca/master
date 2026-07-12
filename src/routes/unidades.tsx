@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Building2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,9 +46,7 @@ export const Route = createFileRoute("/unidades")({
 function UnitsPage() {
   const { session, refreshSession } = useAuth();
   const [units, setUnits] = React.useState<Array<UnitSummary>>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [premiumBlockedOpen, setPremiumBlockedOpen] = React.useState(false);
-  const [createUnitOpen, setCreateUnitOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);  const [createUnitOpen, setCreateUnitOpen] = React.useState(false);
   const [savingUnit, setSavingUnit] = React.useState(false);
   const [savingUnitEdit, setSavingUnitEdit] = React.useState(false);
   const [deletingUnit, setDeletingUnit] = React.useState(false);
@@ -57,8 +54,6 @@ function UnitsPage() {
   const [unitEditForm, setUnitEditForm] = React.useState<UnitEditForm | null>(null);
   const [deleteUnitTarget, setDeleteUnitTarget] = React.useState<UnitSummary | null>(null);
   const canManageUnitRecords = session ? canManageUnits(session.user.role) : false;
-  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
-
   const loadUnits = React.useCallback(async () => {
     if (!canManageUnitRecords) {
       setLoading(false);
@@ -96,7 +91,7 @@ function UnitsPage() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Apenas Master, CEO, CVO e Marketing podem gerenciar unidades.
+            Apenas Dev, CEO, CVO e Marketing podem gerenciar unidades.
           </p>
         </div>
       </div>
@@ -207,18 +202,11 @@ function UnitsPage() {
   }
 
   function handleOpenCreateUnit() {
-    if (isPremiumBlocked) {
-      setPremiumBlockedOpen(true);
-      return;
-    }
-
     setCreateUnitOpen(true);
   }
 
   return (
-    <div className="space-y-6">
-      {premiumBlockedOpen && isPremiumBlocked ? <PremiumBlockedPopup /> : null}
-      <PageHeader
+    <div className="space-y-6">      <PageHeader
         eyebrow="Administração"
         title="Unidades"
         description="Gerencie a estrutura de unidades disponível no sistema."

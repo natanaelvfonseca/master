@@ -103,7 +103,7 @@ async function listAssignableUsers(unitId: string) {
         and (
           u.primary_unit_id = $1
           or uu.user_id is not null
-          or u.role in ('MASTER', 'CEO', 'CVO', 'MARKETING')
+          or u.role in ('DEV', 'CEO', 'CVO', 'MARKETING')
         )
       order by u.name asc
     `,
@@ -269,7 +269,7 @@ export const Route = createFileRoute("/api/crm/transfer")({
               and (
                 u.primary_unit_id = $2
                 or uu.user_id is not null
-                or u.role in ('MASTER', 'CEO', 'CVO', 'MARKETING')
+                or u.role in ('DEV', 'CEO', 'CVO', 'MARKETING')
               )
             limit 1
           `,

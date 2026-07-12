@@ -1,5 +1,5 @@
 export const USER_ROLES = [
-  "MASTER",
+  "DEV",
   "CEO",
   "CVO",
   "DIRETOR",
@@ -44,7 +44,7 @@ export type ManagedUser = {
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  MASTER: "Master",
+  DEV: "Dev",
   CEO: "CEO",
   CVO: "CVO",
   DIRETOR: "Diretor",
@@ -54,7 +54,11 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export function isMasterRole(role: UserRole) {
-  return role === "MASTER" || role === "CVO";
+  return role === "DEV" || role === "CVO";
+}
+
+export function isDevRole(role: UserRole) {
+  return role === "DEV";
 }
 
 export function isExecutiveRole(role: UserRole) {

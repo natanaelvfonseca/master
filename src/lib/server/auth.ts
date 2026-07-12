@@ -63,11 +63,17 @@ export async function ensureUserProfileSchema() {
 
         do $$
         begin
-          perform pg_advisory_xact_lock(hashtext('app_users_role_check_marketing'));
+          perform pg_advisory_xact_lock(hashtext('app_users_role_check_dev'));
           alter table app_users drop constraint if exists app_users_role_check;
+
+          update app_users
+          set role = 'DEV',
+              updated_at = now()
+          where role = 'MASTER';
+
           alter table app_users
           add constraint app_users_role_check
-          check (role in ('MASTER', 'CEO', 'CVO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
+          check (role in ('DEV', 'CEO', 'CVO', 'DIRETOR', 'GERENTE', 'MARKETING', 'CONSULTOR'));
 
           update app_users
           set role = 'CVO',
@@ -89,7 +95,7 @@ export async function ensureUserProfileSchema() {
 }
 
 export function isValidRole(role: string): role is UserRole {
-  return ["MASTER", "CEO", "CVO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(role);
+  return ["DEV", "CEO", "CVO", "DIRETOR", "GERENTE", "MARKETING", "CONSULTOR"].includes(role);
 }
 
 export async function hashPassword(password: string) {

@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PremiumBlockedPopup } from "@/components/layout/PremiumBlockedPopup";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -155,9 +154,7 @@ function firstScriptCourseForConsultant(
 
 function SalesAiPage() {
   const { session } = useAuth();
-  const canAccess = session ? canViewAttendances(session.user.role) : false;
-  const isPremiumBlocked = Boolean(session && session.user.role !== "MASTER");
-  const canUseUnitFilter =
+  const canAccess = session ? canViewAttendances(session.user.role) : false;  const canUseUnitFilter =
     Boolean(session && (isMasterRole(session.user.role) || isExecutiveRole(session.user.role)));
   const [unitFilter, setUnitFilter] = React.useState(ATTENDANCE_ALL_UNITS);
   const [loading, setLoading] = React.useState(true);
@@ -394,9 +391,7 @@ function SalesAiPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {isPremiumBlocked ? <PremiumBlockedPopup /> : null}
-      <PageHeader
+    <div className="space-y-6">      <PageHeader
         eyebrow="Comercial"
         title="IA Comercial"
         description="Análise de conversas dos consultores com base nos scripts de venda cadastrados por curso."

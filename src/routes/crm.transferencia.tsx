@@ -387,7 +387,7 @@ function LeadTransferCenter() {
           </div>
           <h1 className="text-xl font-bold">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Transferências ficam disponíveis para Marketing, Master, CEO, CVO, Diretores e Gerentes.
+            Transferências ficam disponíveis para Marketing, Dev, CEO, CVO, Diretores e Gerentes.
           </p>
         </div>
       </div>
