@@ -1093,6 +1093,20 @@ function CRMPipeline() {
         title="Leads"
         actions={
           <div className="flex w-full flex-col items-stretch gap-2 sm:items-end md:w-auto">
+            {canAccessTransfers ? (
+              <div className="flex w-full justify-end md:hidden">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={openTransferDialog}
+                  aria-label="Transferência de Lead"
+                  title="Transferência de Lead"
+                >
+                  <Clock3 className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
             {canOperatePipeline ? (
               <Button
                 className="bg-gradient-primary text-primary-foreground"
@@ -1102,7 +1116,7 @@ function CRMPipeline() {
                 Novo Lead
               </Button>
             ) : null}
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+            <div className="hidden w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end md:flex">
               {canAccessTransfers ? (
                 <Button
                   type="button"
