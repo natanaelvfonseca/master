@@ -4,6 +4,7 @@ import type { LeadStage } from "@/lib/commercial-types";
 import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
+import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
 import { queryDb } from "@/lib/server/db";
 
 type LeadUnitRow = QueryResultRow & {
@@ -35,6 +36,10 @@ type CourseSnapshotRow = QueryResultRow & {
 type ChannelSnapshotRow = QueryResultRow & {
   id: string;
   name: string;
+};
+
+type AttendanceCityRow = QueryResultRow & {
+  city: string;
 };
 
 const allowedStages: Array<LeadStage> = [
@@ -136,6 +141,27 @@ async function getChannelSnapshot(channelId: string, unitId: string) {
   return { channel };
 }
 
+async function getCourseCity(courseId: string, unitId: string) {
+  if (!courseId || !isUuid(courseId)) {
+    return null;
+  }
+
+  const result = await queryDb<AttendanceCityRow>(
+    `
+      select city
+      from app_course_attendances
+      where unit_id = $1
+        and course_id = $2
+        and status = 'active'
+      order by created_at asc
+      limit 1
+    `,
+    [unitId, courseId],
+  );
+
+  return result.rows[0]?.city ?? null;
+}
+
 async function recordPaidStudentPayment(leadId: string, userId: string) {
   await queryDb(
     `
@@ -197,6 +223,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         const nextStage = payload.stage || parseStage(body);
 
         await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
 
         const leadResult = await queryDb<LeadEditableRow>(
           `
@@ -286,6 +313,10 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             );
           }
 
+          const resolvedCity =
+            (await getCourseCity(courseResult.course?.id ?? payload.courseId, lead.unit_id)) ??
+            payload.city;
+
           await queryDb(
             `
               update app_leads
@@ -339,7 +370,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               payload.phone,
               payload.phone2,
               payload.email,
-              payload.city,
+              resolvedCity,
               courseResult.course?.id ?? null,
               courseResult.course?.name ?? null,
               courseResult.course ? Number(courseResult.course.value) : null,

@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/commercial-schema";
 import { canOperateCrm, canViewAllUnitLeads, canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
+import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
 import { queryDb } from "@/lib/server/db";
 
 type LeadRow = QueryResultRow & {
@@ -20,7 +21,6 @@ type LeadRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
-  course_city: string | null;
   course_id: string | null;
   course_name_snapshot: string | null;
   course_value_snapshot: string | null;
@@ -44,6 +44,10 @@ type ChannelSnapshotRow = QueryResultRow & {
   name: string;
 };
 
+type AttendanceCityRow = QueryResultRow & {
+  city: string;
+};
+
 function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
   return {
     id: row.id,
@@ -54,7 +58,6 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     phone2: row.phone2,
     email: row.email,
     city: row.city,
-    courseCity: row.course_city,
     courseId: row.course_id,
     courseName: row.course_name_snapshot,
     courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
@@ -156,6 +159,50 @@ async function getChannelSnapshot(channelId: string, unitId: string) {
   return { channel };
 }
 
+async function getCourseCity(courseId: string, unitId: string) {
+  if (!courseId || !isUuid(courseId)) {
+    return null;
+  }
+
+  const result = await queryDb<AttendanceCityRow>(
+    `
+      select city
+      from app_course_attendances
+      where unit_id = $1
+        and course_id = $2
+        and status = 'active'
+      order by created_at asc
+      limit 1
+    `,
+    [unitId, courseId],
+  );
+
+  return result.rows[0]?.city ?? null;
+}
+
+async function fillLeadCitiesFromAttendances(unitId: string) {
+  await queryDb(
+    `
+      update app_leads l
+      set
+        city = attendance.city,
+        updated_at = now()
+      from lateral (
+        select a.city
+        from app_course_attendances a
+        where a.unit_id = l.unit_id
+          and a.course_id = l.course_id
+          and a.status = 'active'
+        order by a.created_at asc
+        limit 1
+      ) attendance
+      where l.unit_id = $1
+        and nullif(l.city, '') is null
+    `,
+    [unitId],
+  );
+}
+
 export const Route = createFileRoute("/api/crm/leads")({
   server: {
     handlers: {
@@ -173,6 +220,8 @@ export const Route = createFileRoute("/api/crm/leads")({
         }
 
         await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
+        await fillLeadCitiesFromAttendances(unit.id);
 
         const listView = getLeadListView(request);
         if (listView === "students" && !canViewStudents(session.user.role)) {
@@ -191,8 +240,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.phone,
               l.phone2,
               l.email,
-              l.city,
-              (
+              coalesce(l.city, (
                 select a.city
                 from app_course_attendances a
                 where a.unit_id = l.unit_id
@@ -200,7 +248,7 @@ export const Route = createFileRoute("/api/crm/leads")({
                   and a.status = 'active'
                 order by a.created_at asc
                 limit 1
-              ) as course_city,
+              )) as city,
               l.course_id,
               l.course_name_snapshot,
               l.course_value_snapshot::text,
@@ -260,6 +308,7 @@ export const Route = createFileRoute("/api/crm/leads")({
         }
 
         await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
 
         const courseResult = await getCourseSnapshot(payload.courseId, unit.id);
 
@@ -281,6 +330,8 @@ export const Route = createFileRoute("/api/crm/leads")({
 
         const course = courseResult.course;
         const channel = channelResult.channel;
+        const resolvedCity =
+          (await getCourseCity(course?.id ?? payload.courseId, unit.id)) ?? payload.city;
         const result = await queryDb<LeadRow>(
           `
             insert into app_leads (
@@ -308,13 +359,6 @@ export const Route = createFileRoute("/api/crm/leads")({
               phone2,
               email,
               city,
-              (select a.city
-               from app_course_attendances a
-               where a.unit_id = $1
-                 and a.course_id = $7
-                 and a.status = 'active'
-               order by a.created_at asc
-               limit 1) as course_city,
               course_id,
               course_name_snapshot,
               course_value_snapshot::text,
@@ -332,7 +376,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             payload.phone,
             payload.phone2,
             payload.email,
-            payload.city,
+            resolvedCity,
             course?.id ?? null,
             course?.name ?? null,
             course ? Number(course.value) : null,
