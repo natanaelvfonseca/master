@@ -185,19 +185,25 @@ async function fillLeadCitiesFromAttendances(unitId: string) {
     `
       update app_leads l
       set
-        city = attendance.city,
+        city = (
+          select a.city
+          from app_course_attendances a
+          where a.unit_id = l.unit_id
+            and a.course_id = l.course_id
+            and a.status = 'active'
+          order by a.created_at asc
+          limit 1
+        ),
         updated_at = now()
-      from lateral (
-        select a.city
-        from app_course_attendances a
-        where a.unit_id = l.unit_id
-          and a.course_id = l.course_id
-          and a.status = 'active'
-        order by a.created_at asc
-        limit 1
-      ) attendance
       where l.unit_id = $1
         and nullif(l.city, '') is null
+        and exists (
+          select 1
+          from app_course_attendances a
+          where a.unit_id = l.unit_id
+            and a.course_id = l.course_id
+            and a.status = 'active'
+        )
     `,
     [unitId],
   );
