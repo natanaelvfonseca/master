@@ -1116,6 +1116,20 @@ function CRMPipeline() {
                 Novo Lead
               </Button>
             ) : null}
+            <Button
+              type="button"
+              variant={filtersOpen ? "default" : "outline"}
+              onClick={() => setFiltersOpen((open) => !open)}
+              className={`${filtersOpen ? "bg-gradient-primary" : ""} w-full md:hidden`}
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              Filtros
+              {activeFilterCount ? (
+                <Badge className="ml-2 bg-primary text-primary-foreground">
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
             <div className="hidden w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end md:flex">
               {canAccessTransfers ? (
                 <Button
