@@ -1848,15 +1848,37 @@ function CreateLeadDialog({
                 </DialogHeader>
               </div>
               {isEditMode ? (
-                <Button
-                  type="button"
-                  onClick={onConvertToStudent}
-                  disabled={saving || converting}
-                  className="shrink-0 bg-emerald-500 font-bold uppercase tracking-wide text-white shadow-[0_16px_34px_-20px_rgba(16,185,129,0.95)] hover:bg-emerald-600 sm:ml-auto"
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {converting ? "Convertendo..." : "TAXA FEITA"}
-                </Button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+                  <Button
+                    type="button"
+                    onClick={onConvertToStudent}
+                    disabled={saving || converting}
+                    className="shrink-0 bg-emerald-500 font-bold uppercase tracking-wide text-white shadow-[0_16px_34px_-20px_rgba(16,185,129,0.95)] hover:bg-emerald-600 sm:ml-auto"
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {converting ? "Convertendo..." : "TAXA FEITA"}
+                  </Button>
+                  <div className="w-full md:hidden">
+                    <Label>Status do lead</Label>
+                    <Select
+                      value={form.stage}
+                      onValueChange={(value) =>
+                        onFormChange((current) => ({ ...current, stage: value as LeadStage }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>
@@ -2025,7 +2047,7 @@ function CreateLeadDialog({
             </div>
 
             {isEditMode ? (
-              <div className="space-y-2 md:col-span-2">
+              <div className="hidden space-y-2 md:col-span-2 md:block">
                 <Label>Status do lead</Label>
                 <Select
                   value={form.stage}
