@@ -167,9 +167,12 @@ export function Topbar() {
   }
 
   return (
-    <div className="fixed left-4 right-4 top-4 z-40 flex items-center justify-between gap-2 md:left-auto md:right-4 md:justify-end">
-      <SidebarTrigger className="h-11 w-11 rounded-xl border-border/80 bg-white/90 shadow-card backdrop-blur hover:bg-accent hover:text-accent-foreground md:hidden" />
-      <Popover>
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between px-4 md:left-auto md:right-4 md:top-4 md:h-auto md:w-auto md:px-0 md:pointer-events-auto">
+      <div className="pointer-events-auto flex items-center gap-2">
+        <SidebarTrigger className="h-11 w-11 rounded-xl border-border/80 bg-white/90 shadow-card backdrop-blur hover:bg-accent hover:text-accent-foreground md:hidden" />
+      </div>
+      <div className="pointer-events-auto flex items-center gap-2">
+        <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -278,7 +281,8 @@ export function Topbar() {
               </div>
             ) : null}
           </PopoverContent>
-      </Popover>
+        </Popover>
+      </div>
     </div>
   );
 }
