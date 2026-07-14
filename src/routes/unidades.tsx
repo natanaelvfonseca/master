@@ -39,7 +39,7 @@ type UnitEditForm = {
 };
 
 export const Route = createFileRoute("/unidades")({
-  head: () => ({ meta: [{ title: "Unidades - Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Unidades - Master CRM" }] }),
   component: UnitsPage,
 });
 

@@ -79,7 +79,7 @@ type EditForm = {
 };
 
 export const Route = createFileRoute("/usuarios")({
-  head: () => ({ meta: [{ title: "Usuários - Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Usuários - Master CRM" }] }),
   component: UsersPage,
 });
 

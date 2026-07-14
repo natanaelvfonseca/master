@@ -68,15 +68,15 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#C2410C" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Growth Hub" },
+      { name: "apple-mobile-web-app-title", content: "Master CRM" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { title: "Master Growth Hub — CRM e Inteligência Comercial" },
+      { title: "Master CRM — CRM e Inteligência Comercial" },
       {
         name: "description",
         content:
           "Hub de crescimento para escolas profissionalizantes: CRM, IA, métricas e automação para vender mais matrículas e reduzir no-show.",
       },
-      { property: "og:title", content: "Master Growth Hub" },
+      { property: "og:title", content: "Master CRM" },
       { property: "og:description", content: "CRM, BI e IA para escolas profissionalizantes." },
       { property: "og:type", content: "website" },
     ],

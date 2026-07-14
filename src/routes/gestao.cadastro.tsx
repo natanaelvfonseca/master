@@ -142,7 +142,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/gestao/cadastro")({
-  head: () => ({ meta: [{ title: "Cadastro - Gestão - Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Cadastro - Gestão - Master CRM" }] }),
   component: CadastroPage,
 });
 

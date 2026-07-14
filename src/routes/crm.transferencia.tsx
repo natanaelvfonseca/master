@@ -158,7 +158,7 @@ function ownerFilterMatches(lead: TransferLead, ownerId: string) {
 }
 
 export const Route = createFileRoute("/crm/transferencia")({
-  head: () => ({ meta: [{ title: "Transferência de Leads · Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Transferência de Leads · Master CRM" }] }),
   component: LeadTransferCenter,
 });
 

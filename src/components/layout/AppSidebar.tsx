@@ -185,7 +185,7 @@ export function AppSidebar() {
             ) : null}
             <SidebarTrigger className="shrink-0 rounded-lg border border-sidebar-border/80 bg-white/70 shadow-sm hover:bg-white" />
           </div>
-          {!collapsed && <div className="sr-only">Master Growth Hub</div>}
+          {!collapsed && <div className="sr-only">Master CRM</div>}
         </div>
       </SidebarHeader>
 
@@ -243,7 +243,7 @@ export function AppSidebar() {
                     {user?.name ?? "Master"}
                   </div>
                   <div className="truncate text-xs text-sidebar-foreground/70">
-                    {user ? ROLE_LABELS[user.role] : "Growth Hub"}
+                    {user ? ROLE_LABELS[user.role] : "Master CRM"}
                   </div>
                 </div>
               </div>

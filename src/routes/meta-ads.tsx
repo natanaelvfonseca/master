@@ -266,7 +266,7 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
 }
 
 export const Route = createFileRoute("/meta-ads")({
-  head: () => ({ meta: [{ title: "Meta Ads · Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Meta Ads · Master CRM" }] }),
   component: MetaAdsPage,
 });
 

@@ -52,7 +52,7 @@ type SystemSettingsResponse = {
 };
 
 export const Route = createFileRoute("/perfil")({
-  head: () => ({ meta: [{ title: "Perfil - Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Perfil - Master CRM" }] }),
   component: ProfilePage,
 });
 
@@ -418,7 +418,7 @@ function ProfilePage() {
               <div className="flex items-center gap-4">
                 <img
                   src="/icon-master-192.png"
-                  alt="Growth Hub"
+                  alt="Master CRM"
                   className="h-16 w-16 rounded-2xl shadow-[0_18px_38px_-18px_rgba(0,0,0,0.72)] ring-1 ring-white/15"
                 />
                 <div className="min-w-0 flex-1">
@@ -426,7 +426,7 @@ function ProfilePage() {
                     <Smartphone className="h-3.5 w-3.5" />
                     Aplicativo
                   </div>
-                  <div className="mt-1 text-lg font-bold leading-tight">Growth Hub no celular</div>
+                  <div className="mt-1 text-lg font-bold leading-tight">Master CRM no celular</div>
                   <p className="mt-1 text-sm text-white/70">
                     Crie o atalho com ícone na tela inicial.
                   </p>

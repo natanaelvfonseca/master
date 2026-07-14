@@ -332,7 +332,7 @@ function unitQuery(unitId: string) {
 }
 
 export const Route = createFileRoute("/crm")({
-  head: () => ({ meta: [{ title: "Leads · Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Leads · Master CRM" }] }),
   component: CRM,
 });
 

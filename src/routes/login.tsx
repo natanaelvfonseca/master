@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Login - Master Growth Hub" }] }),
+  head: () => ({ meta: [{ title: "Login - Master CRM" }] }),
   component: LoginPage,
 });
 
