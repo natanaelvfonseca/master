@@ -38,6 +38,7 @@ export type LeadRecord = {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  courseCity: string | null;
   courseId: string | null;
   courseName: string | null;
   courseValue: number | null;

@@ -20,6 +20,7 @@ type LeadRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  course_city: string | null;
   course_id: string | null;
   course_name_snapshot: string | null;
   course_value_snapshot: string | null;
@@ -53,6 +54,7 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     phone2: row.phone2,
     email: row.email,
     city: row.city,
+    courseCity: row.course_city,
     courseId: row.course_id,
     courseName: row.course_name_snapshot,
     courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
@@ -190,6 +192,15 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.phone2,
               l.email,
               l.city,
+              (
+                select a.city
+                from app_course_attendances a
+                where a.unit_id = l.unit_id
+                  and a.course_id = l.course_id
+                  and a.status = 'active'
+                order by a.created_at asc
+                limit 1
+              ) as course_city,
               l.course_id,
               l.course_name_snapshot,
               l.course_value_snapshot::text,
@@ -297,6 +308,13 @@ export const Route = createFileRoute("/api/crm/leads")({
               phone2,
               email,
               city,
+              (select a.city
+               from app_course_attendances a
+               where a.unit_id = $1
+                 and a.course_id = $7
+                 and a.status = 'active'
+               order by a.created_at asc
+               limit 1) as course_city,
               course_id,
               course_name_snapshot,
               course_value_snapshot::text,

@@ -1535,6 +1535,12 @@ function LeadPipelineCard({
               <span className="truncate">Cidade: {lead.city}</span>
             </div>
           ) : null}
+          {lead.courseCity && lead.courseCity !== lead.city ? (
+            <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <MapPin className="h-3.5 w-3.5 text-primary" />
+              <span className="truncate">Cidade do curso: {lead.courseCity}</span>
+            </div>
+          ) : null}
           {canViewLeadAge ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-primary">
               <Clock3 className="h-3.5 w-3.5" />
