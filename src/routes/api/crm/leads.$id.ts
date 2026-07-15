@@ -153,6 +153,14 @@ async function getCourseCity(courseId: string, unitId: string) {
       where unit_id = $1
         and course_id = $2
         and status = 'active'
+        and not exists (
+          select 1
+          from app_course_attendances other
+          where other.unit_id = app_course_attendances.unit_id
+            and other.course_id = app_course_attendances.course_id
+            and other.status = 'active'
+            and other.id <> app_course_attendances.id
+        )
       order by created_at asc
       limit 1
     `,

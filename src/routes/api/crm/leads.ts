@@ -9,7 +9,7 @@ import {
 } from "@/lib/server/commercial-schema";
 import { canOperateCrm, canViewAllUnitLeads, canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
-import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
+import { ensureCourseAttendanceSchema, normalizeRoutingText } from "@/lib/server/course-attendances";
 import { queryDb } from "@/lib/server/db";
 
 type LeadRow = QueryResultRow & {
@@ -46,6 +46,18 @@ type ChannelSnapshotRow = QueryResultRow & {
 
 type AttendanceCityRow = QueryResultRow & {
   city: string;
+};
+
+type MetaLeadCampaignRow = QueryResultRow & {
+  id: string;
+  city: string | null;
+  campaign_name: string;
+};
+
+type AttendanceMatchRow = QueryResultRow & {
+  course_name: string;
+  city: string;
+  state: string;
 };
 
 function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
@@ -171,6 +183,14 @@ async function getCourseCity(courseId: string, unitId: string) {
       where unit_id = $1
         and course_id = $2
         and status = 'active'
+        and not exists (
+          select 1
+          from app_course_attendances other
+          where other.unit_id = app_course_attendances.unit_id
+            and other.course_id = app_course_attendances.course_id
+            and other.status = 'active'
+            and other.id <> app_course_attendances.id
+        )
       order by created_at asc
       limit 1
     `,
@@ -180,6 +200,68 @@ async function getCourseCity(courseId: string, unitId: string) {
   return result.rows[0]?.city ?? null;
 }
 
+function campaignMatchesAttendance(campaignName: string, attendance: AttendanceMatchRow) {
+  const normalizedCampaign = ` ${normalizeRoutingText(campaignName)} `;
+  const normalizedCourse = ` ${normalizeRoutingText(attendance.course_name)} `;
+  const normalizedCity = ` ${normalizeRoutingText(attendance.city)} `;
+  const normalizedState = ` ${normalizeRoutingText(attendance.state)} `;
+
+  return (
+    normalizedCampaign.includes(normalizedCourse) &&
+    normalizedCampaign.includes(normalizedCity) &&
+    normalizedCampaign.includes(normalizedState)
+  );
+}
+
+async function fillMetaLeadCitiesFromCampaigns(unitId: string) {
+  const [leadsResult, attendancesResult] = await Promise.all([
+    queryDb<MetaLeadCampaignRow>(
+      `
+        select
+          l.id,
+          l.city,
+          e.campaign_name
+        from app_leads l
+        inner join app_meta_lead_events e on e.lead_id = l.id
+        where l.unit_id = $1
+          and e.campaign_name is not null
+      `,
+      [unitId],
+    ),
+    queryDb<AttendanceMatchRow>(
+      `
+        select
+          c.name as course_name,
+          a.city,
+          a.state
+        from app_course_attendances a
+        inner join app_courses c on c.id = a.course_id
+        where a.status = 'active'
+          and c.status = 'active'
+      `,
+    ),
+  ]);
+
+  for (const lead of leadsResult.rows) {
+    const matches = attendancesResult.rows.filter((attendance) =>
+      campaignMatchesAttendance(lead.campaign_name, attendance),
+    );
+    const matchedCity = matches.length === 1 ? matches[0].city : null;
+
+    if (matchedCity && matchedCity !== lead.city) {
+      await queryDb(
+        `
+          update app_leads
+          set city = $2,
+              updated_at = now()
+          where id = $1
+        `,
+        [lead.id, matchedCity],
+      );
+    }
+  }
+}
+
 async function fillLeadCitiesFromAttendances(unitId: string) {
   await queryDb(
     `
@@ -187,12 +269,20 @@ async function fillLeadCitiesFromAttendances(unitId: string) {
       set
         city = (
           select a.city
-          from app_course_attendances a
-          where a.unit_id = l.unit_id
-            and a.course_id = l.course_id
-            and a.status = 'active'
-          order by a.created_at asc
-          limit 1
+        from app_course_attendances a
+        where a.unit_id = l.unit_id
+          and a.course_id = l.course_id
+          and a.status = 'active'
+          and not exists (
+            select 1
+            from app_course_attendances other
+            where other.unit_id = a.unit_id
+              and other.course_id = a.course_id
+              and other.status = 'active'
+              and other.id <> a.id
+          )
+        order by a.created_at asc
+        limit 1
         ),
         updated_at = now()
       where l.unit_id = $1
@@ -203,6 +293,14 @@ async function fillLeadCitiesFromAttendances(unitId: string) {
           where a.unit_id = l.unit_id
             and a.course_id = l.course_id
             and a.status = 'active'
+            and not exists (
+              select 1
+              from app_course_attendances other
+              where other.unit_id = a.unit_id
+                and other.course_id = a.course_id
+                and other.status = 'active'
+                and other.id <> a.id
+            )
         )
     `,
     [unitId],
@@ -227,6 +325,7 @@ export const Route = createFileRoute("/api/crm/leads")({
 
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
+        await fillMetaLeadCitiesFromCampaigns(unit.id);
         await fillLeadCitiesFromAttendances(unit.id);
 
         const listView = getLeadListView(request);

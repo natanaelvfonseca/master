@@ -37,6 +37,16 @@ type CandidateRow = QueryResultRow & {
   name: string;
 };
 
+type CampaignAttendanceRow = QueryResultRow & {
+  id: string;
+  unit_id: string;
+  course_id: string;
+  course_name: string;
+  city: string;
+  state: string;
+  round_robin_cursor: number;
+};
+
 let schemaPromise: Promise<void> | null = null;
 
 export function normalizeRoutingText(value: string) {
@@ -359,6 +369,32 @@ export function parseCampaignRoute(campaignName: string) {
   } as const;
 }
 
+function textContainsNormalized(haystack: string, needle: string) {
+  return ` ${haystack} `.includes(` ${needle} `);
+}
+
+function findRegisteredCampaignMatches<
+  T extends {
+    course_name: string;
+    city: string;
+    state: string;
+  },
+>(campaignName: string, rows: Array<T>) {
+  const normalizedCampaign = normalizeRoutingText(campaignName);
+
+  return rows.filter((row) => {
+    const normalizedCourse = normalizeRoutingText(row.course_name);
+    const normalizedCity = normalizeRoutingText(row.city);
+    const normalizedState = normalizeRoutingText(row.state);
+
+    return (
+      textContainsNormalized(normalizedCampaign, normalizedCourse) &&
+      textContainsNormalized(normalizedCampaign, normalizedCity) &&
+      textContainsNormalized(normalizedCampaign, normalizedState)
+    );
+  });
+}
+
 export async function findCampaignAttendance(
   client: PoolClient,
   campaignName: string | null,
@@ -369,44 +405,48 @@ export async function findCampaignAttendance(
 
   const parsed = parseCampaignRoute(campaignName);
 
-  if ("error" in parsed) {
-    return { attendance: null, error: parsed.error } as const;
+  await ensureCourseAttendanceSchema();
+  const selectAttendanceSql = `
+    select
+      a.id,
+      a.unit_id,
+      a.course_id,
+      c.name as course_name,
+      a.city,
+      a.state,
+      a.round_robin_cursor
+    from app_course_attendances a
+    inner join app_courses c on c.id = a.course_id
+    where a.status = 'active'
+      and c.status = 'active'
+  `;
+
+  let matches: Array<CampaignAttendanceRow> = [];
+
+  if (!("error" in parsed)) {
+    const result = await client.query<CampaignAttendanceRow>(
+      `
+        ${selectAttendanceSql}
+          and a.city_normalized = $1
+          and a.state = $2
+        for update of a
+      `,
+      [parsed.normalizedCity, parsed.state],
+    );
+    matches = result.rows.filter(
+      (row) => normalizeRoutingText(row.course_name) === parsed.normalizedCourse,
+    );
   }
 
-  await ensureCourseAttendanceSchema();
-  const result = await client.query<
-    QueryResultRow & {
-      id: string;
-      unit_id: string;
-      course_id: string;
-      course_name: string;
-      city: string;
-      state: string;
-      round_robin_cursor: number;
-    }
-  >(
-    `
-      select
-        a.id,
-        a.unit_id,
-        a.course_id,
-        c.name as course_name,
-        a.city,
-        a.state,
-        a.round_robin_cursor
-      from app_course_attendances a
-      inner join app_courses c on c.id = a.course_id
-      where a.status = 'active'
-        and c.status = 'active'
-        and a.city_normalized = $1
-        and a.state = $2
-      for update of a
-    `,
-    [parsed.normalizedCity, parsed.state],
-  );
-  const matches = result.rows.filter(
-    (row) => normalizeRoutingText(row.course_name) === parsed.normalizedCourse,
-  );
+  if (!matches.length) {
+    const registeredResult = await client.query<CampaignAttendanceRow>(
+      `
+        ${selectAttendanceSql}
+        for update of a
+      `,
+    );
+    matches = findRegisteredCampaignMatches(campaignName, registeredResult.rows);
+  }
 
   if (matches.length !== 1) {
     return {
@@ -414,7 +454,7 @@ export async function findCampaignAttendance(
       error:
         matches.length > 1
           ? "Mais de um atendimento corresponde à campanha."
-          : `Atendimento não encontrado para ${parsed.courseName} em ${parsed.city}-${parsed.state}.`,
+          : "Atendimento não encontrado para a campanha.",
     } as const;
   }
 

@@ -1972,7 +1972,7 @@ async function processEventById(eventId: string) {
           }
         : assignment;
     const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
-    const leadCity = campaignCityValue(event.campaign_name, resolvedAttendance?.city ?? null) || mapped.city;
+    const leadCity = campaignCityValue(event.campaign_name, attendance?.city ?? null) || mapped.city;
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
     const leadPhone = mapped.phone || "";
     const leadPhone2 = mapped.phone2 || "";
