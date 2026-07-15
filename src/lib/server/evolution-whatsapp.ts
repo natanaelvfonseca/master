@@ -68,8 +68,9 @@ export async function ensureEvolutionSchema() {
       where user_id is null and created_by is not null;
       alter table app_whatsapp_instances
         drop constraint if exists app_whatsapp_instances_unit_id_key;
-      create unique index if not exists app_whatsapp_instances_user_idx
-        on app_whatsapp_instances (user_id)
+      drop index if exists app_whatsapp_instances_user_idx;
+      create unique index if not exists app_whatsapp_instances_user_unit_idx
+        on app_whatsapp_instances (user_id, unit_id)
         where user_id is not null;
       create index if not exists app_whatsapp_instances_unit_idx
         on app_whatsapp_instances (unit_id);
@@ -159,13 +160,21 @@ export async function requestEvolution(path: string, init: RequestInit = {}) {
   return evolutionFetch(path, init);
 }
 
-function instancePart(value: string) {
-  return value
+function instancePart(value: string, fallback = "master") {
+  const normalized = value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+
+  return normalized || fallback;
+}
+
+function userInstancePart(value: string, fallback: string) {
+  const firstName = value.trim().split(/\s+/)[0] ?? "";
+
+  return instancePart(firstName, fallback);
 }
 
 function connectionState(data: unknown) {
@@ -240,17 +249,17 @@ async function createRemoteInstance(instanceName: string) {
   });
 }
 
-async function getInstance(userId: string) {
+async function getInstance(userId: string, unitId: string) {
   await ensureEvolutionSchema();
   const result = await queryDb<InstanceRow>(
-    `select * from app_whatsapp_instances where user_id = $1 limit 1`,
-    [userId],
+    `select * from app_whatsapp_instances where user_id = $1 and unit_id = $2 limit 1`,
+    [userId, unitId],
   );
   return result.rows[0] ?? null;
 }
 
-export async function getEvolutionState(userId: string) {
-  let instance = await getInstance(userId);
+export async function getEvolutionState(userId: string, unitId: string) {
+  let instance = await getInstance(userId, unitId);
 
   if (instance) {
     try {
@@ -292,14 +301,14 @@ export async function getEvolutionState(userId: string) {
 
 export async function connectEvolution(
   unit: { id: string; name: string },
-  user: { id: string; email: string },
+  user: { id: string; email: string; name: string },
   requestUrl: string,
 ) {
   await ensureEvolutionSchema();
-  let instance = await getInstance(user.id);
-  const unitName = instancePart(unit.name) || "unidade";
-  const userEmail = instancePart(user.email) || createHash("sha256").update(user.id).digest("hex");
-  const desiredInstanceName = `master_${unitName}_${userEmail}`.slice(0, 100);
+  let instance = await getInstance(user.id, unit.id);
+  const unitName = instancePart(unit.name, "Unidade");
+  const userName = userInstancePart(user.name, createHash("sha256").update(user.id).digest("hex").slice(0, 10));
+  const desiredInstanceName = `${unitName}_${userName}`.slice(0, 100);
 
   if (!instance) {
     const secret = randomBytes(24).toString("base64url");
@@ -394,8 +403,8 @@ export async function connectEvolution(
   return { status: "connecting", qrCode: qrCodeFrom(qrData) };
 }
 
-export async function disconnectEvolution(userId: string) {
-  const instance = await getInstance(userId);
+export async function disconnectEvolution(userId: string, unitId: string) {
+  const instance = await getInstance(userId, unitId);
   if (!instance) return;
 
   await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {

@@ -7,11 +7,14 @@ import {
   BrainCircuit,
   Building2,
   CheckCircle2,
+  CircleAlert,
   ClipboardCheck,
   FileText,
   GraduationCap,
   LoaderCircle,
   MessageSquareText,
+  Power,
+  QrCode,
   RefreshCw,
   Save,
   ScrollText,
@@ -28,6 +31,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -59,6 +69,20 @@ type ScriptForm = {
   title: string;
   scriptBody: string;
   active: boolean;
+};
+
+type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
+
+type EvolutionState = {
+  configured: boolean;
+  instance: {
+    id: string;
+    name: string;
+    status: ConnectionStatus;
+    phoneNumber: string | null;
+    connectedAt: string | null;
+    lastEventAt: string | null;
+  } | null;
 };
 
 const emptyScriptForm: ScriptForm = {
@@ -137,6 +161,52 @@ function statusLabel(status: SalesAiConsultantSummary["status"]) {
   return status === "connected" ? "Online" : "Offline";
 }
 
+function formatPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.length === 13 && digits.startsWith("55")) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+
+  if (digits.length === 12 && digits.startsWith("55")) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
+  }
+
+  return digits ? `+${digits}` : "WhatsApp conectado";
+}
+
+function whatsappStatusInfo(status: ConnectionStatus | undefined) {
+  if (status === "connected") {
+    return {
+      label: "WhatsApp conectado",
+      icon: Wifi,
+      className: "border-success/25 bg-success/10 text-success",
+    };
+  }
+
+  if (status === "connecting") {
+    return {
+      label: "Aguardando QR Code",
+      icon: QrCode,
+      className: "border-gold/30 bg-gold/15 text-gold-foreground",
+    };
+  }
+
+  if (status === "error") {
+    return {
+      label: "Falha na conexão",
+      icon: CircleAlert,
+      className: "border-destructive/25 bg-destructive/10 text-destructive",
+    };
+  }
+
+  return {
+    label: "WhatsApp desconectado",
+    icon: WifiOff,
+    className: "border-muted bg-muted/70 text-muted-foreground",
+  };
+}
+
 function findScriptForCourse(scripts: Array<SalesScriptRecord>, courseId: string) {
   return scripts.find((script) => script.courseId === courseId) ?? null;
 }
@@ -167,6 +237,11 @@ function SalesAiPage() {
   const [analysisCourseId, setAnalysisCourseId] = React.useState<string>("");
   const [selectedScriptCourseId, setSelectedScriptCourseId] = React.useState<string>("");
   const [scriptForm, setScriptForm] = React.useState<ScriptForm>(emptyScriptForm);
+  const [evolutionState, setEvolutionState] = React.useState<EvolutionState | null>(null);
+  const [loadingEvolution, setLoadingEvolution] = React.useState(true);
+  const [workingEvolution, setWorkingEvolution] = React.useState(false);
+  const [qrCode, setQrCode] = React.useState<string | null>(null);
+  const [qrOpen, setQrOpen] = React.useState(false);
 
   const selectedConsultant = React.useMemo(
     () => consultants.find((consultant) => consultant.id === selectedConsultantId) ?? null,
@@ -197,6 +272,35 @@ function SalesAiPage() {
         )
       : 0;
   const messages30d = consultants.reduce((total, consultant) => total + consultant.messageCount30d, 0);
+
+  const loadEvolutionState = React.useCallback(async (silent = false) => {
+    if (!session || !canAccess) {
+      setLoadingEvolution(false);
+      return;
+    }
+
+    if (!silent) {
+      setLoadingEvolution(true);
+    }
+
+    try {
+      const data = await requestJson<{ ok: true } & EvolutionState>("/api/integrations/evolution");
+      setEvolutionState({ configured: data.configured, instance: data.instance });
+
+      if (data.instance?.status === "connected") {
+        setQrCode(null);
+        setQrOpen(false);
+      }
+    } catch (error) {
+      if (!silent) {
+        toast.error(error instanceof Error ? error.message : "Falha ao verificar WhatsApp.");
+      }
+    } finally {
+      if (!silent) {
+        setLoadingEvolution(false);
+      }
+    }
+  }, [canAccess, session]);
 
   const loadData = React.useCallback(
     async (silent = false) => {
@@ -249,6 +353,19 @@ function SalesAiPage() {
   React.useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  React.useEffect(() => {
+    void loadEvolutionState();
+  }, [loadEvolutionState, session?.activeUnit?.id, session?.user.id]);
+
+  React.useEffect(() => {
+    const interval = window.setInterval(
+      () => void loadEvolutionState(true),
+      evolutionState?.instance?.status === "connecting" || qrOpen ? 2_500 : 12_000,
+    );
+
+    return () => window.clearInterval(interval);
+  }, [evolutionState?.instance?.status, loadEvolutionState, qrOpen]);
 
   React.useEffect(() => {
     setSelectedConsultantId("");
@@ -345,6 +462,63 @@ function SalesAiPage() {
     }
   }
 
+  async function handleConnectWhatsapp() {
+    setWorkingEvolution(true);
+
+    try {
+      const data = await requestJson<{ ok: true; status: ConnectionStatus; qrCode: string | null }>(
+        "/api/integrations/evolution",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "connect" }),
+        },
+      );
+
+      if (data.status === "connected") {
+        setQrCode(null);
+        setQrOpen(false);
+        toast.success("WhatsApp conectado.");
+      } else if (data.qrCode) {
+        setQrCode(data.qrCode);
+        setQrOpen(true);
+      } else {
+        toast.info("A conexão está sendo preparada. Atualize o QR Code em alguns segundos.");
+      }
+
+      await loadEvolutionState(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao conectar WhatsApp.");
+    } finally {
+      setWorkingEvolution(false);
+    }
+  }
+
+  async function handleDisconnectWhatsapp() {
+    if (!window.confirm("Desconectar seu WhatsApp da IA Comercial?")) {
+      return;
+    }
+
+    setWorkingEvolution(true);
+
+    try {
+      await requestJson("/api/integrations/evolution", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disconnect" }),
+      });
+      setQrCode(null);
+      setQrOpen(false);
+      await loadEvolutionState(true);
+      await loadData(true);
+      toast.success("WhatsApp desconectado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao desconectar WhatsApp.");
+    } finally {
+      setWorkingEvolution(false);
+    }
+  }
+
   async function handleScriptSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -391,7 +565,8 @@ function SalesAiPage() {
   }
 
   return (
-    <div className="space-y-6">      <PageHeader
+    <div className="space-y-6">
+      <PageHeader
         eyebrow="Comercial"
         title="IA Comercial"
         description="Análise de conversas dos consultores com base nos scripts de venda cadastrados por curso."
@@ -426,6 +601,16 @@ function SalesAiPage() {
             </Button>
           </>
         }
+      />
+
+      <WhatsappConnectionCard
+        state={evolutionState}
+        loading={loadingEvolution}
+        working={workingEvolution}
+        unitName={session?.activeUnit?.name ?? "Unidade ativa"}
+        onConnect={() => void handleConnectWhatsapp()}
+        onDisconnect={() => void handleDisconnectWhatsapp()}
+        onRefresh={() => void loadEvolutionState()}
       />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -486,7 +671,128 @@ function SalesAiPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp</DialogTitle>
+            <DialogDescription>
+              Leia o QR Code com o WhatsApp do celular para liberar a análise das conversas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4">
+            {qrCode ? (
+              <img
+                src={qrCode}
+                alt="QR Code para conectar WhatsApp"
+                className="h-64 w-64 rounded-md border bg-white p-2"
+              />
+            ) : (
+              <div className="flex h-64 w-64 items-center justify-center rounded-md border bg-muted">
+                <LoaderCircle className="h-7 w-7 animate-spin text-primary" />
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleConnectWhatsapp()}
+              disabled={workingEvolution}
+            >
+              <RefreshCw className={cn("h-4 w-4", workingEvolution && "animate-spin")} />
+              Atualizar QR Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function WhatsappConnectionCard({
+  state,
+  loading,
+  working,
+  unitName,
+  onConnect,
+  onDisconnect,
+  onRefresh,
+}: {
+  state: EvolutionState | null;
+  loading: boolean;
+  working: boolean;
+  unitName: string;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onRefresh: () => void;
+}) {
+  const connected = state?.instance?.status === "connected";
+  const status = whatsappStatusInfo(state?.instance?.status);
+  const StatusIcon = status.icon;
+
+  return (
+    <Card className="overflow-hidden border-primary/15 bg-[linear-gradient(135deg,rgba(249,115,22,.08),rgba(255,255,255,.92),rgba(18,54,201,.06))] shadow-card">
+      <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={status.className}>
+              <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+              {loading ? "Verificando conexão..." : status.label}
+            </Badge>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {unitName}
+            </Badge>
+          </div>
+          <h2 className="mt-3 text-lg font-bold tracking-normal text-foreground">
+            WhatsApp da IA Comercial
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Conecte o WhatsApp desta unidade para a IA Comercial ler as mensagens via webhook da Evolution e gerar análises individuais.
+          </p>
+          {state?.instance ? (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Instância: <span className="font-semibold text-foreground">{state.instance.name}</span>
+              {state.instance.phoneNumber ? (
+                <>
+                  {" · "}
+                  <span className="font-semibold text-primary">
+                    {formatPhone(state.instance.phoneNumber)}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {!state?.configured && !loading ? (
+            <div className="mt-3 flex items-center gap-2 text-xs font-medium text-destructive">
+              <CircleAlert className="h-3.5 w-3.5" />
+              Evolution API ainda não está configurada no servidor.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={onRefresh} disabled={loading || working}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            Atualizar
+          </Button>
+          {connected ? (
+            <Button type="button" variant="outline" onClick={onDisconnect} disabled={working}>
+              {working ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+              Desconectar
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              className="bg-gradient-primary text-primary-foreground"
+              onClick={onConnect}
+              disabled={working || !state?.configured}
+            >
+              {working ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+              Conectar WhatsApp
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

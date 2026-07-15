@@ -25,7 +25,7 @@ export const Route = createFileRoute("/api/integrations/evolution")({
         const auth = await requireSession(request);
         if ("response" in auth) return auth.response;
 
-        const state = await getEvolutionState(auth.session.user.id);
+        const state = await getEvolutionState(auth.session.user.id, auth.activeUnit.id);
         return Response.json({ ok: true, ...state }, { headers: { "Cache-Control": "no-store" } });
       },
       POST: async ({ request }) => {
@@ -40,14 +40,18 @@ export const Route = createFileRoute("/api/integrations/evolution")({
           if (body?.action === "connect") {
             const result = await connectEvolution(
               auth.activeUnit,
-              { id: auth.session.user.id, email: auth.session.user.email },
+              {
+                id: auth.session.user.id,
+                email: auth.session.user.email,
+                name: auth.session.user.name,
+              },
               request.url,
             );
             return Response.json({ ok: true, ...result });
           }
 
           if (body?.action === "disconnect") {
-            await disconnectEvolution(auth.session.user.id);
+            await disconnectEvolution(auth.session.user.id, auth.activeUnit.id);
             return Response.json({ ok: true });
           }
 
