@@ -46,6 +46,8 @@ export type LeadRecord = {
   createdById: string | null;
   createdByName: string | null;
   observations: string | null;
+  campaignName: string | null;
+  formId: string | null;
   stage: LeadStage;
   createdAt: string;
 };

@@ -29,6 +29,8 @@ type LeadRow = QueryResultRow & {
   created_by: string | null;
   created_by_name: string | null;
   observations: string | null;
+  campaign_name: string | null;
+  form_id: string | null;
   stage: LeadStage;
   created_at: string;
 };
@@ -78,6 +80,8 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     createdById: row.created_by,
     createdByName: row.created_by_name,
     observations: row.observations,
+    campaignName: row.campaign_name,
+    formId: row.form_id,
     stage: row.stage,
     createdAt: row.created_at,
   };
@@ -362,11 +366,21 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.created_by,
               owner.name as created_by_name,
               l.observations,
+              coalesce(import_info.campaign_name, meta_info.campaign_name) as campaign_name,
+              coalesce(import_info.form_id, meta_info.form_id) as form_id,
               l.stage,
               l.created_at::text
             from app_leads l
             inner join app_units un on un.id = l.unit_id
             left join app_users owner on owner.id = l.created_by
+            left join app_lead_import_rows import_info on import_info.lead_id = l.id
+            left join lateral (
+              select e.campaign_name, e.form_id
+              from app_meta_lead_events e
+              where e.lead_id = l.id
+              order by e.received_at desc
+              limit 1
+            ) meta_info on true
             where l.unit_id = $1
               and ($4::boolean or l.created_by = $2)
               and (
@@ -472,6 +486,8 @@ export const Route = createFileRoute("/api/crm/leads")({
               created_by,
               $14::text as created_by_name,
               observations,
+              null::text as campaign_name,
+              null::text as form_id,
               stage,
               created_at::text
           `,

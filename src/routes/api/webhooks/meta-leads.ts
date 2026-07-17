@@ -10,7 +10,7 @@ export const Route = createFileRoute("/api/webhooks/meta-leads")({
         const token = url.searchParams.get("hub.verify_token");
         const challenge = url.searchParams.get("hub.challenge");
         const integration = await getMetaIntegration();
-        const expectedToken = integration.verify_token || process.env.META_VERIFY_TOKEN;
+        const expectedToken = process.env.META_VERIFY_TOKEN || integration.verify_token;
 
         if (mode === "subscribe" && token && expectedToken && token === expectedToken && challenge) {
           return new Response(challenge, {

@@ -3,6 +3,7 @@ import {
   ChartNoAxesCombined,
   ClipboardPenLine,
   ContactRound,
+  FileUp,
   Gauge,
   LibraryBig,
   LogOut,
@@ -53,6 +54,7 @@ type NavigationItem = {
   studentViewOnly?: boolean;
   systemFeedbackOnly?: boolean;
   attendancesOnly?: boolean;
+  devOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -89,6 +91,7 @@ const groups: Array<NavigationGroup> = [
     items: [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardPenLine, managementOnly: true },
       { title: "Meta Ads", url: "/meta-ads", icon: RadioTower, metaAdsOnly: true },
+      { title: "Importar leads", url: "/crm/importar", icon: FileUp, devOnly: true },
       {
         title: "Feedback",
         url: "/feedback",
@@ -134,7 +137,8 @@ export function AppSidebar() {
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.systemFeedbackOnly || canViewSystemFeedback) &&
-          (!item.attendancesOnly || canSeeAttendances),
+          (!item.attendancesOnly || canSeeAttendances) &&
+          (!item.devOnly || user?.role === "DEV"),
       ),
     }))
     .filter((group) => group.items.length > 0);

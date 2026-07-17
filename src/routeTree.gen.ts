@@ -30,6 +30,7 @@ import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
 import { Route as GestaoCadastroRouteImport } from './routes/gestao.cadastro'
 import { Route as CrmTransferenciaRouteImport } from './routes/crm.transferencia'
+import { Route as CrmImportarRouteImport } from './routes/crm.importar'
 import { Route as BrandPlenNovaRouteImport } from './routes/brand-plen.nova'
 import { Route as BrandPlenKitRouteImport } from './routes/brand-plen.kit'
 import { Route as BrandPlenHistoricoRouteImport } from './routes/brand-plen.historico'
@@ -59,6 +60,7 @@ import { Route as ApiGestaoAttendancesRouteImport } from './routes/api/gestao/at
 import { Route as ApiCrmTransferRouteImport } from './routes/api/crm/transfer'
 import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
+import { Route as ApiCrmImportRouteImport } from './routes/api/crm/import'
 import { Route as ApiBrandPlenSettingsRouteImport } from './routes/api/brand-plen.settings'
 import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-plen.generate'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
@@ -177,6 +179,11 @@ const GestaoCadastroRoute = GestaoCadastroRouteImport.update({
 const CrmTransferenciaRoute = CrmTransferenciaRouteImport.update({
   id: '/transferencia',
   path: '/transferencia',
+  getParentRoute: () => CrmRoute,
+} as any)
+const CrmImportarRoute = CrmImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
   getParentRoute: () => CrmRoute,
 } as any)
 const BrandPlenNovaRoute = BrandPlenNovaRouteImport.update({
@@ -325,6 +332,11 @@ const ApiCrmLeadsRoute = ApiCrmLeadsRouteImport.update({
   path: '/api/crm/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrmImportRoute = ApiCrmImportRouteImport.update({
+  id: '/api/crm/import',
+  path: '/api/crm/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrandPlenSettingsRoute = ApiBrandPlenSettingsRouteImport.update({
   id: '/api/brand-plen/settings',
   path: '/api/brand-plen/settings',
@@ -430,6 +442,7 @@ export interface FileRoutesByFullPath {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/importar': typeof CrmImportarRoute
   '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
@@ -445,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
@@ -496,6 +510,7 @@ export interface FileRoutesByTo {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/importar': typeof CrmImportarRoute
   '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
@@ -511,6 +526,7 @@ export interface FileRoutesByTo {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
@@ -563,6 +579,7 @@ export interface FileRoutesById {
   '/brand-plen/historico': typeof BrandPlenHistoricoRoute
   '/brand-plen/kit': typeof BrandPlenKitRoute
   '/brand-plen/nova': typeof BrandPlenNovaRoute
+  '/crm/importar': typeof CrmImportarRoute
   '/crm/transferencia': typeof CrmTransferenciaRoute
   '/gestao/cadastro': typeof GestaoCadastroRoute
   '/leads/$id': typeof LeadsIdRoute
@@ -578,6 +595,7 @@ export interface FileRoutesById {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
@@ -631,6 +649,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/importar'
     | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
@@ -646,6 +665,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
@@ -697,6 +717,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/importar'
     | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
@@ -712,6 +733,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
@@ -763,6 +785,7 @@ export interface FileRouteTypes {
     | '/brand-plen/historico'
     | '/brand-plen/kit'
     | '/brand-plen/nova'
+    | '/crm/importar'
     | '/crm/transferencia'
     | '/gestao/cadastro'
     | '/leads/$id'
@@ -778,6 +801,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
@@ -844,6 +868,7 @@ export interface RootRouteChildren {
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiBrandPlenGenerateRoute: typeof ApiBrandPlenGenerateRoute
   ApiBrandPlenSettingsRoute: typeof ApiBrandPlenSettingsRoute
+  ApiCrmImportRoute: typeof ApiCrmImportRoute
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiCrmTasksRoute: typeof ApiCrmTasksRoute
   ApiCrmTransferRoute: typeof ApiCrmTransferRoute
@@ -1005,6 +1030,13 @@ declare module '@tanstack/react-router' {
       path: '/transferencia'
       fullPath: '/crm/transferencia'
       preLoaderRoute: typeof CrmTransferenciaRouteImport
+      parentRoute: typeof CrmRoute
+    }
+    '/crm/importar': {
+      id: '/crm/importar'
+      path: '/importar'
+      fullPath: '/crm/importar'
+      preLoaderRoute: typeof CrmImportarRouteImport
       parentRoute: typeof CrmRoute
     }
     '/brand-plen/nova': {
@@ -1210,6 +1242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCrmLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crm/import': {
+      id: '/api/crm/import'
+      path: '/api/crm/import'
+      fullPath: '/api/crm/import'
+      preLoaderRoute: typeof ApiCrmImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/brand-plen/settings': {
       id: '/api/brand-plen/settings'
       path: '/api/brand-plen/settings'
@@ -1312,10 +1351,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface CrmRouteChildren {
+  CrmImportarRoute: typeof CrmImportarRoute
   CrmTransferenciaRoute: typeof CrmTransferenciaRoute
 }
 
 const CrmRouteChildren: CrmRouteChildren = {
+  CrmImportarRoute: CrmImportarRoute,
   CrmTransferenciaRoute: CrmTransferenciaRoute,
 }
 
@@ -1428,6 +1469,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiBrandPlenGenerateRoute: ApiBrandPlenGenerateRoute,
   ApiBrandPlenSettingsRoute: ApiBrandPlenSettingsRoute,
+  ApiCrmImportRoute: ApiCrmImportRoute,
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiCrmTasksRoute: ApiCrmTasksRoute,
   ApiCrmTransferRoute: ApiCrmTransferRoute,
