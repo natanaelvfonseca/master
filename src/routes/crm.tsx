@@ -1573,16 +1573,6 @@ function LeadPipelineCard({
             {lead.acquisitionChannelName}
           </Badge>
         ) : null}
-        {lead.campaignName ? (
-          <Badge variant="secondary" className="max-w-full bg-blue-50 text-blue-700">
-            <span className="truncate">Campanha: {lead.campaignName}</span>
-          </Badge>
-        ) : null}
-        {lead.formId ? (
-          <Badge variant="outline" className="max-w-full">
-            <span className="truncate">Formulário: {lead.formId}</span>
-          </Badge>
-        ) : null}
       </div>
       {displayValue !== null ? (
         <div className="mt-3 text-xs font-semibold text-primary">
