@@ -896,6 +896,15 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
       .join("\n");
   }
 
+  if (!mapped.fullName.trim()) {
+    mapped.missingRequiredFields.push("nome");
+  }
+
+  const primaryPhoneDigits = phoneDigits(mapped.phone);
+  if (primaryPhoneDigits.length < 10 || primaryPhoneDigits.length > 13) {
+    mapped.missingRequiredFields.push("telefone");
+  }
+
   return mapped;
 }
 
