@@ -1226,6 +1226,14 @@ export async function upsertMetaPage(input: Record<string, unknown>) {
       set
         page_name = excluded.page_name,
         page_access_token_encrypted = coalesce(excluded.page_access_token_encrypted, app_meta_pages.page_access_token_encrypted),
+        token_status = case
+          when excluded.page_access_token_encrypted is not null then 'unknown'
+          else app_meta_pages.token_status
+        end,
+        last_error = case
+          when excluded.page_access_token_encrypted is not null then null
+          else app_meta_pages.last_error
+        end,
         status = excluded.status,
         updated_at = now()
       returning id

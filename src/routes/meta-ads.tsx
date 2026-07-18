@@ -8,6 +8,7 @@ import {
   KeyRound,
   Loader2,
   Lock,
+  Pencil,
   Plus,
   RefreshCw,
   RadioTower,
@@ -407,6 +408,20 @@ function MetaAdsPage() {
     setFormDialogOpen(true);
   }
 
+  function openPageDialog(page?: MetaPage) {
+    setPageForm(
+      page
+        ? {
+            pageName: page.page_name,
+            pageId: page.page_id,
+            pageAccessToken: "",
+            status: page.status,
+          }
+        : emptyPageForm(),
+    );
+    setPageDialogOpen(true);
+  }
+
   function submitFormConfig(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -436,7 +451,7 @@ function MetaAdsPage() {
               Webhook único
             </Badge>
             {canManage ? (
-              <Button onClick={() => setPageDialogOpen(true)} className="bg-gradient-primary">
+              <Button onClick={() => openPageDialog()} className="bg-gradient-primary">
                 <Plus className="h-4 w-4" />
                 Página
               </Button>
@@ -523,7 +538,7 @@ function MetaAdsPage() {
           <Card className="border-primary/10 shadow-card">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Páginas conectadas</CardTitle>
-              <Button onClick={() => setPageDialogOpen(true)} className="bg-gradient-primary">
+              <Button onClick={() => openPageDialog()} className="bg-gradient-primary">
                 <Plus className="h-4 w-4" />
                 Nova Página
               </Button>
@@ -570,6 +585,11 @@ function MetaAdsPage() {
                         <TableCell>{page.leads_received_count}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1.5">
+                            <IconAction
+                              label="Trocar token da página"
+                              icon={Pencil}
+                              onClick={() => openPageDialog(page)}
+                            />
                             <IconAction
                               label="Validar token"
                               icon={KeyRound}
@@ -1099,7 +1119,7 @@ function PageDialog({
       <DialogContent className="border-primary/20 bg-card shadow-elegant">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle>Conectar Página</DialogTitle>
+            <DialogTitle>Conectar ou atualizar Página</DialogTitle>
             <DialogDescription>
               O token é criptografado no banco e exibido apenas mascarado.
             </DialogDescription>
@@ -1127,10 +1147,14 @@ function PageDialog({
               <Input
                 type="password"
                 value={form.pageAccessToken}
+                placeholder="Cole o novo token de acesso da Página"
                 onChange={(event) =>
                   onFormChange((current) => ({ ...current, pageAccessToken: event.target.value }))
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Deixe vazio para manter o token atual ou cole um novo token para substituí-lo.
+              </p>
             </Field>
             <Field label="Status">
               <Select
