@@ -6,13 +6,10 @@ import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 
 const funnelStages: Array<LeadStage> = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Confirmado",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
   "Matriculado",
 ];
 
@@ -91,10 +88,7 @@ export const Route = createFileRoute("/api/dashboard")({
                     count(*) as leads_received,
                     count(*) filter (
                       where stage in (
-                        'Qualificado',
-                        'Proposta',
-                        'Pagamento pendente',
-                        'Confirmado',
+                        'Follow UP',
                         'Matriculado'
                       )
                     ) as qualified_leads,
@@ -102,7 +96,7 @@ export const Route = createFileRoute("/api/dashboard")({
                     count(*) filter (
                       where follow_up_count > 0
                         or first_contact_at is not null
-                        or stage <> 'Novo lead'
+                        or stage <> 'Leads Novos'
                     ) as follow_up_leads,
                     avg(course_value_snapshot) filter (where stage = 'Matriculado') as average_ticket
                   from scoped_leads

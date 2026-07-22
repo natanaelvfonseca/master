@@ -181,7 +181,7 @@ export const Route = createFileRoute("/api/crm/import")({
                 unit_id, full_name, phone, phone2, city, course_id, course_name_snapshot,
                 course_value_snapshot, observations, stage, created_by
               )
-              values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, nullif($9, ''), 'Novo lead', $10)
+              values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, nullif($9, ''), 'Leads Novos', $10)
               returning id
             `, [unit.id, row.fullName, phone, phone2, city, course.id, course.name, Number(course.value), row.observations, consultantId]);
             await client.query(`

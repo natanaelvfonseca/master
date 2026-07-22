@@ -130,22 +130,17 @@ const PIPELINE_STAGE_PAGE_SIZE = 15;
 const CONSULTANT_PIPELINE_VALUE = 130;
 
 const stages: Array<LeadStage> = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
 ];
 
 const stageLabels: Record<LeadStage, string> = {
-  "Novo lead": "Novo lead",
-  "Em contato": "Em contato",
-  Qualificado: "Qualificado",
-  Proposta: "Proposta",
-  "Pagamento pendente": "Pagamento pendente",
-  Confirmado: "Confirmado",
-  Recuperação: "Recuperação",
+  "Leads Novos": "Leads Novos",
+  "Em Atendimento": "Em Atendimento",
+  "Follow UP": "Follow UP",
+  "Lead Sem retorno": "Lead Sem retorno",
   Matriculado: "Matriculado",
 };
 
@@ -229,7 +224,7 @@ function emptyLeadForm(unitId = ""): LeadFormState {
     acquisitionChannelId: "",
     unitId,
     observations: "",
-    stage: "Novo lead",
+    stage: "Leads Novos",
   };
 }
 
@@ -252,12 +247,12 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
     acquisitionChannelId: lead.acquisitionChannelId ?? "",
     unitId: lead.unitId,
     observations: lead.observations ?? "",
-    stage: lead.stage === "Confirmado" ? "Pagamento pendente" : lead.stage,
+    stage: lead.stage,
   };
 }
 
 function pipelineStage(stage: LeadStage): LeadStage {
-  return stage === "Confirmado" ? "Pagamento pendente" : stage;
+  return stage;
 }
 
 function localDateTimeToIso(value: string) {

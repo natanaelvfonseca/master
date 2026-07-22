@@ -172,13 +172,10 @@ type MetaLeadPayload = {
 export const META_WEBHOOK_PATH = "/api/webhooks/meta-leads";
 
 const allowedStages: Array<LeadStage> = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Confirmado",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
   "Matriculado",
 ];
 
@@ -237,7 +234,7 @@ export async function ensureMetaLeadSchema() {
       unit_id uuid references app_units(id) on delete set null,
       course_id uuid references app_courses(id) on delete set null,
       funnel_name text,
-      initial_stage text not null default 'Novo lead',
+      initial_stage text not null default 'Leads Novos',
       acquisition_channel_id uuid references app_acquisition_channels(id) on delete set null,
       default_responsible_id uuid references app_users(id) on delete set null,
       distribution_rule text not null default 'unassigned',
@@ -257,6 +254,19 @@ export async function ensureMetaLeadSchema() {
     create index if not exists app_meta_forms_page_idx on app_meta_forms (page_id);
     create index if not exists app_meta_forms_unit_idx on app_meta_forms (unit_id);
     create index if not exists app_meta_forms_status_idx on app_meta_forms (status);
+    update app_meta_forms
+    set initial_stage = case initial_stage
+      when 'Novo lead' then 'Leads Novos'
+      when 'Em contato' then 'Em Atendimento'
+      when 'Qualificado' then 'Follow UP'
+      when 'Proposta' then 'Follow UP'
+      when 'Pagamento pendente' then 'Follow UP'
+      when 'Confirmado' then 'Follow UP'
+      when 'Recuperação' then 'Lead Sem retorno'
+      else initial_stage
+    end
+    where initial_stage in ('Novo lead', 'Em contato', 'Qualificado', 'Proposta', 'Pagamento pendente', 'Confirmado', 'Recuperação');
+    alter table app_meta_forms alter column initial_stage set default 'Leads Novos';
 
     create table if not exists app_meta_form_consultants (
       form_id uuid not null references app_meta_forms(id) on delete cascade,
@@ -1272,7 +1282,7 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
     typeof input.initialStage === "string" &&
     allowedStages.includes(input.initialStage as LeadStage)
       ? input.initialStage
-      : "Novo lead";
+      : "Leads Novos";
 
   const form = await withTransaction(async (client) => {
     const formResult = await client.query<{ id: string }>(

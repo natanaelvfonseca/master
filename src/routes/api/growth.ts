@@ -22,13 +22,10 @@ import { queryDb } from "@/lib/server/db";
 import { ensureMetaLeadSchema } from "@/lib/server/meta-leads";
 
 const funnelStages: Array<LeadStage> = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Confirmado",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
   "Matriculado",
 ];
 
@@ -402,19 +399,19 @@ export const Route = createFileRoute("/api/growth")({
               lead_metrics as (
                 select
                   count(*) as leads_received,
-                  count(*) filter (where stage = 'Novo lead') as new_leads,
-                  count(*) filter (where stage in ('Qualificado','Proposta','Pagamento pendente','Confirmado','Matriculado')) as qualified_leads,
+                  count(*) filter (where stage = 'Leads Novos') as new_leads,
+                  count(*) filter (where stage in ('Follow UP','Matriculado')) as qualified_leads,
                   count(*) filter (where stage = 'Matriculado') as enrollments,
-                  count(*) filter (where stage in ('Proposta','Confirmado')) as proposals,
-                  count(*) filter (where stage = 'Pagamento pendente') as pending_payments,
-                  count(*) filter (where stage = 'Novo lead' and first_contact_at is null) as uncontacted_leads,
-                  count(*) filter (where follow_up_count > 0 or first_contact_at is not null or stage <> 'Novo lead') as follow_up_leads,
+                  count(*) filter (where stage = 'Follow UP') as proposals,
+                  count(*) filter (where stage = 'Follow UP') as pending_payments,
+                  count(*) filter (where stage = 'Leads Novos' and first_contact_at is null) as uncontacted_leads,
+                  count(*) filter (where follow_up_count > 0 or first_contact_at is not null or stage <> 'Leads Novos') as follow_up_leads,
                   avg(course_value_snapshot) filter (where stage = 'Matriculado') as average_ticket,
                   count(*) filter (where nullif(acquisition_channel_name_snapshot, '') is not null) as leads_with_source,
                   count(*) filter (where stage = 'Matriculado' and nullif(acquisition_channel_name_snapshot, '') is not null) as sourced_enrollments,
                   coalesce(sum(course_value_snapshot) filter (where stage <> 'Matriculado'), 0) as pipeline_potential,
-                  coalesce(sum(course_value_snapshot) filter (where stage in ('Proposta','Confirmado','Pagamento pendente')), 0) as proposal_potential,
-                  coalesce(sum(course_value_snapshot) filter (where stage = 'Pagamento pendente'), 0) as pending_payment_potential,
+                  coalesce(sum(course_value_snapshot) filter (where stage = 'Follow UP'), 0) as proposal_potential,
+                  coalesce(sum(course_value_snapshot) filter (where stage = 'Follow UP'), 0) as pending_payment_potential,
                   count(*) filter (where coalesce(course_value_snapshot, 0) <= 0) as leads_without_course_value,
                   avg(extract(epoch from (first_contact_at - created_at)) / 3600) filter (where first_contact_at is not null) as average_first_contact_hours
                 from scoped_leads
@@ -643,11 +640,11 @@ export const Route = createFileRoute("/api/growth")({
               )
               select u.id, u.name,
                      count(l.id) as leads,
-                     count(l.id) filter (where l.stage in ('Qualificado','Proposta','Pagamento pendente','Confirmado','Matriculado')) as qualified_leads,
+                     count(l.id) filter (where l.stage in ('Follow UP','Matriculado')) as qualified_leads,
                      count(l.id) filter (where l.stage = 'Matriculado') as enrollments,
-                     count(l.id) filter (where l.stage in ('Proposta','Confirmado')) as proposals,
-                     count(l.id) filter (where l.stage = 'Pagamento pendente') as pending_payments,
-                     count(l.id) filter (where l.follow_up_count > 0 or l.first_contact_at is not null or l.stage <> 'Novo lead') as follow_up_leads,
+                     count(l.id) filter (where l.stage = 'Follow UP') as proposals,
+                     count(l.id) filter (where l.stage = 'Follow UP') as pending_payments,
+                     count(l.id) filter (where l.follow_up_count > 0 or l.first_contact_at is not null or l.stage <> 'Leads Novos') as follow_up_leads,
                      coalesce(
                        sum(
                          coalesce(

@@ -84,17 +84,17 @@ export async function ensureCommercialSchema() {
       acquisition_channel_name_snapshot text,
       observations text,
       city text,
-      stage text not null default 'Novo lead' check (
+      stage text not null default 'Leads Novos' check (
         stage in (
-          'Novo lead',
-          'Em contato',
-          'Qualificado',
-          'Proposta',
-          'Pagamento pendente',
-          'Confirmado',
-          'Recuperação',
+          'Leads Novos',
+          'Em Atendimento',
+          'Follow UP',
+          'Lead Sem retorno',
           'Matriculado'
         )
+      ),
+      student_stage text not null default 'Matriculado' check (
+        student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Cancelado')
       ),
       first_contact_at timestamptz,
       follow_up_count integer not null default 0 check (follow_up_count >= 0),
@@ -111,6 +111,28 @@ export async function ensureCommercialSchema() {
     );
 
     alter table app_leads add column if not exists city text;
+    alter table app_leads add column if not exists student_stage text not null default 'Matriculado';
+    alter table app_leads drop constraint if exists app_leads_stage_check;
+    update app_leads
+    set stage = case stage
+      when 'Novo lead' then 'Leads Novos'
+      when 'Em contato' then 'Em Atendimento'
+      when 'Qualificado' then 'Follow UP'
+      when 'Proposta' then 'Follow UP'
+      when 'Pagamento pendente' then 'Follow UP'
+      when 'Confirmado' then 'Follow UP'
+      when 'Recuperação' then 'Lead Sem retorno'
+      else stage
+    end
+    where stage in ('Novo lead', 'Em contato', 'Qualificado', 'Proposta', 'Pagamento pendente', 'Confirmado', 'Recuperação');
+    alter table app_leads add constraint app_leads_stage_check check (
+      stage in ('Leads Novos', 'Em Atendimento', 'Follow UP', 'Lead Sem retorno', 'Matriculado')
+    );
+    alter table app_leads alter column stage set default 'Leads Novos';
+    alter table app_leads drop constraint if exists app_leads_student_stage_check;
+    alter table app_leads add constraint app_leads_student_stage_check check (
+      student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Cancelado')
+    );
     alter table app_leads add column if not exists phone2 text;
     alter table app_leads add column if not exists first_contact_at timestamptz;
     alter table app_leads add column if not exists follow_up_count integer not null default 0 check (follow_up_count >= 0);

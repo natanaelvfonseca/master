@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import type { LeadStage } from "@/lib/commercial-types";
+import type { LeadStage, StudentStage } from "@/lib/commercial-types";
 import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
@@ -43,19 +43,28 @@ type AttendanceCityRow = QueryResultRow & {
 };
 
 const allowedStages: Array<LeadStage> = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Confirmado",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
   "Matriculado",
+];
+
+const allowedStudentStages: Array<StudentStage> = [
+  "Matriculado",
+  "Contrato Feito",
+  "Aluno Confirmado",
+  "Aluno Cancelado",
 ];
 
 function parseStage(body: unknown) {
   const data = body as { stage?: unknown };
   return typeof data?.stage === "string" ? data.stage.trim() : "";
+}
+
+function parseStudentStage(body: unknown) {
+  const data = body as { studentStage?: unknown };
+  return typeof data?.studentStage === "string" ? data.studentStage.trim() : "";
 }
 
 function parseLeadUpdate(body: unknown) {
@@ -229,6 +238,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         const body = await request.json().catch(() => null);
         const payload = parseLeadUpdate(body);
         const nextStage = payload.stage || parseStage(body);
+        const nextStudentStage = parseStudentStage(body);
 
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
@@ -269,6 +279,21 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         if (!canManageUnitLeads && lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        if (nextStudentStage) {
+          if (!allowedStudentStages.includes(nextStudentStage as StudentStage)) {
+            return Response.json({ ok: false, error: "Estágio do aluno inválido." }, { status: 400 });
+          }
+          if (lead.stage !== "Matriculado") {
+            return Response.json({ ok: false, error: "O lead ainda não está matriculado." }, { status: 400 });
+          }
+
+          await queryDb(
+            `update app_leads set student_stage = $2, updated_at = now() where id = $1`,
+            [params.id, nextStudentStage],
+          );
+          return Response.json({ ok: true, studentStage: nextStudentStage });
         }
 
         if (!payload.fullName || !payload.phone) {
@@ -342,15 +367,15 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
                 observations = nullif($12, ''),
                 stage = $13,
                 first_contact_at = case
-                  when $13 <> 'Novo lead' then coalesce(first_contact_at, now())
+                  when $13 <> 'Leads Novos' then coalesce(first_contact_at, now())
                   else first_contact_at
                 end,
                 last_follow_up_at = case
-                  when $13 <> stage and $13 <> 'Novo lead' then now()
+                  when $13 <> stage and $13 <> 'Leads Novos' then now()
                   else last_follow_up_at
                 end,
                 follow_up_count = case
-                  when $13 <> stage and $13 <> 'Novo lead' then follow_up_count + 1
+                  when $13 <> stage and $13 <> 'Leads Novos' then follow_up_count + 1
                   else follow_up_count
                 end,
                 converted_at = case
@@ -411,15 +436,15 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             set
               stage = $2,
               first_contact_at = case
-                when $2 <> 'Novo lead' then coalesce(first_contact_at, now())
+                when $2 <> 'Leads Novos' then coalesce(first_contact_at, now())
                 else first_contact_at
               end,
               last_follow_up_at = case
-                when $2 <> stage and $2 <> 'Novo lead' then now()
+                when $2 <> stage and $2 <> 'Leads Novos' then now()
                 else last_follow_up_at
               end,
               follow_up_count = case
-                when $2 <> stage and $2 <> 'Novo lead' then follow_up_count + 1
+                when $2 <> stage and $2 <> 'Leads Novos' then follow_up_count + 1
                 else follow_up_count
               end,
               converted_at = case

@@ -20,14 +20,17 @@ export type AcquisitionChannelRecord = {
 };
 
 export type LeadStage =
-  | "Novo lead"
-  | "Em contato"
-  | "Qualificado"
-  | "Proposta"
-  | "Pagamento pendente"
-  | "Confirmado"
-  | "Recuperação"
+  | "Leads Novos"
+  | "Em Atendimento"
+  | "Follow UP"
+  | "Lead Sem retorno"
   | "Matriculado";
+
+export type StudentStage =
+  | "Matriculado"
+  | "Contrato Feito"
+  | "Aluno Confirmado"
+  | "Aluno Cancelado";
 
 export type LeadRecord = {
   id: string;
@@ -49,5 +52,6 @@ export type LeadRecord = {
   campaignName: string | null;
   formId: string | null;
   stage: LeadStage;
+  studentStage: StudentStage;
   createdAt: string;
 };

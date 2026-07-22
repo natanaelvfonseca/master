@@ -183,13 +183,10 @@ type FormConfig = {
 const NO_SELECTION = "__none__";
 
 const stages = [
-  "Novo lead",
-  "Em contato",
-  "Qualificado",
-  "Proposta",
-  "Pagamento pendente",
-  "Confirmado",
-  "Recuperação",
+  "Leads Novos",
+  "Em Atendimento",
+  "Follow UP",
+  "Lead Sem retorno",
   "Matriculado",
 ];
 
@@ -258,7 +255,7 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
     unitId: "",
     courseId: "",
     funnelName: "Captação",
-    initialStage: "Novo lead",
+    initialStage: "Leads Novos",
     acquisitionChannelId: "",
     fieldMapping: defaultMapping,
     settings: "{}",

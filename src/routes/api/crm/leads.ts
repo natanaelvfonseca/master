@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import type { LeadRecord, LeadStage } from "@/lib/commercial-types";
+import type { LeadRecord, LeadStage, StudentStage } from "@/lib/commercial-types";
 import {
   ensureCommercialSchema,
   getUnitFromBody,
@@ -32,6 +32,7 @@ type LeadRow = QueryResultRow & {
   campaign_name: string | null;
   form_id: string | null;
   stage: LeadStage;
+  student_stage: StudentStage;
   created_at: string;
 };
 
@@ -83,6 +84,7 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     campaignName: row.campaign_name,
     formId: row.form_id,
     stage: row.stage,
+    studentStage: row.student_stage,
     createdAt: row.created_at,
   };
 }
@@ -369,6 +371,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               coalesce(import_info.campaign_name, meta_info.campaign_name) as campaign_name,
               coalesce(import_info.form_id, meta_info.form_id) as form_id,
               l.stage,
+              l.student_stage,
               l.created_at::text
             from app_leads l
             inner join app_units un on un.id = l.unit_id

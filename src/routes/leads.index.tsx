@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Filter, Lock, Search, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
-import type { LeadRecord } from "@/lib/commercial-types";
+import type { LeadRecord, StudentStage } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
 import { canViewStudents } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -19,14 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 type LeadsResponse = {
   leads: Array<LeadRecord>;
@@ -40,6 +32,12 @@ type StudentFilters = {
 };
 
 const FILTER_ALL = "__all__";
+const studentStages: Array<StudentStage> = [
+  "Matriculado",
+  "Contrato Feito",
+  "Aluno Confirmado",
+  "Aluno Cancelado",
+];
 
 function emptyStudentFilters(): StudentFilters {
   return {
@@ -78,6 +76,8 @@ function LeadsList() {
   const [filters, setFilters] = React.useState<StudentFilters>(() => emptyStudentFilters());
   const [loading, setLoading] = React.useState(true);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
+  const [syncingLeadId, setSyncingLeadId] = React.useState<string | null>(null);
+  const [draggingLeadId, setDraggingLeadId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function loadLeads() {
@@ -202,6 +202,36 @@ function LeadsList() {
       toast.error(error instanceof Error ? error.message : "Falha ao remover cliente.");
     } finally {
       setRemovingLeadId(null);
+    }
+  }
+
+  async function updateStudentStage(lead: LeadRecord, studentStage: StudentStage) {
+    if (lead.studentStage === studentStage) return;
+
+    setSyncingLeadId(lead.id);
+    setLeads((current) =>
+      current.map((item) => (item.id === lead.id ? { ...item, studentStage } : item)),
+    );
+    try {
+      await readJson<{ ok: true; studentStage: StudentStage }>(
+        await fetch(`/api/crm/leads/${lead.id}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ studentStage }),
+        }),
+      );
+      toast.success(`Aluno movido para ${studentStage}.`);
+    } catch (error) {
+      setLeads((current) =>
+        current.map((item) =>
+          item.id === lead.id ? { ...item, studentStage: lead.studentStage } : item,
+        ),
+      );
+      toast.error(error instanceof Error ? error.message : "Falha ao mover aluno.");
+    } finally {
+      setSyncingLeadId(null);
+      setDraggingLeadId(null);
     }
   }
 
@@ -335,82 +365,107 @@ function LeadsList() {
             </div>
           ) : null}
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Aluno</TableHead>
-              <TableHead>Curso</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>Unidade</TableHead>
-              <TableHead>Origem</TableHead>
-              <TableHead>Situação</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="w-[72px] text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                  Carregando alunos...
-                </TableCell>
-              </TableRow>
-            ) : filteredLeads.length ? (
-              filteredLeads.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell>
-                    <div className="font-medium">{lead.fullName}</div>
-                    <div className="text-xs text-muted-foreground">{lead.phone}</div>
-                    {lead.phone2 ? (
-                      <div className="text-xs text-muted-foreground">Telefone 2: {lead.phone2}</div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{lead.courseName ?? "--"}</TableCell>
-                  <TableCell>{lead.city ?? "--"}</TableCell>
-                  <TableCell>{lead.unitName}</TableCell>
-                  <TableCell>{lead.acquisitionChannelName ?? "--"}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      Aluno
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-primary">
-                    {lead.courseValue !== null
-                      ? lead.courseValue.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })
-                      : "--"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void handleRemoveStudent(lead)}
-                      disabled={removingLeadId === lead.id}
-                      aria-label={`Remover ${lead.fullName}`}
-                      title="Remover cliente"
-                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        <div className="overflow-x-auto p-4">
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Carregando alunos...</div>
+          ) : filteredLeads.length ? (
+            <div className="flex min-w-max gap-4">
+              {studentStages.map((studentStage) => {
+                const stageStudents = filteredLeads.filter(
+                  (lead) => lead.studentStage === studentStage,
+                );
+                return (
+                  <section key={studentStage} className="w-[290px] shrink-0">
+                    <div className="mb-3 flex items-center justify-between rounded-lg border bg-card px-3 py-2">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wide text-primary">
+                          {studentStage}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {stageStudents.length} {stageStudents.length === 1 ? "aluno" : "alunos"}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className="min-h-40 space-y-3 rounded-xl border bg-muted/20 p-3"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const lead = leads.find(
+                          (item) => item.id === event.dataTransfer.getData("text/plain"),
+                        );
+                        if (lead) void updateStudentStage(lead, studentStage);
+                      }}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={8} className="p-4">
-                  <EmptyState
-                    icon={Users}
-                    title="Nenhum aluno convertido"
-                    description="A lista será preenchida quando a taxa for confirmada no modal do lead."
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                      {stageStudents.map((lead) => (
+                        <Card
+                          key={lead.id}
+                          draggable={syncingLeadId !== lead.id}
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData("text/plain", lead.id);
+                            setDraggingLeadId(lead.id);
+                          }}
+                          onDragEnd={() => setDraggingLeadId(null)}
+                          className={`cursor-grab p-4 shadow-card transition-opacity ${
+                            draggingLeadId === lead.id ? "opacity-50" : ""
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="truncate font-semibold">{lead.fullName}</div>
+                              <div className="text-xs text-muted-foreground">{lead.phone}</div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => void handleRemoveStudent(lead)}
+                              disabled={removingLeadId === lead.id || syncingLeadId === lead.id}
+                              aria-label={`Remover ${lead.fullName}`}
+                              title="Remover aluno"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                            <div>{lead.courseName ?? "Curso não informado"}</div>
+                            <div>{lead.city ?? "Cidade não informada"}</div>
+                            <div>{lead.unitName}</div>
+                          </div>
+                          <Select
+                            value={lead.studentStage}
+                            onValueChange={(value) =>
+                              void updateStudentStage(lead, value as StudentStage)
+                            }
+                            disabled={syncingLeadId === lead.id}
+                          >
+                            <SelectTrigger className="mt-3 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {studentStages.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </Card>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="Nenhum aluno convertido"
+              description="A lista será preenchida quando a taxa for confirmada no modal do lead."
+            />
+          )}
+        </div>
       </Card>
     </div>
   );
