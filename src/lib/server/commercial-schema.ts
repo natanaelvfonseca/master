@@ -89,6 +89,7 @@ export async function ensureCommercialSchema() {
           'Leads Novos',
           'Em Atendimento',
           'Follow UP',
+          'Aguardando matrícula',
           'Lead Sem retorno',
           'Matriculado'
         )
@@ -126,7 +127,7 @@ export async function ensureCommercialSchema() {
     end
     where stage in ('Novo lead', 'Em contato', 'Qualificado', 'Proposta', 'Pagamento pendente', 'Confirmado', 'Recuperação');
     alter table app_leads add constraint app_leads_stage_check check (
-      stage in ('Leads Novos', 'Em Atendimento', 'Follow UP', 'Lead Sem retorno', 'Matriculado')
+      stage in ('Leads Novos', 'Em Atendimento', 'Follow UP', 'Aguardando matrícula', 'Lead Sem retorno', 'Matriculado')
     );
     alter table app_leads alter column stage set default 'Leads Novos';
     alter table app_leads drop constraint if exists app_leads_student_stage_check;

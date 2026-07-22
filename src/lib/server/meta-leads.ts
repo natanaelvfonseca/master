@@ -175,6 +175,7 @@ const allowedStages: Array<LeadStage> = [
   "Leads Novos",
   "Em Atendimento",
   "Follow UP",
+  "Aguardando matrícula",
   "Lead Sem retorno",
   "Matriculado",
 ];

@@ -25,6 +25,7 @@ const funnelStages: Array<LeadStage> = [
   "Leads Novos",
   "Em Atendimento",
   "Follow UP",
+  "Aguardando matrícula",
   "Lead Sem retorno",
   "Matriculado",
 ];
@@ -400,7 +401,7 @@ export const Route = createFileRoute("/api/growth")({
                 select
                   count(*) as leads_received,
                   count(*) filter (where stage = 'Leads Novos') as new_leads,
-                  count(*) filter (where stage in ('Follow UP','Matriculado')) as qualified_leads,
+                  count(*) filter (where stage in ('Follow UP','Aguardando matrícula','Matriculado')) as qualified_leads,
                   count(*) filter (where stage = 'Matriculado') as enrollments,
                   count(*) filter (where stage = 'Follow UP') as proposals,
                   count(*) filter (where stage = 'Follow UP') as pending_payments,
@@ -410,7 +411,7 @@ export const Route = createFileRoute("/api/growth")({
                   count(*) filter (where nullif(acquisition_channel_name_snapshot, '') is not null) as leads_with_source,
                   count(*) filter (where stage = 'Matriculado' and nullif(acquisition_channel_name_snapshot, '') is not null) as sourced_enrollments,
                   coalesce(sum(course_value_snapshot) filter (where stage <> 'Matriculado'), 0) as pipeline_potential,
-                  coalesce(sum(course_value_snapshot) filter (where stage = 'Follow UP'), 0) as proposal_potential,
+                  coalesce(sum(course_value_snapshot) filter (where stage in ('Follow UP','Aguardando matrícula')), 0) as proposal_potential,
                   coalesce(sum(course_value_snapshot) filter (where stage = 'Follow UP'), 0) as pending_payment_potential,
                   count(*) filter (where coalesce(course_value_snapshot, 0) <= 0) as leads_without_course_value,
                   avg(extract(epoch from (first_contact_at - created_at)) / 3600) filter (where first_contact_at is not null) as average_first_contact_hours
@@ -640,7 +641,7 @@ export const Route = createFileRoute("/api/growth")({
               )
               select u.id, u.name,
                      count(l.id) as leads,
-                     count(l.id) filter (where l.stage in ('Follow UP','Matriculado')) as qualified_leads,
+                     count(l.id) filter (where l.stage in ('Follow UP','Aguardando matrícula','Matriculado')) as qualified_leads,
                      count(l.id) filter (where l.stage = 'Matriculado') as enrollments,
                      count(l.id) filter (where l.stage = 'Follow UP') as proposals,
                      count(l.id) filter (where l.stage = 'Follow UP') as pending_payments,

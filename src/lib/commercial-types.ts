@@ -23,6 +23,7 @@ export type LeadStage =
   | "Leads Novos"
   | "Em Atendimento"
   | "Follow UP"
+  | "Aguardando matrícula"
   | "Lead Sem retorno"
   | "Matriculado";
 

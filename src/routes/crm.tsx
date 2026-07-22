@@ -133,6 +133,7 @@ const stages: Array<LeadStage> = [
   "Leads Novos",
   "Em Atendimento",
   "Follow UP",
+  "Aguardando matrícula",
   "Lead Sem retorno",
 ];
 
@@ -140,6 +141,7 @@ const stageLabels: Record<LeadStage, string> = {
   "Leads Novos": "Leads Novos",
   "Em Atendimento": "Em Atendimento",
   "Follow UP": "Follow UP",
+  "Aguardando matrícula": "Aguardando matrícula",
   "Lead Sem retorno": "Lead Sem retorno",
   Matriculado: "Matriculado",
 };

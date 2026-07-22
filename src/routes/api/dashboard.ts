@@ -9,6 +9,7 @@ const funnelStages: Array<LeadStage> = [
   "Leads Novos",
   "Em Atendimento",
   "Follow UP",
+  "Aguardando matrícula",
   "Lead Sem retorno",
   "Matriculado",
 ];
@@ -89,6 +90,7 @@ export const Route = createFileRoute("/api/dashboard")({
                     count(*) filter (
                       where stage in (
                         'Follow UP',
+                        'Aguardando matrícula',
                         'Matriculado'
                       )
                     ) as qualified_leads,
