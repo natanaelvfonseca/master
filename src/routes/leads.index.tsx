@@ -36,6 +36,7 @@ const studentStages: Array<StudentStage> = [
   "Matriculado",
   "Contrato Feito",
   "Aluno Confirmado",
+  "Aluno Presente",
   "Aluno Cancelado",
 ];
 

@@ -95,7 +95,7 @@ export async function ensureCommercialSchema() {
         )
       ),
       student_stage text not null default 'Matriculado' check (
-        student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Cancelado')
+        student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Presente', 'Aluno Cancelado')
       ),
       first_contact_at timestamptz,
       follow_up_count integer not null default 0 check (follow_up_count >= 0),
@@ -132,7 +132,7 @@ export async function ensureCommercialSchema() {
     alter table app_leads alter column stage set default 'Leads Novos';
     alter table app_leads drop constraint if exists app_leads_student_stage_check;
     alter table app_leads add constraint app_leads_student_stage_check check (
-      student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Cancelado')
+      student_stage in ('Matriculado', 'Contrato Feito', 'Aluno Confirmado', 'Aluno Presente', 'Aluno Cancelado')
     );
     alter table app_leads add column if not exists phone2 text;
     alter table app_leads add column if not exists first_contact_at timestamptz;

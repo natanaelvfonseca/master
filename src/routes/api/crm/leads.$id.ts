@@ -55,6 +55,7 @@ const allowedStudentStages: Array<StudentStage> = [
   "Matriculado",
   "Contrato Feito",
   "Aluno Confirmado",
+  "Aluno Presente",
   "Aluno Cancelado",
 ];
 

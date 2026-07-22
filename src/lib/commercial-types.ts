@@ -31,6 +31,7 @@ export type StudentStage =
   | "Matriculado"
   | "Contrato Feito"
   | "Aluno Confirmado"
+  | "Aluno Presente"
   | "Aluno Cancelado";
 
 export type LeadRecord = {
