@@ -75,6 +75,7 @@ type EditForm = {
   userId: string;
   name: string;
   email: string;
+  role: UserRole;
   password: string;
 };
 
@@ -359,6 +360,10 @@ function UsersPage() {
   }
 
   const normalizedSearch = search.trim().toLowerCase();
+  const editRoleOptions =
+    editForm && !assignableRoles.includes(editForm.role)
+      ? [editForm.role, ...assignableRoles]
+      : assignableRoles;
   const filteredUsers = normalizedSearch
     ? users.filter((user) => {
         const searchableText = [
@@ -483,6 +488,7 @@ function UsersPage() {
                                 userId: user.id,
                                 name: user.name,
                                 email: user.email,
+                                role: user.role,
                                 password: "",
                               })
                             }
@@ -777,6 +783,31 @@ function UsersPage() {
                   }
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Função</Label>
+                <Select
+                  value={editForm?.role}
+                  onValueChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, role: value as UserRole } : current,
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editRoleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Ao trocar a função, as sessões abertas serão encerradas para atualizar as permissões.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-password">Nova senha</Label>

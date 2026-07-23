@@ -334,8 +334,9 @@ export const Route = createFileRoute("/api/admin/users")({
         const name = typeof body?.name === "string" ? body.name.trim() : "";
         const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
         const password = typeof body?.password === "string" ? body.password : "";
+        const role = typeof body?.role === "string" ? body.role : "";
 
-        if (!userId || !name || !email || (password && password.length < 8)) {
+        if (!userId || !name || !email || !isValidRole(role) || (password && password.length < 8)) {
           return Response.json({ ok: false, error: "Dados inválidos." }, { status: 400 });
         }
 
@@ -379,6 +380,10 @@ export const Route = createFileRoute("/api/admin/users")({
           );
         }
 
+        if (role !== target.role && !canAssignRole(session.user.role, role)) {
+          return Response.json({ ok: false, error: "Função não permitida." }, { status: 403 });
+        }
+
         try {
           const passwordHash = password ? await hashPassword(password) : null;
           const updated = await withTransaction(async (client) => {
@@ -388,7 +393,8 @@ export const Route = createFileRoute("/api/admin/users")({
                 set
                   name = $2,
                   email = $3,
-                  password_hash = coalesce($4, password_hash),
+                  role = $4,
+                  password_hash = coalesce($5, password_hash),
                   updated_at = now()
                 where id = $1
                 returning
@@ -402,10 +408,10 @@ export const Route = createFileRoute("/api/admin/users")({
                   (select name from app_units where id = primary_unit_id) as unit_name,
                   created_at::text
               `,
-              [target.id, name, email, passwordHash],
+              [target.id, name, email, role, passwordHash],
             );
 
-            if (passwordHash) {
+            if (passwordHash || role !== target.role) {
               await client.query(
                 `
                   update app_sessions
