@@ -881,7 +881,10 @@ export function mapMetaLead(lead: MetaLeadPayload, mapping: Array<MetaFieldMappi
         "nome",
         "name",
       ]);
-    } else if (!rawValue && rule.target === "phone") {
+    } else if (
+      rule.target === "phone" &&
+      (phoneDigits(rawValue).length < 10 || phoneDigits(rawValue).length > 13)
+    ) {
       rawValue = phoneFieldValue(sourceFields);
     } else if (!rawValue && rule.target === "phone2") {
       rawValue = phone2FieldValue(sourceFields, mapped.phone || phoneFieldValue(sourceFields));
