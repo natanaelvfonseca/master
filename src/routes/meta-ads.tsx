@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   AlertTriangle,
+  Building2,
   CheckCircle2,
   Copy,
   FormInput,
@@ -181,6 +182,7 @@ type FormConfig = {
 };
 
 const NO_SELECTION = "__none__";
+const UNASSIGNED_FORMS_UNIT = "__unassigned_forms__";
 
 const stages = [
   "Leads Novos",
@@ -283,6 +285,7 @@ function MetaAdsPage() {
   const [duplicateSource, setDuplicateSource] = React.useState<MetaForm | null>(null);
   const [duplicateFormId, setDuplicateFormId] = React.useState("");
   const [duplicateName, setDuplicateName] = React.useState("");
+  const [selectedFormsUnitId, setSelectedFormsUnitId] = React.useState("");
   const [integrationForm, setIntegrationForm] = React.useState<IntegrationForm>({
     appId: "",
     appSecret: "",
@@ -317,6 +320,11 @@ function MetaAdsPage() {
       );
 
       setState(data);
+      setSelectedFormsUnitId((current) =>
+        current && data.options.units.some((unit) => unit.id === current)
+          ? current
+          : (data.options.units[0]?.id ?? ""),
+      );
       setIntegrationForm({
         appId: data.integration.app_id ?? "",
         appSecret: "",
@@ -378,7 +386,7 @@ function MetaAdsPage() {
     }
   }
 
-  function openFormDialog(form?: MetaForm, fromEvent?: MetaEvent) {
+  function openFormDialog(form?: MetaForm, fromEvent?: MetaEvent, presetUnitId = "") {
     if (form) {
       setFormConfig({
         pageDbId: form.page_id,
@@ -398,6 +406,7 @@ function MetaAdsPage() {
         state?.pages.find((item) => item.page_id === fromEvent?.page_id) ?? state?.pages[0];
       setFormConfig({
         ...emptyFormConfig(page?.id ?? ""),
+        unitId: presetUnitId,
         formName: fromEvent?.form_id ? `Formulário ${fromEvent.form_id}` : "",
         metaFormId: fromEvent?.form_id ?? "",
       });
@@ -433,6 +442,20 @@ function MetaAdsPage() {
   }
 
   const pageOptions = state?.pages ?? [];
+  const formsUnits = state?.options.units ?? [];
+  const unassignedForms = state?.forms.filter((form) => !form.unit_id) ?? [];
+  const formsUnitOptions = [
+    ...formsUnits,
+    ...(unassignedForms.length
+      ? [{ id: UNASSIGNED_FORMS_UNIT, name: "Sem unidade", status: "pending" }]
+      : []),
+  ];
+  const selectedFormsUnit =
+    formsUnitOptions.find((unit) => unit.id === selectedFormsUnitId) ?? null;
+  const selectedUnitForms =
+    selectedFormsUnitId === UNASSIGNED_FORMS_UNIT
+      ? unassignedForms
+      : (state?.forms.filter((form) => form.unit_id === selectedFormsUnitId) ?? []);
   const unitCourses =
     state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitChannels =
@@ -637,36 +660,114 @@ function MetaAdsPage() {
 
         <TabsContent value="forms">
           <Card className="border-primary/10 shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Formulários</CardTitle>
-              <Button onClick={() => openFormDialog()} className="bg-gradient-primary">
-                <Plus className="h-4 w-4" />
-                Cadastrar
-              </Button>
+            <CardHeader>
+              <CardTitle className="text-base">Formulários por unidade</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Selecione uma unidade para visualizar e cadastrar os formulários que enviam leads
+                para ela.
+              </p>
             </CardHeader>
-            <CardContent>
-              <FormsTable
-                forms={state?.forms ?? []}
-                onEdit={openFormDialog}
-                onDuplicate={(form) => {
-                  setDuplicateSource(form);
-                  setDuplicateFormId("");
-                  setDuplicateName(`${form.form_name} - cópia`);
-                  setDuplicateDialogOpen(true);
-                }}
-                onReprocess={() => {
-                  const firstPending = pendingEvents[0];
-                  if (!firstPending) {
-                    toast.info("Nenhum evento pendente para reprocessar.");
-                    return;
-                  }
-                  setBusyAction(firstPending.id);
-                  void postAction(
-                    { action: "reprocessEvent", eventId: firstPending.id },
-                    "Evento reprocessado.",
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {formsUnitOptions.map((unit) => {
+                  const formsCount =
+                    unit.id === UNASSIGNED_FORMS_UNIT
+                      ? unassignedForms.length
+                      : (state?.forms.filter((form) => form.unit_id === unit.id).length ?? 0);
+                  const selected = selectedFormsUnitId === unit.id;
+                  return (
+                    <button
+                      key={unit.id}
+                      type="button"
+                      onClick={() => setSelectedFormsUnitId(unit.id)}
+                      className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-colors ${
+                        selected
+                          ? "border-primary bg-primary/5 shadow-card"
+                          : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          selected ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        <Building2 className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">{unit.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formsCount} {formsCount === 1 ? "formulário" : "formulários"}
+                        </span>
+                      </span>
+                    </button>
                   );
-                }}
-              />
+                })}
+              </div>
+
+              {selectedFormsUnit ? (
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <div className="flex flex-col gap-3 border-b bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Unidade selecionada
+                      </div>
+                      <div className="text-lg font-bold text-primary">{selectedFormsUnit.name}</div>
+                    </div>
+                    {selectedFormsUnit.id !== UNASSIGNED_FORMS_UNIT ? (
+                      <Button
+                        onClick={() => openFormDialog(undefined, undefined, selectedFormsUnit.id)}
+                        className="bg-gradient-primary"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Cadastrar formulário
+                      </Button>
+                    ) : (
+                      <Badge className="w-fit bg-gold/15 text-gold-foreground">
+                        Selecione Configurar para vincular
+                      </Badge>
+                    )}
+                  </div>
+                  {selectedUnitForms.length ? (
+                    <FormsTable
+                      forms={selectedUnitForms}
+                      onEdit={openFormDialog}
+                      onDuplicate={(form) => {
+                        setDuplicateSource(form);
+                        setDuplicateFormId("");
+                        setDuplicateName(`${form.form_name} - cópia`);
+                        setDuplicateDialogOpen(true);
+                      }}
+                      onReprocess={() => {
+                        const firstPending = pendingEvents.find(
+                          (event) =>
+                            selectedUnitForms.some((form) => form.meta_form_id === event.form_id),
+                        );
+                        if (!firstPending) {
+                          toast.info("Nenhum evento pendente para esta unidade.");
+                          return;
+                        }
+                        setBusyAction(firstPending.id);
+                        void postAction(
+                          { action: "reprocessEvent", eventId: firstPending.id },
+                          "Evento reprocessado.",
+                        );
+                      }}
+                    />
+                  ) : (
+                    <div className="p-8 text-center">
+                      <FormInput className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <div className="mt-3 font-semibold">Nenhum formulário nesta unidade</div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Use o botão acima para cadastrar o primeiro formulário de {selectedFormsUnit.name}.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  Nenhuma unidade disponível para organizar os formulários.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
