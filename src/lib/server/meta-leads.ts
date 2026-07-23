@@ -597,7 +597,9 @@ function phoneFieldValue(fields: Record<string, string>) {
     "phone",
   ]);
 
-  if (explicitValue) {
+  const explicitDigits = phoneDigits(explicitValue);
+
+  if (explicitDigits.length >= 10 && explicitDigits.length <= 13) {
     return explicitValue;
   }
 
@@ -606,7 +608,8 @@ function phoneFieldValue(fields: Record<string, string>) {
     const digits = phoneDigits(value);
 
     return (
-      digits.length >= 8 &&
+      digits.length >= 10 &&
+      digits.length <= 13 &&
       /phone|fone|telefone|tel|celular|ddd/.test(normalizedName) &&
       !/whats|whatsapp|zap|contato/.test(normalizedName)
     );
