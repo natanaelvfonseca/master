@@ -127,6 +127,8 @@ const initialAttendanceForm: AttendanceFormState = {
   status: "active",
 };
 
+const SHOW_LEGACY_ATTENDANCE_CONFIGURATION = false;
+
 async function readJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
 
@@ -694,105 +696,107 @@ function CadastroPage() {
         </Card>
       </div>
 
-      <Card className="animate-panel-rise overflow-hidden border-primary/10 shadow-card">
-        <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-card to-card">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <MapPin className="h-5 w-5" />
+      {SHOW_LEGACY_ATTENDANCE_CONFIGURATION ? (
+        <Card className="animate-panel-rise overflow-hidden border-primary/10 shadow-card">
+          <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-card to-card">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Atendimentos por curso e cidade</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Defina quem recebe cada combinação identificada no nome das campanhas.
+                  </p>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-base">Atendimentos por curso e cidade</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Defina quem recebe cada combinação identificada no nome das campanhas.
-                </p>
-              </div>
+              <Button onClick={openNewAttendanceDialog} className="bg-gradient-primary">
+                <Plus className="h-4 w-4" />
+                Novo Atendimento
+              </Button>
             </div>
-            <Button onClick={openNewAttendanceDialog} className="bg-gradient-primary">
-              <Plus className="h-4 w-4" />
-              Novo Atendimento
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="px-5">Curso</TableHead>
-                <TableHead>Praça</TableHead>
-                <TableHead>Consultores</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    Carregando atendimentos...
-                  </TableCell>
+                  <TableHead className="px-5">Curso</TableHead>
+                  <TableHead>Praça</TableHead>
+                  <TableHead>Consultores</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
                 </TableRow>
-              ) : attendances.length ? (
-                attendances.map((attendance) => (
-                  <TableRow key={attendance.id}>
-                    <TableCell className="px-5 font-semibold">{attendance.courseName}</TableCell>
-                    <TableCell>
-                      {attendance.city}-{attendance.state}
-                    </TableCell>
-                    <TableCell className="max-w-md">
-                      <div className="flex flex-wrap gap-1">
-                        {attendance.consultantNames.map((name) => (
-                          <Badge key={name} variant="secondary">
-                            {name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={attendance.status} />
-                    </TableCell>
-                    <TableCell className="pr-5">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditAttendanceDialog(attendance)}
-                          aria-label={`Editar ${attendance.courseName} em ${attendance.city}`}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() =>
-                            setDeleteTarget({
-                              kind: "attendance",
-                              id: attendance.id,
-                              name: `${attendance.courseName} - ${attendance.city}-${attendance.state}`,
-                            })
-                          }
-                          aria-label={`Excluir atendimento ${attendance.courseName}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      Carregando atendimentos...
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    Nenhuma combinação cadastrada.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ) : attendances.length ? (
+                  attendances.map((attendance) => (
+                    <TableRow key={attendance.id}>
+                      <TableCell className="px-5 font-semibold">{attendance.courseName}</TableCell>
+                      <TableCell>
+                        {attendance.city}-{attendance.state}
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <div className="flex flex-wrap gap-1">
+                          {attendance.consultantNames.map((name) => (
+                            <Badge key={name} variant="secondary">
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={attendance.status} />
+                      </TableCell>
+                      <TableCell className="pr-5">
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditAttendanceDialog(attendance)}
+                            aria-label={`Editar ${attendance.courseName} em ${attendance.city}`}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({
+                                kind: "attendance",
+                                id: attendance.id,
+                                name: `${attendance.courseName} - ${attendance.city}-${attendance.state}`,
+                              })
+                            }
+                            aria-label={`Excluir atendimento ${attendance.courseName}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      Nenhuma combinação cadastrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <CourseDialog
         open={courseDialogOpen}
@@ -812,17 +816,19 @@ function CadastroPage() {
         onFormChange={setChannelForm}
         onSubmit={handleChannelSubmit}
       />
-      <AttendanceDialog
-        open={attendanceDialogOpen}
-        editing={Boolean(editingAttendanceId)}
-        form={attendanceForm}
-        courses={courses.filter((course) => course.status === "active")}
-        consultants={consultants}
-        saving={savingAttendance}
-        onOpenChange={setAttendanceDialogOpen}
-        onFormChange={setAttendanceForm}
-        onSubmit={handleAttendanceSubmit}
-      />
+      {SHOW_LEGACY_ATTENDANCE_CONFIGURATION ? (
+        <AttendanceDialog
+          open={attendanceDialogOpen}
+          editing={Boolean(editingAttendanceId)}
+          form={attendanceForm}
+          courses={courses.filter((course) => course.status === "active")}
+          consultants={consultants}
+          saving={savingAttendance}
+          onOpenChange={setAttendanceDialogOpen}
+          onFormChange={setAttendanceForm}
+          onSubmit={handleAttendanceSubmit}
+        />
+      ) : null}
       <DeleteDialog
         target={deleteTarget}
         deleting={deleting}
