@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -90,6 +91,10 @@ type MetaForm = {
   unit_name: string | null;
   course_id: string | null;
   course_name: string | null;
+  attendance_id: string | null;
+  attendance_city: string | null;
+  attendance_state: string | null;
+  attendance_consultant_ids: Array<string>;
   funnel_name: string | null;
   initial_stage: string;
   acquisition_channel_id: string | null;
@@ -173,6 +178,10 @@ type FormConfig = {
   metaFormId: string;
   unitId: string;
   courseId: string;
+  attendanceId: string;
+  attendanceCity: string;
+  attendanceState: string;
+  attendanceConsultantIds: Array<string>;
   funnelName: string;
   initialStage: string;
   acquisitionChannelId: string;
@@ -257,6 +266,10 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
     metaFormId: "",
     unitId: "",
     courseId: "",
+    attendanceId: "",
+    attendanceCity: "",
+    attendanceState: "",
+    attendanceConsultantIds: [],
     funnelName: "Captação",
     initialStage: "Leads Novos",
     acquisitionChannelId: "",
@@ -394,6 +407,10 @@ function MetaAdsPage() {
         metaFormId: form.meta_form_id,
         unitId: form.unit_id ?? "",
         courseId: form.course_id ?? "",
+        attendanceId: form.attendance_id ?? "",
+        attendanceCity: form.attendance_city ?? "",
+        attendanceState: form.attendance_state ?? "",
+        attendanceConsultantIds: form.attendance_consultant_ids ?? [],
         funnelName: form.funnel_name ?? "",
         initialStage: form.initial_stage,
         acquisitionChannelId: form.acquisition_channel_id ?? "",
@@ -437,6 +454,25 @@ function MetaAdsPage() {
       return;
     }
 
+    const hasAttendanceConfiguration = Boolean(
+      formConfig.attendanceId ||
+        formConfig.attendanceCity.trim() ||
+        formConfig.attendanceState.trim() ||
+        formConfig.attendanceConsultantIds.length,
+    );
+
+    if (
+      hasAttendanceConfiguration &&
+      (!formConfig.unitId ||
+        !formConfig.courseId ||
+        formConfig.attendanceCity.trim().length < 2 ||
+        !/^[A-Za-z]{2}$/.test(formConfig.attendanceState.trim()) ||
+        !formConfig.attendanceConsultantIds.length)
+    ) {
+      toast.error("Informe unidade, curso, cidade, UF e ao menos um consultor.");
+      return;
+    }
+
     void postAction({ action: "saveForm", ...formConfig }, "Formulário configurado.");
     setFormDialogOpen(false);
   }
@@ -460,6 +496,10 @@ function MetaAdsPage() {
     state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitChannels =
     state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
+  const unitConsultants =
+    state?.options.consultants.filter(
+      (item) => item.unitId === formConfig.unitId && item.status === "active",
+    ) ?? [];
   return (
     <div className="space-y-6">
       <PageHeader
@@ -923,6 +963,7 @@ function MetaAdsPage() {
         units={state?.options.units ?? []}
         courses={unitCourses}
         channels={unitChannels}
+        consultants={unitConsultants}
         saving={saving}
         onOpenChange={setFormDialogOpen}
         onFormChange={setFormConfig}
@@ -1293,6 +1334,7 @@ function FormDialog({
   units,
   courses,
   channels,
+  consultants,
   saving,
   onOpenChange,
   onFormChange,
@@ -1304,6 +1346,7 @@ function FormDialog({
   units: Array<OptionRow>;
   courses: Array<OptionRow>;
   channels: Array<OptionRow>;
+  consultants: Array<OptionRow>;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<FormConfig>>;
@@ -1366,6 +1409,10 @@ function FormDialog({
                     unitId: value === NO_SELECTION ? "" : value,
                     courseId: "",
                     acquisitionChannelId: "",
+                    attendanceId: "",
+                    attendanceCity: "",
+                    attendanceState: "",
+                    attendanceConsultantIds: [],
                   }))
                 }
               >
@@ -1389,6 +1436,7 @@ function FormDialog({
                   onFormChange((current) => ({
                     ...current,
                     courseId: value === NO_SELECTION ? "" : value,
+                    attendanceId: "",
                   }))
                 }
               >
@@ -1405,6 +1453,87 @@ function FormDialog({
                 </SelectContent>
               </Select>
             </Field>
+            <div className="space-y-4 rounded-lg border border-primary/15 bg-muted/20 p-4 md:col-span-2">
+              <div>
+                <h3 className="font-semibold">Atendimento por curso e cidade</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A campanha deve conter o curso e a cidade no padrão [Curso] [Cidade-UF].
+                  Os leads serão distribuídos em rodízio entre os consultores selecionados.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-[1fr_120px]">
+                <Field label="Cidade">
+                  <Input
+                    value={form.attendanceCity}
+                    onChange={(event) =>
+                      onFormChange((current) => ({
+                        ...current,
+                        attendanceCity: event.target.value,
+                      }))
+                    }
+                    placeholder="Ex.: Belo Horizonte"
+                  />
+                </Field>
+                <Field label="UF">
+                  <Input
+                    value={form.attendanceState}
+                    maxLength={2}
+                    onChange={(event) =>
+                      onFormChange((current) => ({
+                        ...current,
+                        attendanceState: event.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="MG"
+                  />
+                </Field>
+              </div>
+              <div className="space-y-2">
+                <Label>Consultores responsáveis</Label>
+                {!form.unitId ? (
+                  <p className="text-sm text-muted-foreground">
+                    Selecione uma unidade para visualizar os consultores.
+                  </p>
+                ) : consultants.length ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {consultants.map((consultant) => {
+                      const checked = form.attendanceConsultantIds.includes(consultant.id);
+
+                      return (
+                        <label
+                          key={`${consultant.id}-${consultant.unitId}`}
+                          className="flex cursor-pointer items-center gap-3 rounded-md border bg-background p-3 text-sm"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(nextChecked) =>
+                              onFormChange((current) => ({
+                                ...current,
+                                attendanceConsultantIds: nextChecked
+                                  ? Array.from(
+                                      new Set([
+                                        ...current.attendanceConsultantIds,
+                                        consultant.id,
+                                      ]),
+                                    )
+                                  : current.attendanceConsultantIds.filter(
+                                      (id) => id !== consultant.id,
+                                    ),
+                              }))
+                            }
+                          />
+                          <span>{consultant.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum consultor ativo nesta unidade.
+                  </p>
+                )}
+              </div>
+            </div>
             <Field label="Canal de aquisição">
               <Select
                 value={form.acquisitionChannelId || NO_SELECTION}

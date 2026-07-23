@@ -6,7 +6,9 @@ import {
   chooseAttendanceConsultant,
   ensureCourseAttendanceSchema,
   findCampaignAttendance,
+  normalizeRoutingText,
   parseCampaignRoute,
+  saveCourseAttendance,
 } from "@/lib/server/course-attendances";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
@@ -81,6 +83,10 @@ type MetaFormRow = QueryResultRow & {
   unit_name: string | null;
   course_id: string | null;
   course_name: string | null;
+  attendance_id: string | null;
+  attendance_city: string | null;
+  attendance_state: string | null;
+  attendance_consultant_ids: Array<string> | null;
   funnel_name: string | null;
   initial_stage: LeadStage;
   acquisition_channel_id: string | null;
@@ -234,6 +240,7 @@ export async function ensureMetaLeadSchema() {
       meta_form_id text not null,
       unit_id uuid references app_units(id) on delete set null,
       course_id uuid references app_courses(id) on delete set null,
+      attendance_id uuid references app_course_attendances(id) on delete set null,
       funnel_name text,
       initial_stage text not null default 'Leads Novos',
       acquisition_channel_id uuid references app_acquisition_channels(id) on delete set null,
@@ -255,6 +262,9 @@ export async function ensureMetaLeadSchema() {
     create index if not exists app_meta_forms_page_idx on app_meta_forms (page_id);
     create index if not exists app_meta_forms_unit_idx on app_meta_forms (unit_id);
     create index if not exists app_meta_forms_status_idx on app_meta_forms (status);
+    alter table app_meta_forms
+      add column if not exists attendance_id uuid references app_course_attendances(id) on delete set null;
+    create index if not exists app_meta_forms_attendance_idx on app_meta_forms (attendance_id);
     update app_meta_forms
     set initial_stage = case initial_stage
       when 'Novo lead' then 'Leads Novos'
@@ -1071,6 +1081,16 @@ export async function listMetaState() {
           p.page_id as meta_page_id,
           u.name as unit_name,
           c.name as course_name,
+          attendance.city as attendance_city,
+          attendance.state as attendance_state,
+          coalesce(
+            (
+              select array_agg(ac.user_id::text order by ac.user_id)
+              from app_course_attendance_consultants ac
+              where ac.attendance_id = f.attendance_id
+            ),
+            '{}'
+          ) as attendance_consultant_ids,
           ch.name as acquisition_channel_name,
           owner.name as default_responsible_name,
           coalesce(array_agg(fc.user_id::text) filter (where fc.user_id is not null), '{}') as selected_consultant_ids,
@@ -1083,10 +1103,11 @@ export async function listMetaState() {
         inner join app_meta_pages p on p.id = f.page_id
         left join app_units u on u.id = f.unit_id
         left join app_courses c on c.id = f.course_id
+        left join app_course_attendances attendance on attendance.id = f.attendance_id
         left join app_acquisition_channels ch on ch.id = f.acquisition_channel_id
         left join app_users owner on owner.id = f.default_responsible_id
         left join app_meta_form_consultants fc on fc.form_id = f.id
-        group by f.id, p.id, u.id, c.id, ch.id, owner.id
+        group by f.id, p.id, u.id, c.id, attendance.id, ch.id, owner.id
         order by f.created_at desc
       `,
     ),
@@ -1132,7 +1153,31 @@ export async function listMetaState() {
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'slug', slug) order by name) from app_units where status = 'active'), '[]'::jsonb) as units,
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', unit_id, 'name', name, 'status', status) order by name) from app_courses), '[]'::jsonb) as courses,
           coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', unit_id, 'name', name, 'status', status) order by name) from app_acquisition_channels), '[]'::jsonb) as channels,
-          coalesce((select jsonb_agg(jsonb_build_object('id', id, 'unitId', primary_unit_id, 'name', name, 'role', role, 'status', status) order by name) from app_users where role = 'CONSULTOR'), '[]'::jsonb) as consultants
+          coalesce((
+            select jsonb_agg(
+              jsonb_build_object(
+                'id', consultant.id,
+                'unitId', consultant.unit_id,
+                'name', consultant.name,
+                'role', consultant.role,
+                'status', consultant.status
+              )
+              order by consultant.name
+            )
+            from (
+              select distinct u.id, target_unit.unit_id, u.name, u.role, u.status
+              from app_users u
+              cross join lateral (
+                select u.primary_unit_id as unit_id
+                where u.primary_unit_id is not null
+                union
+                select uu.unit_id
+                from app_user_units uu
+                where uu.user_id = u.id
+              ) target_unit
+              where u.role = 'CONSULTOR'
+            ) consultant
+          ), '[]'::jsonb) as consultants
       `,
     ),
     queryDb<
@@ -1266,9 +1311,62 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
   const metaFormId = stringOrNull(input.metaFormId);
   const formName = stringOrNull(input.formName) ?? metaFormId;
   const unitId = stringOrNull(input.unitId);
+  const courseId = stringOrNull(input.courseId);
+  let attendanceId = stringOrNull(input.attendanceId);
+  const attendanceCity = stringOrNull(input.attendanceCity);
+  const attendanceState = stringOrNull(input.attendanceState);
+  const attendanceConsultantIds = Array.isArray(input.attendanceConsultantIds)
+    ? input.attendanceConsultantIds
+    : [];
 
   if (!pageDbId || !isUuid(pageDbId) || !metaFormId || !formName) {
     throw new Error("Formulário inválido.");
+  }
+
+  const hasAttendanceConfiguration = Boolean(
+    attendanceId ||
+      attendanceCity ||
+      attendanceState ||
+      attendanceConsultantIds.length,
+  );
+  let savedAttendanceId: string | null = null;
+
+  if (hasAttendanceConfiguration) {
+    if (!unitId || !courseId) {
+      throw new Error("Selecione a unidade e o curso para configurar o atendimento.");
+    }
+
+    if (!attendanceId && attendanceCity && attendanceState) {
+      const existingAttendance = await queryDb<{ id: string }>(
+        `
+          select id
+          from app_course_attendances
+          where unit_id = $1
+            and course_id = $2
+            and city_normalized = $3
+            and state = $4
+          limit 1
+        `,
+        [
+          unitId,
+          courseId,
+          normalizeRoutingText(attendanceCity),
+          attendanceState.toUpperCase(),
+        ],
+      );
+      attendanceId = existingAttendance.rows[0]?.id ?? null;
+    }
+
+    const attendance = await saveCourseAttendance({
+      id: attendanceId,
+      unitId,
+      courseId,
+      city: attendanceCity,
+      state: attendanceState,
+      consultantIds: attendanceConsultantIds,
+      status: input.status,
+    });
+    savedAttendanceId = attendance.id;
   }
 
   const fieldMapping =
@@ -1294,6 +1392,7 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
           meta_form_id,
           unit_id,
           course_id,
+          attendance_id,
           funnel_name,
           initial_stage,
           acquisition_channel_id,
@@ -1304,12 +1403,13 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
           status,
           configured_at
         )
-        values ($1, $2, $3, $4, $5, nullif($6, ''), $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, now())
+        values ($1, $2, $3, $4, $5, $6, nullif($7, ''), $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14, now())
         on conflict (page_id, meta_form_id) do update
         set
           form_name = excluded.form_name,
           unit_id = excluded.unit_id,
           course_id = excluded.course_id,
+          attendance_id = excluded.attendance_id,
           funnel_name = excluded.funnel_name,
           initial_stage = excluded.initial_stage,
           acquisition_channel_id = excluded.acquisition_channel_id,
@@ -1327,7 +1427,8 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
         formName,
         metaFormId,
         unitId && isUuid(unitId) ? unitId : null,
-        isUuid(String(input.courseId ?? "")) ? input.courseId : null,
+        courseId && isUuid(courseId) ? courseId : null,
+        savedAttendanceId,
         stringOrNull(input.funnelName) ?? "",
         initialStage,
         isUuid(String(input.acquisitionChannelId ?? "")) ? input.acquisitionChannelId : null,
@@ -1366,6 +1467,7 @@ export async function duplicateMetaForm(input: Record<string, unknown>) {
           meta_form_id,
           unit_id,
           course_id,
+          attendance_id,
           funnel_name,
           initial_stage,
           acquisition_channel_id,
@@ -1382,6 +1484,7 @@ export async function duplicateMetaForm(input: Record<string, unknown>) {
           $3,
           unit_id,
           course_id,
+          attendance_id,
           funnel_name,
           initial_stage,
           acquisition_channel_id,
