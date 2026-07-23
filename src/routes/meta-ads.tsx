@@ -1489,7 +1489,7 @@ function FormDialog({
                 </Field>
               </div>
               <div className="space-y-2">
-                <Label>Consultores responsáveis</Label>
+                <Label>Responsáveis pelo atendimento</Label>
                 {!form.unitId ? (
                   <p className="text-sm text-muted-foreground">
                     Selecione uma unidade para visualizar os consultores.
@@ -1529,7 +1529,7 @@ function FormDialog({
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Nenhum consultor ativo nesta unidade.
+                    Nenhum consultor, gerente ou diretor ativo nesta unidade.
                   </p>
                 )}
               </div>

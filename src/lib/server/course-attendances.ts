@@ -154,7 +154,7 @@ export async function listCourseAttendances(unitId: string) {
       `
         select u.id, u.name
         from app_users u
-        where u.role = 'CONSULTOR'
+        where u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
           and u.status = 'active'
           and (
             u.primary_unit_id = $1
@@ -245,7 +245,7 @@ export async function saveCourseAttendance(input: AttendanceInput) {
         select u.id
         from app_users u
         where u.id = any($2::uuid[])
-          and u.role = 'CONSULTOR'
+          and u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
           and u.status = 'active'
           and (
             u.primary_unit_id = $1
@@ -475,7 +475,7 @@ export async function chooseAttendanceConsultant(
       from app_course_attendance_consultants ac
       inner join app_users u on u.id = ac.user_id
       where ac.attendance_id = $1
-        and u.role = 'CONSULTOR'
+        and u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
         and u.status = 'active'
         and (
           u.primary_unit_id = $2

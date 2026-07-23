@@ -1175,7 +1175,7 @@ export async function listMetaState() {
                 from app_user_units uu
                 where uu.user_id = u.id
               ) target_unit
-              where u.role = 'CONSULTOR'
+              where u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
             ) consultant
           ), '[]'::jsonb) as consultants
       `,
