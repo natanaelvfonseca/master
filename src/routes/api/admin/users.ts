@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth-types";
 import {
   canAssignRole,
+  ensureUserProfileSchema,
   getSessionFromRequest,
   hashPassword,
   isValidRole,
@@ -22,6 +23,7 @@ type ManagedUserRow = QueryResultRow & {
   id: string;
   email: string;
   name: string;
+  phone: string | null;
   role: UserRole;
   status: "active" | "inactive";
   unit_id: string;
@@ -34,6 +36,7 @@ function mapManagedUser(row: ManagedUserRow): ManagedUser {
     id: row.id,
     email: row.email,
     name: row.name,
+    phone: row.phone,
     role: row.role,
     status: row.status,
     unitId: row.unit_id,
@@ -44,6 +47,48 @@ function mapManagedUser(row: ManagedUserRow): ManagedUser {
 
 function isUniqueError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+}
+
+function parseCsvLine(line: string, delimiter: string) {
+  const values: Array<string> = [];
+  let value = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === delimiter && !quoted) {
+      values.push(value.trim());
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+  values.push(value.trim());
+  return values;
+}
+
+function parseUsersCsv(csvText: string) {
+  const lines = csvText.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (!lines.length) throw new Error("Arquivo CSV vazio.");
+
+  const firstLine = lines[0];
+  const delimiter = firstLine.includes(";") ? ";" : firstLine.includes("\t") ? "\t" : ",";
+  const headers = parseCsvLine(firstLine, delimiter).map((header) => header.trim());
+  if (headers.join("|") !== "Nome|Telefone|Email") {
+    throw new Error("O cabeçalho deve ser exatamente: Nome, Telefone, Email.");
+  }
+
+  return lines.slice(1).map((line, index) => {
+    const [name = "", phone = "", email = ""] = parseCsvLine(line, delimiter);
+    return { row: index + 2, name: name.trim(), phone: phone.trim(), email: sanitizeEmail(email) };
+  });
 }
 
 export const Route = createFileRoute("/api/admin/users")({
@@ -60,20 +105,25 @@ export const Route = createFileRoute("/api/admin/users")({
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
         }
 
+        await ensureUserProfileSchema();
+
         const result = await queryDb<ManagedUserRow>(
           `
             select
               u.id,
               u.email,
               u.name,
+              u.phone,
               u.role,
               u.status,
               au.id as unit_id,
               au.name as unit_name,
               u.created_at::text
             from app_users u
-            inner join app_units au on au.id = u.primary_unit_id
-            where u.primary_unit_id = $1
+            inner join app_units au on au.id = $1
+            where (u.primary_unit_id = $1 or exists (
+              select 1 from app_user_units uu where uu.user_id = u.id and uu.unit_id = $1
+            ))
               and u.status = 'active'
               and ($2::boolean or u.role <> 'DEV')
             order by
@@ -107,6 +157,7 @@ export const Route = createFileRoute("/api/admin/users")({
         }
 
         const body = await request.json().catch(() => null);
+        await ensureUserProfileSchema();
         const name = typeof body?.name === "string" ? body.name.trim() : "";
         const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
         const password = typeof body?.password === "string" ? body.password : "";
@@ -118,6 +169,93 @@ export const Route = createFileRoute("/api/admin/users")({
         const unitId = canChooseUnit
           ? requestedUnitId || session.activeUnit.id
           : session.activeUnit.id;
+
+        if (body?.action === "importUsers") {
+          const csvText = typeof body?.csvText === "string" ? body.csvText : "";
+          const importRole = typeof body?.role === "string" ? body.role : "";
+          const importPassword = typeof body?.password === "string" ? body.password : "";
+
+          if (!csvText || importPassword.length < 8 || !isValidRole(importRole)) {
+            return Response.json({ ok: false, error: "Dados da importação inválidos." }, { status: 400 });
+          }
+          if (!canAssignRole(session.user.role, importRole)) {
+            return Response.json({ ok: false, error: "Função não permitida." }, { status: 403 });
+          }
+
+          const selectedUnit = session.units.find((unit) => unit.id === unitId);
+          if (!selectedUnit) {
+            return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+          }
+
+          let rows: ReturnType<typeof parseUsersCsv>;
+          try {
+            rows = parseUsersCsv(csvText);
+          } catch (error) {
+            return Response.json(
+              { ok: false, error: error instanceof Error ? error.message : "CSV inválido." },
+              { status: 400 },
+            );
+          }
+          if (!rows.length || rows.length > 2000) {
+            return Response.json(
+              { ok: false, error: rows.length ? "O limite é de 2.000 usuários por arquivo." : "O CSV não possui usuários." },
+              { status: 400 },
+            );
+          }
+
+          const passwordHash = await hashPassword(importPassword);
+          const result = await withTransaction(async (client) => {
+            let created = 0;
+            let linked = 0;
+            let skipped = 0;
+            const errors: Array<{ row: number; error: string }> = [];
+
+            for (const row of rows) {
+              if (!row.name || !row.phone || !row.email || !row.email.includes("@")) {
+                errors.push({ row: row.row, error: "Nome, Telefone e Email são obrigatórios." });
+                continue;
+              }
+
+              const existing = await client.query<{ id: string }>(
+                `select id from app_users where lower(email) = lower($1) limit 1`,
+                [row.email],
+              );
+              const existingUser = existing.rows[0];
+
+              if (existingUser) {
+                await client.query(
+                  `update app_users set phone = coalesce(nullif(phone, ''), $2), updated_at = now() where id = $1`,
+                  [existingUser.id, row.phone],
+                );
+                const association = await client.query(
+                  `insert into app_user_units (user_id, unit_id) values ($1, $2) on conflict do nothing`,
+                  [existingUser.id, selectedUnit.id],
+                );
+                if (association.rowCount) linked += 1;
+                else skipped += 1;
+                continue;
+              }
+
+              const inserted = await client.query<{ id: string }>(
+                `
+                  insert into app_users (name, phone, email, role, primary_unit_id, password_hash, created_by)
+                  values ($1, $2, $3, $4, $5, $6, $7)
+                  returning id
+                `,
+                [row.name, row.phone, row.email, importRole, selectedUnit.id, passwordHash, session.user.id],
+              );
+              await client.query(
+                `insert into app_user_units (user_id, unit_id) values ($1, $2) on conflict do nothing`,
+                [inserted.rows[0].id, selectedUnit.id],
+              );
+              created += 1;
+            }
+
+            return { created, linked, skipped, errors };
+          });
+
+          return Response.json({ ok: true, ...result }, { status: 201 });
+        }
 
         if (!name || !email || password.length < 8 || !isValidRole(role)) {
           return Response.json({ ok: false, error: "Dados inválidos." }, { status: 400 });
@@ -148,6 +286,7 @@ export const Route = createFileRoute("/api/admin/users")({
                   id,
                   email,
                   name,
+                  phone,
                   role,
                   status,
                   primary_unit_id as unit_id,
@@ -206,6 +345,7 @@ export const Route = createFileRoute("/api/admin/users")({
               u.id,
               u.email,
               u.name,
+              u.phone,
               u.role,
               u.status,
               au.id as unit_id,
@@ -255,6 +395,7 @@ export const Route = createFileRoute("/api/admin/users")({
                   id,
                   email,
                   name,
+                  phone,
                   role,
                   status,
                   primary_unit_id as unit_id,
@@ -318,6 +459,7 @@ export const Route = createFileRoute("/api/admin/users")({
               u.id,
               u.email,
               u.name,
+              u.phone,
               u.role,
               u.status,
               au.id as unit_id,

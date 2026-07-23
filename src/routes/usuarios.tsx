@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { KeyRound, Pencil, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { KeyRound, Pencil, Search, ShieldCheck, Trash2, Upload, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +93,14 @@ function UsersPage() {
   const [deletingUser, setDeletingUser] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
   const [editForm, setEditForm] = React.useState<EditForm | null>(null);
+  const [importUsersOpen, setImportUsersOpen] = React.useState(false);
+  const [importingUsers, setImportingUsers] = React.useState(false);
+  const [importFile, setImportFile] = React.useState<File | null>(null);
+  const [importForm, setImportForm] = React.useState({
+    unitId: "",
+    role: "CONSULTOR" as UserRole,
+    password: "",
+  });
   const [search, setSearch] = React.useState("");
   const userRole = session?.user.role;
   const assignableRoles = React.useMemo(
@@ -295,6 +303,61 @@ function UsersPage() {
     setCreateUserOpen(true);
   }
 
+  function handleOpenImportUsers() {
+    setImportFile(null);
+    setImportForm({
+      unitId: defaultUnitId,
+      role: assignableRoles.includes("CONSULTOR") ? "CONSULTOR" : (assignableRoles[0] ?? "CONSULTOR"),
+      password: "",
+    });
+    setImportUsersOpen(true);
+  }
+
+  async function handleImportUsers(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const unitId = canChooseUnit ? importForm.unitId : defaultUnitId;
+    if (!importFile || !unitId || importForm.password.length < 8) {
+      toast.error("Selecione o CSV, a unidade e informe uma senha inicial com 8 caracteres.");
+      return;
+    }
+
+    setImportingUsers(true);
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "importUsers",
+          csvText: await importFile.text(),
+          unitId,
+          role: importForm.role,
+          password: importForm.password,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        created?: number;
+        linked?: number;
+        skipped?: number;
+        errors?: Array<{ row: number; error: string }>;
+      };
+      if (!response.ok) throw new Error(data.error ?? "Não foi possível importar usuários.");
+
+      await loadData();
+      setImportUsersOpen(false);
+      toast.success(
+        `${data.created ?? 0} criado(s), ${data.linked ?? 0} vinculado(s) e ${data.skipped ?? 0} já existente(s).${
+          data.errors?.length ? ` ${data.errors.length} linha(s) com erro.` : ""
+        }`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao importar usuários.");
+    } finally {
+      setImportingUsers(false);
+    }
+  }
+
   const normalizedSearch = search.trim().toLowerCase();
   const filteredUsers = normalizedSearch
     ? users.filter((user) => {
@@ -327,6 +390,10 @@ function UsersPage() {
             <Button type="button" onClick={handleOpenCreateUser}>
               <UserPlus className="h-4 w-4" />
               Cadastrar usuário
+            </Button>
+            <Button type="button" variant="outline" onClick={handleOpenImportUsers}>
+              <Upload className="h-4 w-4" />
+              Importar CSV
             </Button>
           </>
         }
@@ -388,7 +455,9 @@ function UsersPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{user.name}</p>
-                          <p className="text-xs text-muted-foreground">{user.unitName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {[user.phone, user.unitName].filter(Boolean).join(" · ")}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
@@ -571,6 +640,98 @@ function UsersPage() {
               </Button>
               <Button type="submit" disabled={savingUser || !form.role || !effectiveUnitId}>
                 {savingUser ? "Salvando..." : "Cadastrar usuário"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={importUsersOpen}
+        onOpenChange={(open) => !importingUsers && setImportUsersOpen(open)}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <form onSubmit={handleImportUsers}>
+            <DialogHeader>
+              <DialogTitle>Importar usuários por CSV</DialogTitle>
+              <DialogDescription>
+                O arquivo deve ter as colunas Nome, Telefone, Email, nessa ordem. A unidade,
+                função e senha inicial serão aplicadas a todo o lote.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-5 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="users-csv">Arquivo CSV</Label>
+                <Input
+                  id="users-csv"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                  required
+                />
+                <div className="rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs">
+                  Nome, Telefone, Email
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Unidade de destino</Label>
+                {canChooseUnit ? (
+                  <Select
+                    value={importForm.unitId}
+                    onValueChange={(value) =>
+                      setImportForm((current) => ({ ...current, unitId: value }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {unitOptions.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={defaultUnit?.name ?? ""} disabled readOnly />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Função dos usuários</Label>
+                <Select
+                  value={importForm.role}
+                  onValueChange={(value) =>
+                    setImportForm((current) => ({ ...current, role: value as UserRole }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {assignableRoles.map((role) => (
+                      <SelectItem key={role} value={role}>{ROLE_LABELS[role]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="import-password">Senha inicial do lote</Label>
+                <Input
+                  id="import-password"
+                  type="password"
+                  minLength={8}
+                  value={importForm.password}
+                  onChange={(event) =>
+                    setImportForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usuários já existentes serão apenas vinculados à unidade e manterão a senha atual.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setImportUsersOpen(false)} disabled={importingUsers}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={importingUsers || !importFile}>
+                {importingUsers ? "Importando..." : "Importar usuários"}
               </Button>
             </DialogFooter>
           </form>

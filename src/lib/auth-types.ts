@@ -36,6 +36,7 @@ export type ManagedUser = {
   id: string;
   email: string;
   name: string;
+  phone: string | null;
   role: UserRole;
   status: "active" | "inactive";
   unitId: string;

@@ -61,6 +61,9 @@ export async function ensureUserProfileSchema() {
         alter table app_users
         add column if not exists avatar_url text;
 
+        alter table app_users
+        add column if not exists phone text;
+
         do $$
         begin
           perform pg_advisory_xact_lock(hashtext('app_users_role_check_dev'));
