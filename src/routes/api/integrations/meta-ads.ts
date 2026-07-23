@@ -4,6 +4,7 @@ import { getSessionFromRequest } from "@/lib/server/auth";
 import {
   duplicateMetaForm,
   listMetaState,
+  recoverStoredMetaEvents,
   reprocessMetaEvent,
   subscribeMetaPage,
   syncFormsForPage,
@@ -61,6 +62,8 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
         const action = readAction(body);
 
         try {
+          let result: unknown = null;
+
           if (action === "saveIntegration") {
             await upsertMetaIntegration(body ?? {}, auth.session.user.id);
           } else if (action === "savePage") {
@@ -77,11 +80,13 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
             await syncFormsForPage(String(body?.pageDbId ?? ""));
           } else if (action === "reprocessEvent") {
             await reprocessMetaEvent(String(body?.eventId ?? ""));
+          } else if (action === "recoverStoredEvents") {
+            result = await recoverStoredMetaEvents(Number(body?.limit) || 5_000);
           } else {
             return Response.json({ ok: false, error: "Ação inválida." }, { status: 400 });
           }
 
-          return Response.json({ ok: true });
+          return Response.json({ ok: true, result });
         } catch (error) {
           return Response.json(
             { ok: false, error: error instanceof Error ? error.message : "Falha na operação." },

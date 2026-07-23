@@ -2238,8 +2238,83 @@ export async function reprocessMetaEvent(eventId: string) {
     throw new Error("Evento inválido.");
   }
 
-  await refreshMetaEventLeadPayload(eventId);
+  try {
+    await refreshMetaEventLeadPayload(eventId);
+  } catch (error) {
+    const storedPayload = await queryDb<{ has_payload: boolean }>(
+      `
+        select (
+          jsonb_typeof(lead_payload -> 'field_data') = 'array'
+          and jsonb_array_length(lead_payload -> 'field_data') > 0
+        ) as has_payload
+        from app_meta_lead_events
+        where id = $1
+        limit 1
+      `,
+      [eventId],
+    );
+
+    if (!storedPayload.rows[0]?.has_payload) {
+      throw error;
+    }
+  }
+
   return processEventById(eventId);
+}
+
+export async function recoverStoredMetaEvents(limit = 5_000) {
+  await ensureMetaLeadSchema();
+  const safeLimit = Math.max(1, Math.min(Math.trunc(limit) || 5_000, 10_000));
+  const events = await queryDb<{ id: string }>(
+    `
+      select e.id
+      from app_meta_lead_events e
+      inner join app_meta_pages p on p.page_id = e.page_id
+      inner join app_meta_forms f
+        on f.page_id = p.id
+       and f.meta_form_id = e.form_id
+       and f.status = 'active'
+       and f.unit_id is not null
+      where e.lead_id is null
+        and jsonb_typeof(e.lead_payload -> 'field_data') = 'array'
+        and jsonb_array_length(e.lead_payload -> 'field_data') > 0
+      order by e.received_at asc
+      limit $1
+    `,
+    [safeLimit],
+  );
+  const result = {
+    found: events.rows.length,
+    processed: 0,
+    pending: 0,
+    failed: 0,
+  };
+
+  for (const event of events.rows) {
+    try {
+      const processed = await processEventById(event.id);
+
+      if (processed.status === "processed") {
+        result.processed += 1;
+      } else {
+        result.pending += 1;
+      }
+    } catch (error) {
+      result.failed += 1;
+      await queryDb(
+        `
+          update app_meta_lead_events
+          set status = 'error',
+              error_message = $2,
+              updated_at = now()
+          where id = $1
+        `,
+        [event.id, error instanceof Error ? error.message : "Falha ao recuperar evento."],
+      );
+    }
+  }
+
+  return result;
 }
 
 export async function receiveMetaWebhook(rawBody: string, signature: string | null) {
