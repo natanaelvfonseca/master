@@ -118,6 +118,10 @@ type TransferLead = {
 type TransferDataResponse = {
   consultants: Array<TransferConsultant>;
   leads: Array<TransferLead>;
+  policy: {
+    immediateTransfer: boolean;
+    requires48Hours: boolean;
+  };
 };
 
 type TransferSubmitResponse = {
@@ -383,6 +387,7 @@ function CRMPipeline() {
     () => new Set(),
   );
   const [transferTargetUserId, setTransferTargetUserId] = React.useState("");
+  const [immediateTransfer, setImmediateTransfer] = React.useState(false);
   const [loadingTransferData, setLoadingTransferData] = React.useState(false);
   const [transferringLeads, setTransferringLeads] = React.useState(false);
   const formUnitId = form.unitId || activeUnitId;
@@ -555,6 +560,7 @@ function CRMPipeline() {
 
       setTransferLeads(data.leads);
       setTransferConsultants(data.consultants);
+      setImmediateTransfer(data.policy.immediateTransfer);
       setSelectedTransferLeadIds((current) => {
         const availableIds = new Set(data.leads.map((lead) => lead.id));
 
@@ -1023,7 +1029,11 @@ function CRMPipeline() {
     const leadIds = Array.from(selectedTransferLeadIds);
 
     if (!leadIds.length) {
-      toast.error("Selecione ao menos um lead com mais de 48 horas.");
+      toast.error(
+        immediateTransfer
+          ? "Selecione ao menos um lead."
+          : "Selecione ao menos um lead com mais de 48 horas.",
+      );
       return;
     }
 
@@ -1411,6 +1421,7 @@ function CRMPipeline() {
         loading={loadingTransferData}
         transferring={transferringLeads}
         selectedCount={selectedTransferCount}
+        immediateTransfer={immediateTransfer}
         onOpenChange={setTransferDialogOpen}
         onRefresh={() => void loadTransferData()}
         onToggleLead={toggleTransferLead}
@@ -1589,6 +1600,7 @@ function TransferLeadDialog({
   loading,
   transferring,
   selectedCount,
+  immediateTransfer,
   onOpenChange,
   onRefresh,
   onToggleLead,
@@ -1604,6 +1616,7 @@ function TransferLeadDialog({
   loading: boolean;
   transferring: boolean;
   selectedCount: number;
+  immediateTransfer: boolean;
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void;
   onToggleLead: (lead: TransferLead, checked: boolean | "indeterminate") => void;
@@ -1626,7 +1639,9 @@ function TransferLeadDialog({
                 Transferência de Lead
               </DialogTitle>
               <DialogDescription className="max-w-2xl text-white/72">
-                Mova leads com mais de 48 horas de criação para outro consultor da unidade.
+                {immediateTransfer
+                  ? "Mova leads imediatamente para outro responsável da unidade."
+                  : "Mova leads com mais de 48 horas de criação para outro responsável da unidade."}
               </DialogDescription>
             </DialogHeader>
             <Button
@@ -1651,7 +1666,7 @@ function TransferLeadDialog({
                   onCheckedChange={onToggleAll}
                   disabled={!transferableLeads.length || loading}
                 />
-                Selecionar todos com mais de 48h
+                {immediateTransfer ? "Selecionar todos" : "Selecionar todos com mais de 48h"}
               </label>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary" className="bg-primary/10 text-primary">
@@ -1701,7 +1716,11 @@ function TransferLeadDialog({
                                 : "border-warning/25 bg-warning/10 text-warning-foreground"
                             }
                           >
-                            {lead.transferable ? "Pode transferir" : "Aguardando 48h"}
+                            {lead.transferable
+                              ? immediateTransfer
+                                ? "Pode transferir agora"
+                                : "Pode transferir"
+                              : "Aguardando 48h"}
                           </Badge>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -1722,7 +1741,9 @@ function TransferLeadDialog({
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
                         {lead.transferable
-                          ? "48h liberado"
+                          ? immediateTransfer
+                            ? "Transferência imediata"
+                            : "48h liberado"
                           : `Faltam ${Math.max(0, 48 - lead.ageHours)}h`}
                       </div>
                     </div>

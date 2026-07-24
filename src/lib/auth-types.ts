@@ -117,7 +117,7 @@ export function canAccessLeadTransferCenter(role: UserRole) {
 }
 
 export function canTransferLeadsImmediately(role: UserRole) {
-  return isMasterRole(role) || role === "MARKETING";
+  return isMasterRole(role) || role === "MARKETING" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canViewAttendances(role: UserRole) {
