@@ -4,6 +4,7 @@ import { getSessionFromRequest } from "@/lib/server/auth";
 import {
   duplicateMetaForm,
   listMetaState,
+  recoverRecentMetaFormLeads,
   recoverStoredMetaEvents,
   reprocessMetaEvent,
   subscribeMetaPage,
@@ -82,6 +83,8 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
             await reprocessMetaEvent(String(body?.eventId ?? ""));
           } else if (action === "recoverStoredEvents") {
             result = await recoverStoredMetaEvents(Number(body?.limit) || 5_000);
+          } else if (action === "recoverRecentFormLeads") {
+            result = await recoverRecentMetaFormLeads(body?.since);
           } else {
             return Response.json({ ok: false, error: "Ação inválida." }, { status: 400 });
           }

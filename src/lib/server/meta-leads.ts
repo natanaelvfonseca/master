@@ -2323,6 +2323,209 @@ export async function recoverStoredMetaEvents(limit = 5_000) {
   return result;
 }
 
+export async function recoverRecentMetaFormLeads(sinceRaw: unknown) {
+  const integration = await ensureMetaIntegration();
+  const since =
+    typeof sinceRaw === "string" && !Number.isNaN(Date.parse(sinceRaw))
+      ? new Date(sinceRaw)
+      : new Date(Date.now() - 48 * 60 * 60 * 1_000);
+  const forms = await queryDb<
+    QueryResultRow & {
+      id: string;
+      form_name: string;
+      meta_form_id: string;
+      page_db_id: string;
+      page_name: string;
+      page_id: string;
+      page_access_token_encrypted: string | null;
+    }
+  >(
+    `
+      select
+        f.id,
+        f.form_name,
+        f.meta_form_id,
+        p.id as page_db_id,
+        p.page_name,
+        p.page_id,
+        p.page_access_token_encrypted
+      from app_meta_forms f
+      inner join app_meta_pages p on p.id = f.page_id
+      where f.status = 'active'
+        and f.unit_id is not null
+        and p.status = 'active'
+      order by p.page_name, f.form_name
+    `,
+  );
+  const summary = {
+    forms: forms.rows.length,
+    fetched: 0,
+    existing: 0,
+    processed: 0,
+    pending: 0,
+    failed: 0,
+    errors: [] as Array<{ formId: string; formName: string; error: string }>,
+  };
+  const version = integration.graph_api_version || "v23.0";
+
+  for (const form of forms.rows) {
+    const token = decryptPageToken(form.page_access_token_encrypted);
+
+    if (!token) {
+      summary.failed += 1;
+      summary.errors.push({
+        formId: form.meta_form_id,
+        formName: form.form_name,
+        error: "Token da Página ausente.",
+      });
+      continue;
+    }
+
+    const params = new URLSearchParams({
+      access_token: token,
+      fields:
+        "id,created_time,field_data,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,form_id",
+      limit: "100",
+    });
+    const proof = appSecretProof(token, integration.app_secret);
+
+    if (proof) {
+      params.set("appsecret_proof", proof);
+    }
+
+    let nextUrl: string | null =
+      `https://graph.facebook.com/${version}/${form.meta_form_id}/leads?${params}`;
+    let pageCount = 0;
+
+    try {
+      while (nextUrl && pageCount < 50) {
+        const response = await fetch(nextUrl);
+        const data = (await response.json().catch(() => ({}))) as {
+          data?: Array<MetaLeadPayload>;
+          paging?: { next?: string };
+          error?: { message?: string };
+        };
+
+        if (!response.ok) {
+          throw new Error(data.error?.message ?? "Falha ao consultar leads do formulário.");
+        }
+
+        let reachedOlderLead = false;
+
+        for (const leadPayload of data.data ?? []) {
+          const createdAt = leadPayload.created_time
+            ? new Date(leadPayload.created_time)
+            : null;
+
+          if (createdAt && createdAt < since) {
+            reachedOlderLead = true;
+            continue;
+          }
+
+          if (!leadPayload.id) {
+            continue;
+          }
+
+          summary.fetched += 1;
+          const eventResult = await queryDb<{
+            id: string;
+            lead_id: string | null;
+            inserted: boolean;
+          }>(
+            `
+              insert into app_meta_lead_events (
+                integration_id,
+                page_db_id,
+                form_db_id,
+                page_id,
+                form_id,
+                leadgen_id,
+                campaign_id,
+                campaign_name,
+                adset_id,
+                adset_name,
+                ad_id,
+                ad_name,
+                form_name,
+                page_name,
+                meta_created_time,
+                status,
+                payload,
+                lead_payload
+              )
+              values (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                nullif($15, '')::timestamptz, 'received', $16::jsonb, $16::jsonb
+              )
+              on conflict (leadgen_id) do update
+              set lead_payload = excluded.lead_payload,
+                  campaign_id = coalesce(excluded.campaign_id, app_meta_lead_events.campaign_id),
+                  campaign_name = coalesce(excluded.campaign_name, app_meta_lead_events.campaign_name),
+                  adset_id = coalesce(excluded.adset_id, app_meta_lead_events.adset_id),
+                  adset_name = coalesce(excluded.adset_name, app_meta_lead_events.adset_name),
+                  ad_id = coalesce(excluded.ad_id, app_meta_lead_events.ad_id),
+                  ad_name = coalesce(excluded.ad_name, app_meta_lead_events.ad_name),
+                  updated_at = now()
+              returning id, lead_id, (xmax = 0) as inserted
+            `,
+            [
+              integration.id,
+              form.page_db_id,
+              form.id,
+              form.page_id,
+              form.meta_form_id,
+              leadPayload.id,
+              leadPayload.campaign_id ?? null,
+              leadPayload.campaign_name ?? null,
+              leadPayload.adset_id ?? null,
+              leadPayload.adset_name ?? null,
+              leadPayload.ad_id ?? null,
+              leadPayload.ad_name ?? null,
+              form.form_name,
+              form.page_name,
+              leadPayload.created_time ?? "",
+              JSON.stringify({
+                ...leadPayload,
+                form_id: leadPayload.form_id ?? form.meta_form_id,
+                form_name: form.form_name,
+                page_id: form.page_id,
+                page_name: form.page_name,
+              }),
+            ],
+          );
+          const event = eventResult.rows[0];
+
+          if (!event.inserted || event.lead_id) {
+            summary.existing += 1;
+          }
+
+          if (!event.lead_id) {
+            const processed = await processEventById(event.id);
+
+            if (processed.status === "processed") {
+              summary.processed += 1;
+            } else {
+              summary.pending += 1;
+            }
+          }
+        }
+
+        pageCount += 1;
+        nextUrl = reachedOlderLead ? null : (data.paging?.next ?? null);
+      }
+    } catch (error) {
+      summary.failed += 1;
+      summary.errors.push({
+        formId: form.meta_form_id,
+        formName: form.form_name,
+        error: error instanceof Error ? error.message : "Falha ao recuperar formulário.",
+      });
+    }
+  }
+
+  return summary;
+}
+
 export async function receiveMetaWebhook(rawBody: string, signature: string | null) {
   const integration = await ensureMetaIntegration();
 
