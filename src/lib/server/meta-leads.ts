@@ -958,14 +958,6 @@ function stringOrNull(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function appSecretProof(token: string, appSecret: string | null) {
-  if (!appSecret) {
-    return "";
-  }
-
-  return createHmac("sha256", appSecret).update(token).digest("hex");
-}
-
 export async function fetchMetaLeadDetails(
   leadgenId: string,
   token: string,
@@ -977,11 +969,6 @@ export async function fetchMetaLeadDetails(
     fields:
       "id,created_time,field_data,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,form_id",
   });
-  const proof = appSecretProof(token, integration.app_secret);
-
-  if (proof) {
-    params.set("appsecret_proof", proof);
-  }
 
   const response = await fetch(`https://graph.facebook.com/${version}/${leadgenId}?${params}`);
   const data = (await response.json().catch(() => ({}))) as MetaLeadPayload & {
@@ -2387,12 +2374,6 @@ export async function recoverRecentMetaFormLeads(sinceRaw: unknown) {
         "id,created_time,field_data,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,form_id",
       limit: "100",
     });
-    const proof = appSecretProof(token, integration.app_secret);
-
-    if (proof) {
-      params.set("appsecret_proof", proof);
-    }
-
     let nextUrl: string | null =
       `https://graph.facebook.com/${version}/${form.meta_form_id}/leads?${params}`;
     let pageCount = 0;
