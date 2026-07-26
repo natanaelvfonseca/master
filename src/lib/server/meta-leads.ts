@@ -2509,8 +2509,70 @@ export async function recoverRecentMetaFormLeads(sinceRaw: unknown) {
 
 export async function receiveMetaWebhook(rawBody: string, signature: string | null) {
   const integration = await ensureMetaIntegration();
+  const payload = JSON.parse(rawBody || "{}") as Record<string, unknown>;
+  const parsed = parseMetaEntry(payload);
+  const signatureValid = verifyMetaSignature(rawBody, signature, integration.app_secret);
 
-  if (!verifyMetaSignature(rawBody, signature, integration.app_secret)) {
+  if (!parsed.pageId || !parsed.formId || !parsed.leadgenId) {
+    return { ok: false, status: 400, error: "Payload sem page_id, form_id ou leadgen_id." };
+  }
+
+  const pageResult = await queryDb<MetaPageRow>(
+    `
+      select p.*, '0'::text as forms_count, p.created_at::text, p.updated_at::text, p.last_validated_at::text
+      from app_meta_pages p
+      where p.page_id = $1
+        and p.status = 'active'
+      limit 1
+    `,
+    [parsed.pageId],
+  );
+  const page = pageResult.rows[0] ?? null;
+  const configuredFormResult = await queryDb<{ configured: boolean }>(
+    `
+      select exists (
+        select 1
+        from app_meta_forms f
+        where f.page_id = $1
+          and f.meta_form_id = $2
+          and f.status = 'active'
+      ) as configured
+    `,
+    [page?.id ?? null, parsed.formId],
+  );
+  const configuredForm = configuredFormResult.rows[0]?.configured === true;
+  let leadPayload = leadPayloadFromWebhookValue(parsed.value, parsed);
+  let leadFetchError: string | null = null;
+  let fetchedFromGraph = false;
+
+  if (page?.page_access_token_encrypted) {
+    try {
+      leadPayload = await fetchMetaLeadDetailsWithRetry(
+        parsed.leadgenId,
+        decryptPageToken(page.page_access_token_encrypted),
+        integration,
+      );
+      fetchedFromGraph = true;
+    } catch (error) {
+      leadFetchError =
+        error instanceof Error
+          ? `Não foi possível buscar os dados do lead na Meta: ${error.message}`
+          : "Não foi possível buscar os dados do lead na Meta.";
+    }
+  } else {
+    leadFetchError = "A Página não possui token para consultar os dados do lead na Meta.";
+  }
+
+  // A troca do aplicativo da Meta também troca o segredo usado na assinatura.
+  // Durante essa rotação, aceite apenas leads que a própria Graph API confirmar
+  // para uma Página e um formulário ativos já cadastrados no CRM.
+  const graphVerified =
+    fetchedFromGraph &&
+    configuredForm &&
+    leadPayload?.id === parsed.leadgenId &&
+    (!leadPayload.form_id || String(leadPayload.form_id) === parsed.formId);
+
+  if (!signatureValid && !graphVerified) {
     await queryDb(
       `
         update app_meta_integrations
@@ -2521,14 +2583,7 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
       `,
       [integration.id],
     );
-    return { ok: false, status: 401, error: "Assinatura inválida." };
-  }
-
-  const payload = JSON.parse(rawBody || "{}") as Record<string, unknown>;
-  const parsed = parseMetaEntry(payload);
-
-  if (!parsed.pageId || !parsed.formId || !parsed.leadgenId) {
-    return { ok: false, status: 400, error: "Payload sem page_id, form_id ou leadgen_id." };
+    return { ok: false, status: 401, error: "Assinatura inválida e lead não confirmado pela Meta." };
   }
 
   await queryDb(
@@ -2541,36 +2596,6 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
     `,
     [integration.id],
   );
-
-  const pageResult = await queryDb<MetaPageRow>(
-    `
-      select p.*, '0'::text as forms_count, p.created_at::text, p.updated_at::text, p.last_validated_at::text
-      from app_meta_pages p
-      where p.page_id = $1
-      limit 1
-    `,
-    [parsed.pageId],
-  );
-  const page = pageResult.rows[0] ?? null;
-  let leadPayload = leadPayloadFromWebhookValue(parsed.value, parsed);
-  let leadFetchError: string | null = null;
-
-  if (page?.page_access_token_encrypted) {
-    try {
-      leadPayload = await fetchMetaLeadDetailsWithRetry(
-        parsed.leadgenId,
-        decryptPageToken(page.page_access_token_encrypted),
-        integration,
-      );
-    } catch (error) {
-      leadFetchError =
-        error instanceof Error
-          ? `Não foi possível buscar os dados do lead na Meta: ${error.message}`
-          : "Não foi possível buscar os dados do lead na Meta.";
-    }
-  } else {
-    leadFetchError = "A Página não possui token para consultar os dados do lead na Meta.";
-  }
 
   const eventResult = await queryDb<{ id: string; lead_id: string | null; status: string }>(
     `
