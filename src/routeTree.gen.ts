@@ -57,6 +57,7 @@ import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
 import { Route as ApiGestaoAttendancesRouteImport } from './routes/api/gestao/attendances'
+import { Route as ApiCronMetaLeadsRouteImport } from './routes/api/cron/meta-leads'
 import { Route as ApiCrmTransferRouteImport } from './routes/api/crm/transfer'
 import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
@@ -317,6 +318,11 @@ const ApiGestaoAttendancesRoute = ApiGestaoAttendancesRouteImport.update({
   path: '/api/gestao/attendances',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronMetaLeadsRoute = ApiCronMetaLeadsRouteImport.update({
+  id: '/api/cron/meta-leads',
+  path: '/api/cron/meta-leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrmTransferRoute = ApiCrmTransferRouteImport.update({
   id: '/api/crm/transfer',
   path: '/api/crm/transfer',
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -530,6 +537,7 @@ export interface FileRoutesByTo {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -599,6 +607,7 @@ export interface FileRoutesById {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -669,6 +678,7 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/meta-leads'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -737,6 +747,7 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/meta-leads'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -805,6 +816,7 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/meta-leads'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -872,6 +884,7 @@ export interface RootRouteChildren {
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiCrmTasksRoute: typeof ApiCrmTasksRoute
   ApiCrmTransferRoute: typeof ApiCrmTransferRoute
+  ApiCronMetaLeadsRoute: typeof ApiCronMetaLeadsRoute
   ApiGestaoAttendancesRoute: typeof ApiGestaoAttendancesRoute
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
@@ -1221,6 +1234,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGestaoAttendancesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/meta-leads': {
+      id: '/api/cron/meta-leads'
+      path: '/api/cron/meta-leads'
+      fullPath: '/api/cron/meta-leads'
+      preLoaderRoute: typeof ApiCronMetaLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crm/transfer': {
       id: '/api/crm/transfer'
       path: '/api/crm/transfer'
@@ -1473,6 +1493,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiCrmTasksRoute: ApiCrmTasksRoute,
   ApiCrmTransferRoute: ApiCrmTransferRoute,
+  ApiCronMetaLeadsRoute: ApiCronMetaLeadsRoute,
   ApiGestaoAttendancesRoute: ApiGestaoAttendancesRoute,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
