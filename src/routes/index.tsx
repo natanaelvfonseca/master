@@ -48,7 +48,7 @@ import {
   metricValue,
 } from "@/components/growth/GrowthDashboardPrimitives";
 import { useAuth } from "@/lib/auth";
-import { canViewNetworkGrowth, isDevRole } from "@/lib/auth-types";
+import { canViewNetworkGrowth, isDevRole, isExecutiveRole } from "@/lib/auth-types";
 import type { GrowthMetrics, GrowthResponse } from "@/lib/growth-types";
 import { useGrowthData } from "@/lib/use-growth-data";
 import { cn } from "@/lib/utils";
@@ -106,8 +106,9 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const { session, loading: authLoading } = useAuth();
   const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
-  const isDev = session ? isDevRole(session.user.role) : false;
-  const scopeValue = isDev
+  const usesActiveUnit =
+    session ? isDevRole(session.user.role) || isExecutiveRole(session.user.role) : false;
+  const scopeValue = usesActiveUnit
     ? (session?.activeUnit?.id ?? "")
     : canViewNetwork
       ? "all"
