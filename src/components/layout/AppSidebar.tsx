@@ -11,7 +11,6 @@ import {
   LogOut,
   MapPinned,
   Medal,
-  MessagesSquare,
   RadioTower,
   UserRoundCheck,
   UsersRound,
@@ -42,7 +41,6 @@ import {
 import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
-  canAccessSystemFeedback,
   canViewAttendances,
   canViewGrowth,
   canViewManagement,
@@ -62,7 +60,6 @@ type NavigationItem = {
   managementOnly?: boolean;
   metaAdsOnly?: boolean;
   studentViewOnly?: boolean;
-  systemFeedbackOnly?: boolean;
   attendancesOnly?: boolean;
   devOnly?: boolean;
 };
@@ -102,12 +99,6 @@ const groups: Array<NavigationGroup> = [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardPenLine, managementOnly: true },
       { title: "Meta Ads", url: "/meta-ads", icon: RadioTower, metaAdsOnly: true },
       { title: "Importar leads", url: "/crm/importar", icon: FileUp, devOnly: true },
-      {
-        title: "Feedback",
-        url: "/feedback",
-        icon: MessagesSquare,
-        systemFeedbackOnly: true,
-      },
     ],
   },
 ];
@@ -123,7 +114,6 @@ export function AppSidebar() {
   const isActive = (url: string) => (url === "/" ? path === "/" : path.startsWith(url));
   const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
-  const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeAttendances = user ? canViewAttendances(user.role) : false;
   const canSwitchUnit =
@@ -158,8 +148,7 @@ export function AppSidebar() {
         (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
         (group.label !== "Gestão" ||
           canViewManagementArea ||
-          canSeeMetaAds ||
-          canViewSystemFeedback),
+          canSeeMetaAds),
     )
     .map((group) => ({
       ...group,
@@ -168,7 +157,6 @@ export function AppSidebar() {
           (!item.managementOnly || canViewManagementArea) &&
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
-          (!item.systemFeedbackOnly || canViewSystemFeedback) &&
           (!item.attendancesOnly || canSeeAttendances) &&
           (!item.devOnly || user?.role === "DEV"),
       ),
@@ -186,8 +174,7 @@ export function AppSidebar() {
                 item.url === "/bi" ||
                 item.url === "/gestao/cadastro" ||
                 item.url === "/meta-ads" ||
-                item.url === "/treinamentos" ||
-                item.url === "/feedback",
+                item.url === "/treinamentos",
             ),
           }))
           .filter((group) => group.items.length > 0)
@@ -257,37 +244,13 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/80">
         {!collapsed ? (
           <div className="m-2 space-y-2">
-            {canSwitchUnit && session ? (
-              <div className="rounded-xl border border-sidebar-border/80 bg-white/72 p-3 shadow-sm">
-                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-sidebar-foreground/70">
-                  <MapPinned className="h-3.5 w-3.5" />
-                  Trocar unidade
-                </div>
-                <Select
-                  value={activeUnit?.id ?? ""}
-                  onValueChange={(unitId) => void handleUnitChange(unitId)}
-                  disabled={switchingUnit}
-                >
-                  <SelectTrigger className="h-9 w-full border-sidebar-border/80 bg-white text-xs shadow-none">
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {session.units.map((unit) => (
-                      <SelectItem key={unit.id} value={unit.id}>
-                        {unit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-            <Link
-              to="/perfil"
-              title="Editar perfil"
-              onClick={closeMobileSidebar}
-              className="block rounded-xl border border-sidebar-border/80 bg-white/72 p-3 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-            >
-              <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-sidebar-border/80 bg-white/72 p-3 shadow-sm">
+              <Link
+                to="/perfil"
+                title="Editar perfil"
+                onClick={closeMobileSidebar}
+                className="flex items-center gap-3 rounded-lg transition hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
                 <Avatar className="h-9 w-9 border border-sidebar-border">
                   <AvatarImage
                     src={user?.avatarUrl ?? undefined}
@@ -306,32 +269,21 @@ export function AppSidebar() {
                     {user ? ROLE_LABELS[user.role] : "Master CRM"}
                   </div>
                 </div>
-              </div>
-              {activeUnit ? (
-                <div className="mt-2 truncate rounded-md border border-sidebar-border/70 bg-sidebar-accent/45 px-2 py-1 text-xs text-sidebar-foreground/75">
-                  {activeUnit.name}
-                </div>
-              ) : null}
-            </Link>
-            <LogoutMenuItem onLogout={logout} />
-          </div>
-        ) : (
-          <div className="m-2 space-y-2">
-            {canSwitchUnit && session ? (
-              <div className="flex justify-center">
+              </Link>
+              {activeUnit && canSwitchUnit && session ? (
                 <Select
-                  value={activeUnit?.id ?? ""}
+                  value={activeUnit.id}
                   onValueChange={(unitId) => void handleUnitChange(unitId)}
                   disabled={switchingUnit}
                 >
                   <SelectTrigger
                     aria-label="Trocar unidade"
-                    title="Trocar unidade"
-                    className="h-9 w-9 justify-center border-sidebar-border/80 bg-white/72 p-0 shadow-sm [&>svg:last-child]:hidden"
+                    title="Clique para trocar de unidade"
+                    className="mt-2 h-8 w-full border-sidebar-border/70 bg-sidebar-accent/45 px-2 text-xs text-sidebar-foreground/75 shadow-none hover:bg-sidebar-accent/70"
                   >
-                    <MapPinned className="h-4 w-4 text-sidebar-foreground/75" />
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent side="right" align="end">
+                  <SelectContent>
                     {session.units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name}
@@ -339,8 +291,16 @@ export function AppSidebar() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            ) : null}
+              ) : activeUnit ? (
+                <div className="mt-2 truncate rounded-md border border-sidebar-border/70 bg-sidebar-accent/45 px-2 py-1 text-xs text-sidebar-foreground/75">
+                  {activeUnit.name}
+                </div>
+              ) : null}
+            </div>
+            <LogoutMenuItem onLogout={logout} />
+          </div>
+        ) : (
+          <div className="m-2 space-y-2">
             <div className="flex justify-center">
               <Link
                 to="/perfil"
