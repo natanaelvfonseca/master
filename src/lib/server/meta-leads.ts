@@ -1536,38 +1536,49 @@ export async function syncFormsForPage(pageDbId: string) {
   const params = new URLSearchParams({
     access_token: token,
     fields: "id,name,status,created_time",
+    limit: "100",
   });
-  const response = await fetch(
-    `https://graph.facebook.com/${version}/${page.page_id}/leadgen_forms?${params}`,
-  );
-  const data = (await response.json().catch(() => ({}))) as {
-    data?: Array<{ id?: string; name?: string; created_time?: string }>;
-    error?: { message?: string };
-  };
+  let nextUrl: string | null =
+    `https://graph.facebook.com/${version}/${page.page_id}/leadgen_forms?${params}`;
+  let count = 0;
+  let pageCount = 0;
 
-  if (!response.ok) {
-    throw new Error(data.error?.message ?? "Falha ao sincronizar formulários.");
-  }
+  while (nextUrl && pageCount < 50) {
+    const response = await fetch(nextUrl);
+    const data = (await response.json().catch(() => ({}))) as {
+      data?: Array<{ id?: string; name?: string; created_time?: string }>;
+      paging?: { next?: string };
+      error?: { message?: string };
+    };
 
-  for (const form of data.data ?? []) {
-    if (!form.id) {
-      continue;
+    if (!response.ok) {
+      throw new Error(data.error?.message ?? "Falha ao sincronizar formulários.");
     }
 
-    await queryDb(
-      `
-        insert into app_meta_forms (page_id, form_name, meta_form_id, synced_at, status)
-        values ($1, $2, $3, now(), 'inactive')
-        on conflict (page_id, meta_form_id) do update
-        set form_name = excluded.form_name,
-            synced_at = now(),
-            updated_at = now()
-      `,
-      [page.id, form.name ?? form.id, form.id],
-    );
+    for (const form of data.data ?? []) {
+      if (!form.id) {
+        continue;
+      }
+
+      await queryDb(
+        `
+          insert into app_meta_forms (page_id, form_name, meta_form_id, synced_at, status)
+          values ($1, $2, $3, now(), 'inactive')
+          on conflict (page_id, meta_form_id) do update
+          set form_name = excluded.form_name,
+              synced_at = now(),
+              updated_at = now()
+        `,
+        [page.id, form.name ?? form.id, form.id],
+      );
+      count += 1;
+    }
+
+    pageCount += 1;
+    nextUrl = data.paging?.next ?? null;
   }
 
-  return { count: data.data?.length ?? 0 };
+  return { count };
 }
 
 export async function validateMetaPageToken(pageDbId: string) {
