@@ -1,4 +1,6 @@
+import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   ChartNoAxesCombined,
   ClipboardPenLine,
@@ -30,6 +32,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
@@ -41,6 +50,8 @@ import {
   canViewStudents,
   canViewMetaAds,
   getInitials,
+  isDevRole,
+  isExecutiveRole,
   ROLE_LABELS,
 } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
@@ -104,7 +115,8 @@ const groups: Array<NavigationGroup> = [
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const { logout, session } = useAuth();
+  const { logout, session, setActiveUnit } = useAuth();
+  const [switchingUnit, setSwitchingUnit] = React.useState(false);
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
   const user = session?.user;
@@ -115,6 +127,27 @@ export function AppSidebar() {
   const canViewSystemFeedback = user ? canAccessSystemFeedback(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeAttendances = user ? canViewAttendances(user.role) : false;
+  const canSwitchUnit =
+    Boolean(user && (isDevRole(user.role) || isExecutiveRole(user.role))) &&
+    (session?.units.length ?? 0) > 1;
+  const handleUnitChange = async (unitId: string) => {
+    if (!unitId || unitId === activeUnit?.id) {
+      return;
+    }
+
+    setSwitchingUnit(true);
+
+    try {
+      await setActiveUnit(unitId);
+      if (isMobile) {
+        setOpenMobile(false);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao trocar de unidade.");
+    } finally {
+      setSwitchingUnit(false);
+    }
+  };
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -225,6 +258,30 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/80">
         {!collapsed ? (
           <div className="m-2 space-y-2">
+            {canSwitchUnit && session ? (
+              <div className="rounded-xl border border-sidebar-border/80 bg-white/72 p-3 shadow-sm">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-sidebar-foreground/70">
+                  <MapPinned className="h-3.5 w-3.5" />
+                  Trocar unidade
+                </div>
+                <Select
+                  value={activeUnit?.id ?? ""}
+                  onValueChange={(unitId) => void handleUnitChange(unitId)}
+                  disabled={switchingUnit}
+                >
+                  <SelectTrigger className="h-9 w-full border-sidebar-border/80 bg-white text-xs shadow-none">
+                    <SelectValue placeholder="Selecione a unidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {session.units.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <Link
               to="/perfil"
               title="Editar perfil"
@@ -261,6 +318,30 @@ export function AppSidebar() {
           </div>
         ) : (
           <div className="m-2 space-y-2">
+            {canSwitchUnit && session ? (
+              <div className="flex justify-center">
+                <Select
+                  value={activeUnit?.id ?? ""}
+                  onValueChange={(unitId) => void handleUnitChange(unitId)}
+                  disabled={switchingUnit}
+                >
+                  <SelectTrigger
+                    aria-label="Trocar unidade"
+                    title="Trocar unidade"
+                    className="h-9 w-9 justify-center border-sidebar-border/80 bg-white/72 p-0 shadow-sm [&>svg:last-child]:hidden"
+                  >
+                    <MapPinned className="h-4 w-4 text-sidebar-foreground/75" />
+                  </SelectTrigger>
+                  <SelectContent side="right" align="end">
+                    {session.units.map((unit) => (
+                      <SelectItem key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="flex justify-center">
               <Link
                 to="/perfil"

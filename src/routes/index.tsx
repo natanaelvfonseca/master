@@ -32,13 +32,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -56,7 +49,6 @@ import {
 } from "@/components/growth/GrowthDashboardPrimitives";
 import { useAuth } from "@/lib/auth";
 import { canViewNetworkGrowth, isDevRole } from "@/lib/auth-types";
-import type { AuthSession } from "@/lib/auth-types";
 import type { GrowthMetrics, GrowthResponse } from "@/lib/growth-types";
 import { useGrowthData } from "@/lib/use-growth-data";
 import { cn } from "@/lib/utils";
@@ -112,7 +104,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { session, loading: authLoading, setActiveUnit } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
   const isDev = session ? isDevRole(session.user.role) : false;
   const scopeValue = isDev
@@ -126,31 +118,10 @@ function Dashboard() {
   const funnelData = data?.funnel.filter((item) => item.leads > 0) ?? [];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const [switchingUnit, setSwitchingUnit] = React.useState(false);
-
-  async function handleUnitChange(unitId: string) {
-    if (!unitId || unitId === session?.activeUnit?.id) {
-      return;
-    }
-
-    setSwitchingUnit(true);
-
-    try {
-      await setActiveUnit(unitId);
-    } finally {
-      setSwitchingUnit(false);
-    }
-  }
 
   return (
     <div className="space-y-5">
-      <DashboardHero
-        greeting={greeting}
-        name={session?.user.name ?? "Master"}
-        session={session}
-        switchingUnit={switchingUnit}
-        onUnitChange={(unitId) => void handleUnitChange(unitId)}
-      />
+      <DashboardHero greeting={greeting} name={session?.user.name ?? "Master"} />
 
       <DashboardOverview data={data} metrics={metrics} isLoading={isLoading} funnelData={funnelData} />
     </div>
@@ -160,49 +131,19 @@ function Dashboard() {
 function DashboardHero({
   greeting,
   name,
-  session,
-  switchingUnit,
-  onUnitChange,
 }: {
   greeting: string;
   name: string;
-  session: AuthSession | null;
-  switchingUnit: boolean;
-  onUnitChange: (unitId: string) => void;
 }) {
-  const showUnitSwitcher = session ? isDevRole(session.user.role) && session.units.length > 1 : false;
-
   return (
     <section className="px-1 py-2">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-normal text-foreground md:text-3xl">
-            {greeting}, {name}.
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Visão geral da Master Educação Profissional
-          </p>
-        </div>
-        {showUnitSwitcher ? (
-          <div className="w-full md:w-[260px]">
-            <Select
-              value={session.activeUnit?.id ?? ""}
-              onValueChange={onUnitChange}
-              disabled={switchingUnit}
-            >
-              <SelectTrigger className="h-10 w-full border-primary/20 bg-white shadow-sm">
-                <SelectValue placeholder="Trocar unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                {session.units.map((unit) => (
-                  <SelectItem key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-normal text-foreground md:text-3xl">
+          {greeting}, {name}.
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Visão geral da Master Educação Profissional
+        </p>
       </div>
     </section>
   );
