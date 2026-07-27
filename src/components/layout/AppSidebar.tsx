@@ -43,7 +43,6 @@ import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
   canAccessSystemFeedback,
-  canManageUnits,
   canViewAttendances,
   canViewGrowth,
   canViewManagement,
@@ -200,7 +199,7 @@ export function AppSidebar() {
           label: "Administração",
           items: [
             { title: "Usuários", url: "/usuarios", icon: UsersRound },
-            ...(user && canManageUnits(user.role)
+            ...(user && isDevRole(user.role)
               ? [{ title: "Unidades", url: "/unidades", icon: MapPinned }]
               : []),
           ],
