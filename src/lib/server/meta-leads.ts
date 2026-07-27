@@ -2528,19 +2528,6 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
     [parsed.pageId],
   );
   const page = pageResult.rows[0] ?? null;
-  const configuredFormResult = await queryDb<{ configured: boolean }>(
-    `
-      select exists (
-        select 1
-        from app_meta_forms f
-        where f.page_id = $1
-          and f.meta_form_id = $2
-          and f.status = 'active'
-      ) as configured
-    `,
-    [page?.id ?? null, parsed.formId],
-  );
-  const configuredForm = configuredFormResult.rows[0]?.configured === true;
   let leadPayload = leadPayloadFromWebhookValue(parsed.value, parsed);
   let leadFetchError: string | null = null;
   let fetchedFromGraph = false;
@@ -2565,10 +2552,10 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
 
   // A troca do aplicativo da Meta também troca o segredo usado na assinatura.
   // Durante essa rotação, aceite apenas leads que a própria Graph API confirmar
-  // para uma Página e um formulário ativos já cadastrados no CRM.
+  // para uma Página ativa do CRM. Formulários ainda sem unidade ficam armazenados
+  // como pending_configuration, sem perder o evento nem encaminhá-lo incorretamente.
   const graphVerified =
     fetchedFromGraph &&
-    configuredForm &&
     leadPayload?.id === parsed.leadgenId &&
     (!leadPayload.form_id || String(leadPayload.form_id) === parsed.formId);
 
