@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 type TargetField = "ignore" | "fullName" | "phone" | "phone2" | "campaignName" | "formId" | "observations";
 type Consultant = { id: string; name: string; email: string };
-type Course = { id: string; name: string; value: string; cities: Array<string> };
+type Course = { id: string; name: string; value: string };
+type Turma = { id: string; course_id: string; name: string; class_date: string };
 type ParsedCsv = { headers: Array<string>; rows: Array<Array<string>> };
 
 const fieldLabels: Record<TargetField, string> = {
@@ -91,8 +92,9 @@ function LeadImporter() {
   const [mapping, setMapping] = React.useState<Array<TargetField>>([]);
   const [consultants, setConsultants] = React.useState<Array<Consultant>>([]);
   const [courses, setCourses] = React.useState<Array<Course>>([]);
+  const [turmas, setTurmas] = React.useState<Array<Turma>>([]);
   const [courseId, setCourseId] = React.useState("");
-  const [city, setCity] = React.useState("");
+  const [turmaId, setTurmaId] = React.useState("");
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
   const [skipDuplicates, setSkipDuplicates] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
@@ -103,8 +105,8 @@ function LeadImporter() {
     if (!unitId || session?.user.role !== "DEV") { setLoading(false); return; }
     setLoading(true);
     fetch(`/api/crm/import?unitId=${encodeURIComponent(unitId)}`)
-      .then((response) => readJson<{ consultants: Array<Consultant>; courses: Array<Course> }>(response))
-      .then((data) => { setConsultants(data.consultants); setCourses(data.courses); })
+      .then((response) => readJson<{ consultants: Array<Consultant>; courses: Array<Course>; turmas: Array<Turma> }>(response))
+      .then((data) => { setConsultants(data.consultants); setCourses(data.courses); setTurmas(data.turmas); })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Falha ao carregar consultores."))
       .finally(() => setLoading(false));
   }, [session?.user.role, unitId]);
@@ -136,13 +138,13 @@ function LeadImporter() {
     if (!mapping.includes("fullName") || !mapping.includes("phone")) { toast.error("Mapeie ao menos Nome e Telefone principal."); return; }
     if (!selected.size) { toast.error("Selecione ao menos um consultor."); return; }
     if (!courseId) { toast.error("Selecione o curso dos leads."); return; }
-    if (!city.trim()) { toast.error("Informe a cidade dos leads."); return; }
+    if (!turmaId) { toast.error("Selecione a turma dos leads."); return; }
     setImporting(true);
     try {
       const data = await readJson<{ imported: number; updated: number; duplicates: number }>(await fetch("/api/crm/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unitId, rows: mappedRows(), consultantIds: Array.from(selected), courseId, city: city.trim(), skipDuplicates }),
+        body: JSON.stringify({ unitId, rows: mappedRows(), consultantIds: Array.from(selected), courseId, turmaId, skipDuplicates }),
       }));
       setResult(data);
       toast.success(`${data.imported} importado(s) e ${data.updated} atualizado(s).`);
@@ -173,9 +175,9 @@ function LeadImporter() {
           {parsed.headers.map((header, index) => <div key={`${header}-${index}`} className="space-y-2"><Label>{header || `Coluna ${index + 1}`}</Label><Select value={mapping[index]} onValueChange={(value) => setMapping((current) => current.map((item, itemIndex) => itemIndex === index ? value as TargetField : item))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(fieldLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select><p className="truncate text-xs text-muted-foreground">Exemplo: {parsed.rows[0]?.[index] || "—"}</p></div>)}
         </CardContent></Card>
 
-        <Card><CardHeader><CardTitle>Curso e cidade</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2"><Label>Curso dos leads</Label><Select value={courseId} onValueChange={(value) => { setCourseId(value); const selectedCourse = courses.find((course) => course.id === value); setCity(selectedCourse?.cities.length === 1 ? selectedCourse.cities[0] : ""); }}><SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger><SelectContent>{courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label htmlFor="import-city">Cidade dos leads</Label><Input id="import-city" list="import-course-cities" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Ex.: Juiz de Fora" /><datalist id="import-course-cities">{(courses.find((course) => course.id === courseId)?.cities ?? []).map((item) => <option key={item} value={item} />)}</datalist></div>
+        <Card><CardHeader><CardTitle>Curso e turma</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2"><Label>Curso dos leads</Label><Select value={courseId} onValueChange={(value) => { setCourseId(value); setTurmaId(""); }}><SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger><SelectContent>{courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-2"><Label>Turma dos leads</Label><Select value={turmaId} onValueChange={setTurmaId}><SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger><SelectContent>{turmas.filter((turma) => turma.course_id === courseId).map((turma) => <SelectItem key={turma.id} value={turma.id}>{turma.name} · {new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${turma.class_date}T12:00:00Z`))}</SelectItem>)}</SelectContent></Select></div>
         </CardContent></Card>
 
         <Card><CardHeader><CardTitle>Direcionamento</CardTitle></CardHeader><CardContent className="space-y-4">
@@ -186,7 +188,7 @@ function LeadImporter() {
 
         <Card><CardHeader><CardTitle>Pré-visualização</CardTitle></CardHeader><CardContent className="space-y-4"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Telefone</TableHead><TableHead>WhatsApp</TableHead><TableHead>Campanha</TableHead><TableHead>Formulário</TableHead></TableRow></TableHeader><TableBody>{mappedRows().slice(0, 8).map((row, index) => <TableRow key={index}><TableCell>{row.fullName || "—"}</TableCell><TableCell>{row.phone || "—"}</TableCell><TableCell>{row.phone2 || "—"}</TableCell><TableCell className="max-w-64 truncate">{row.campaignName || "—"}</TableCell><TableCell>{row.formId || "—"}</TableCell></TableRow>)}</TableBody></Table></div>
           {result ? <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="h-5 w-5" />{result.imported} importados; {result.updated} já importados atualizados; {result.duplicates} duplicados ignorados.</div> : null}
-          <Button onClick={() => void importLeads()} disabled={importing || !selected.size || !courseId || !city.trim()}>{importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{importing ? "Importando..." : `Importar ${parsed.rows.length} leads`}</Button>
+          <Button onClick={() => void importLeads()} disabled={importing || !selected.size || !courseId || !turmaId}>{importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{importing ? "Importando..." : `Importar ${parsed.rows.length} leads`}</Button>
         </CardContent></Card>
       </> : null}
     </div>

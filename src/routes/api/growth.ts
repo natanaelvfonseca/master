@@ -541,11 +541,26 @@ export const Route = createFileRoute("/api/growth")({
           ),
           queryDb<CityRow>(
             `
-              select nullif(city, '') as city,
+              select coalesce(
+                       (
+                         select turma.city || ' - ' || turma.state
+                         from app_course_attendances turma
+                         where turma.id = app_leads.turma_id
+                       ),
+                       nullif(city, '')
+                     ) as city,
                      count(*) as leads,
                      count(*) filter (where stage = 'Matriculado') as enrollments
               from app_leads
-              where ${scopedWhere} and nullif(city, '') is not null
+              where ${scopedWhere}
+                and coalesce(
+                  (
+                    select turma.city
+                    from app_course_attendances turma
+                    where turma.id = app_leads.turma_id
+                  ),
+                  nullif(city, '')
+                ) is not null
               group by 1
               order by count(*) desc, city asc
               limit 10

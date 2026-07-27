@@ -19,6 +19,21 @@ export type AcquisitionChannelRecord = {
   createdAt: string;
 };
 
+export type TurmaRecord = {
+  id: string;
+  unitId: string;
+  unitName: string;
+  courseId: string;
+  courseName: string;
+  city: string;
+  state: string;
+  name: string;
+  classDate: string;
+  status: CommercialStatus;
+  consultantIds: Array<string>;
+  consultantNames: Array<string>;
+};
+
 export type LeadStage =
   | "Leads Novos"
   | "Em Atendimento"
@@ -43,6 +58,9 @@ export type LeadRecord = {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turmaId: string | null;
+  turmaName: string | null;
+  turmaDate: string | null;
   courseId: string | null;
   courseName: string | null;
   courseValue: number | null;

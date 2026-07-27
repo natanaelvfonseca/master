@@ -27,7 +27,7 @@ type LeadsResponse = {
 type StudentFilters = {
   courseId: string;
   channelId: string;
-  city: string;
+  turmaId: string;
   unitId: string;
 };
 
@@ -44,7 +44,7 @@ function emptyStudentFilters(): StudentFilters {
   return {
     courseId: FILTER_ALL,
     channelId: FILTER_ALL,
-    city: FILTER_ALL,
+    turmaId: FILTER_ALL,
     unitId: FILTER_ALL,
   };
 }
@@ -137,9 +137,17 @@ function LeadsList() {
     ),
     ([id, name]) => ({ id, name }),
   ).sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
-  const cityOptions = Array.from(
-    new Set(leads.map((lead) => lead.city).filter(Boolean) as Array<string>),
-  ).sort((first, second) => first.localeCompare(second, "pt-BR"));
+  const turmaOptions = Array.from(
+    new Map(
+      leads
+        .filter((lead) => lead.turmaId && lead.turmaName)
+        .map((lead) => [
+          lead.turmaId as string,
+          { name: lead.turmaName as string, date: lead.turmaDate },
+        ]),
+    ),
+    ([id, turma]) => ({ id, ...turma }),
+  ).sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
   const unitOptions = Array.from(
     new Map(leads.map((lead) => [lead.unitId, lead.unitName])),
     ([id, name]) => ({ id, name }),
@@ -147,7 +155,7 @@ function LeadsList() {
   const activeFilterCount = [
     filters.courseId,
     filters.channelId,
-    filters.city,
+    filters.turmaId,
     filters.unitId,
   ].filter((value) => value !== FILTER_ALL).length;
 
@@ -157,7 +165,7 @@ function LeadsList() {
       lead.phone,
       lead.phone2,
       lead.email,
-      lead.city,
+      lead.turmaName,
       lead.courseName,
       lead.acquisitionChannelName,
       lead.unitName,
@@ -171,7 +179,7 @@ function LeadsList() {
       searchText.includes(search.trim().toLowerCase()) &&
       (filters.courseId === FILTER_ALL || lead.courseId === filters.courseId) &&
       (filters.channelId === FILTER_ALL || lead.acquisitionChannelId === filters.channelId) &&
-      (filters.city === FILTER_ALL || lead.city === filters.city) &&
+      (filters.turmaId === FILTER_ALL || lead.turmaId === filters.turmaId) &&
       (filters.unitId === FILTER_ALL || lead.unitId === filters.unitId)
     );
   });
@@ -250,7 +258,7 @@ function LeadsList() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por aluno, telefone, curso, cidade ou origem..."
+                placeholder="Buscar por aluno, telefone, curso, turma ou origem..."
                 className="pl-9"
               />
             </div>
@@ -323,19 +331,26 @@ function LeadsList() {
               </div>
 
               <div className="space-y-2">
-                <Label>Cidade</Label>
+                <Label>Turma</Label>
                 <Select
-                  value={filters.city}
-                  onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
+                  value={filters.turmaId}
+                  onValueChange={(value) =>
+                    setFilters((current) => ({ ...current, turmaId: value }))
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Todas as cidades" />
+                    <SelectValue placeholder="Todas as turmas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
-                    {cityOptions.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
+                    <SelectItem value={FILTER_ALL}>Todas as turmas</SelectItem>
+                    {turmaOptions.map((turma) => (
+                      <SelectItem key={turma.id} value={turma.id}>
+                        {turma.name}
+                        {turma.date
+                          ? ` · ${new Intl.DateTimeFormat("pt-BR", {
+                              timeZone: "UTC",
+                            }).format(new Date(`${turma.date}T12:00:00Z`))}`
+                          : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -431,7 +446,7 @@ function LeadsList() {
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                             <div>{lead.courseName ?? "Curso não informado"}</div>
-                            <div>{lead.city ?? "Cidade não informada"}</div>
+                            <div>{lead.turmaName ?? "Turma não informada"}</div>
                             <div>{lead.unitName}</div>
                           </div>
                           <Select

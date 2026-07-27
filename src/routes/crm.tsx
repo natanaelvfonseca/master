@@ -11,7 +11,6 @@ import {
   KanbanSquare,
   Loader2,
   Mail,
-  MapPin,
   Phone,
   Plus,
   Search,
@@ -26,6 +25,7 @@ import type {
   CourseRecord,
   LeadRecord,
   LeadStage,
+  TurmaRecord,
 } from "@/lib/commercial-types";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { useAuth } from "@/lib/auth";
@@ -60,7 +60,7 @@ type LeadFormState = {
   phone: string;
   phone2: string;
   email: string;
-  city: string;
+  turmaId: string;
   courseId: string;
   acquisitionChannelId: string;
   unitId: string;
@@ -86,6 +86,10 @@ type CoursesResponse = {
 
 type ChannelsResponse = {
   channels: Array<AcquisitionChannelRecord>;
+};
+
+type TurmasResponse = {
+  attendances: Array<TurmaRecord>;
 };
 
 type TasksResponse = {
@@ -174,7 +178,7 @@ type PipelineFilters = {
   courseId: string;
   channelId: string;
   ownerId: string;
-  city: string;
+  turmaId: string;
 };
 
 function emptyPipelineFilters(): PipelineFilters {
@@ -182,7 +186,7 @@ function emptyPipelineFilters(): PipelineFilters {
     courseId: FILTER_ALL,
     channelId: FILTER_ALL,
     ownerId: FILTER_ALL,
-    city: FILTER_ALL,
+    turmaId: FILTER_ALL,
   };
 }
 
@@ -198,7 +202,7 @@ function leadMatchesSearch(lead: LeadRecord, search: string) {
     lead.phone,
     lead.phone2,
     lead.email,
-    lead.city,
+    lead.turmaName,
     lead.courseName,
     lead.acquisitionChannelName,
     lead.createdByName,
@@ -225,7 +229,7 @@ function emptyLeadForm(unitId = ""): LeadFormState {
     phone: "",
     phone2: "",
     email: "",
-    city: "",
+    turmaId: "",
     courseId: "",
     acquisitionChannelId: "",
     unitId,
@@ -248,7 +252,7 @@ function leadFormFromLead(lead: LeadRecord): LeadFormState {
     phone: lead.phone,
     phone2: lead.phone2 ?? "",
     email: lead.email ?? "",
-    city: lead.city ?? "",
+    turmaId: lead.turmaId ?? "",
     courseId: lead.courseId ?? "",
     acquisitionChannelId: lead.acquisitionChannelId ?? "",
     unitId: lead.unitId,
@@ -353,6 +357,7 @@ function CRMPipeline() {
   const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [courses, setCourses] = React.useState<Array<CourseRecord>>([]);
   const [channels, setChannels] = React.useState<Array<AcquisitionChannelRecord>>([]);
+  const [turmas, setTurmas] = React.useState<Array<TurmaRecord>>([]);
   const [leadDialogOpen, setLeadDialogOpen] = React.useState(false);
   const [leadDialogMode, setLeadDialogMode] = React.useState<LeadDialogMode>("create");
   const [editingLead, setEditingLead] = React.useState<LeadRecord | null>(null);
@@ -404,7 +409,7 @@ function CRMPipeline() {
     filters.courseId,
     filters.channelId,
     filters.ownerId,
-    filters.city,
+    filters.turmaId,
   ].filter((value) => value !== FILTER_ALL).length;
   const ownerOptions = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -419,13 +424,23 @@ function CRMPipeline() {
       first.name.localeCompare(second.name, "pt-BR"),
     );
   }, [leads]);
-  const cityOptions = React.useMemo(
-    () =>
-      Array.from(new Set(leads.map((lead) => lead.city).filter(Boolean) as Array<string>)).sort(
-        (first, second) => first.localeCompare(second, "pt-BR"),
-      ),
-    [leads],
-  );
+  const turmaOptions = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string; date: string | null }>();
+
+    leads.forEach((lead) => {
+      if (lead.turmaId && lead.turmaName) {
+        map.set(lead.turmaId, {
+          id: lead.turmaId,
+          name: lead.turmaName,
+          date: lead.turmaDate,
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((first, second) =>
+      first.name.localeCompare(second.name, "pt-BR"),
+    );
+  }, [leads]);
   const filteredLeads = React.useMemo(
     () =>
       leads.filter(
@@ -434,7 +449,7 @@ function CRMPipeline() {
           (filters.courseId === FILTER_ALL || lead.courseId === filters.courseId) &&
           (filters.channelId === FILTER_ALL || lead.acquisitionChannelId === filters.channelId) &&
           (filters.ownerId === FILTER_ALL || lead.createdById === filters.ownerId) &&
-          (filters.city === FILTER_ALL || lead.city === filters.city),
+          (filters.turmaId === FILTER_ALL || lead.turmaId === filters.turmaId),
       ),
     [filters, leads, search],
   );
@@ -478,13 +493,14 @@ function CRMPipeline() {
     if (!unitId) {
       setCourses([]);
       setChannels([]);
+      setTurmas([]);
       return;
     }
 
     setLoadingOptions(true);
 
     try {
-      const [coursesData, channelsData] = await Promise.all([
+      const [coursesData, channelsData, turmasData] = await Promise.all([
         readJson<CoursesResponse>(
           await fetch(`/api/gestao/courses${unitQuery(unitId)}`, {
             credentials: "same-origin",
@@ -497,10 +513,17 @@ function CRMPipeline() {
             headers: { Accept: "application/json" },
           }),
         ),
+        readJson<TurmasResponse>(
+          await fetch(`/api/gestao/attendances${unitQuery(unitId)}`, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          }),
+        ),
       ]);
 
       setCourses(coursesData.courses.filter((course) => course.status === "active"));
       setChannels(channelsData.channels.filter((channel) => channel.status === "active"));
+      setTurmas(turmasData.attendances);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao carregar opções do lead.");
     } finally {
@@ -708,6 +731,7 @@ function CRMPipeline() {
 
         const course = courses.find((item) => item.id === (payload.courseId || ""));
         const channel = channels.find((item) => item.id === (payload.acquisitionChannelId || ""));
+        const turma = turmas.find((item) => item.id === (payload.turmaId || ""));
 
         setLeads((current) =>
           current.map((item) =>
@@ -718,7 +742,10 @@ function CRMPipeline() {
                   phone: payload.phone,
                   phone2: payload.phone2 || null,
                   email: payload.email || null,
-                  city: payload.city || null,
+                  city: turma?.name ?? null,
+                  turmaId: payload.turmaId || null,
+                  turmaName: turma?.name ?? null,
+                  turmaDate: turma?.classDate ?? null,
                   courseId: payload.courseId || null,
                   courseName: course?.name ?? null,
                   courseValue: course?.value ?? null,
@@ -1247,19 +1274,24 @@ function CRMPipeline() {
           </div>
 
           <div className="space-y-2">
-            <Label>Cidade</Label>
+            <Label>Turma</Label>
             <Select
-              value={filters.city}
-              onValueChange={(value) => setFilters((current) => ({ ...current, city: value }))}
+              value={filters.turmaId}
+              onValueChange={(value) => setFilters((current) => ({ ...current, turmaId: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Todas as cidades" />
+                <SelectValue placeholder="Todas as turmas" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={FILTER_ALL}>Todas as cidades</SelectItem>
-                {cityOptions.map((city) => (
-                  <SelectItem key={city} value={city}>
-                    {city}
+                <SelectItem value={FILTER_ALL}>Todas as turmas</SelectItem>
+                {turmaOptions.map((turma) => (
+                  <SelectItem key={turma.id} value={turma.id}>
+                    {turma.name}
+                    {turma.date
+                      ? ` · ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+                          new Date(`${turma.date}T12:00:00Z`),
+                        )}`
+                      : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1378,6 +1410,11 @@ function CRMPipeline() {
         form={form}
         courses={courses}
         channels={channels}
+        turmas={turmas.filter(
+          (turma) =>
+            (turma.status === "active" || turma.id === form.turmaId) &&
+            (!form.courseId || turma.courseId === form.courseId),
+        )}
         units={session?.units ?? []}
         selectedCourse={selectedCourse}
         loadingOptions={loadingOptions}
@@ -1537,10 +1574,17 @@ function LeadPipelineCard({
               <span className="truncate">{lead.email}</span>
             </div>
           ) : null}
-          {lead.city ? (
+          {lead.turmaName ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
-              <MapPin className="h-3.5 w-3.5 text-primary" />
-              <span className="truncate">Cidade: {lead.city}</span>
+              <CalendarClock className="h-3.5 w-3.5 text-primary" />
+              <span className="truncate">
+                Turma: {lead.turmaName}
+                {lead.turmaDate
+                  ? ` · ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+                      new Date(`${lead.turmaDate}T12:00:00Z`),
+                    )}`
+                  : ""}
+              </span>
             </div>
           ) : null}
           {canViewLeadAge ? (
@@ -1820,6 +1864,7 @@ function CreateLeadDialog({
   form,
   courses,
   channels,
+  turmas,
   units,
   selectedCourse,
   loadingOptions,
@@ -1847,6 +1892,7 @@ function CreateLeadDialog({
   form: LeadFormState;
   courses: Array<CourseRecord>;
   channels: Array<AcquisitionChannelRecord>;
+  turmas: Array<TurmaRecord>;
   units: Array<{ id: string; name: string; slug: string }>;
   selectedCourse: CourseRecord | null;
   loadingOptions: boolean;
@@ -1982,15 +2028,36 @@ function CreateLeadDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lead-city">Cidade</Label>
-              <Input
-                id="lead-city"
-                value={form.city}
-                onChange={(event) =>
-                  onFormChange((current) => ({ ...current, city: event.target.value }))
+              <Label>Turma</Label>
+              <Select
+                value={form.turmaId || NO_SELECTION}
+                onValueChange={(value) =>
+                  onFormChange((current) => {
+                    const turma = turmas.find((item) => item.id === value);
+
+                    return {
+                      ...current,
+                      turmaId: value === NO_SELECTION ? "" : value,
+                      courseId: turma?.courseId ?? current.courseId,
+                    };
+                  })
                 }
-                placeholder="Cidade do lead"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingOptions ? "Carregando..." : "Selecione"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SELECTION}>Selecione a turma</SelectItem>
+                  {turmas.map((turma) => (
+                    <SelectItem key={turma.id} value={turma.id}>
+                      {turma.name} ·{" "}
+                      {new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+                        new Date(`${turma.classDate}T12:00:00Z`),
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -2001,6 +2068,7 @@ function CreateLeadDialog({
                   onFormChange((current) => ({
                     ...current,
                     courseId: value === NO_SELECTION ? "" : value,
+                    turmaId: "",
                   }))
                 }
               >

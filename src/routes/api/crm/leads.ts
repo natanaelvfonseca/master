@@ -9,7 +9,7 @@ import {
 } from "@/lib/server/commercial-schema";
 import { canOperateCrm, canViewAllUnitLeads, canViewStudents } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
-import { ensureCourseAttendanceSchema, normalizeRoutingText } from "@/lib/server/course-attendances";
+import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
 import { queryDb } from "@/lib/server/db";
 
 type LeadRow = QueryResultRow & {
@@ -21,6 +21,9 @@ type LeadRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turma_id: string | null;
+  turma_name: string | null;
+  turma_date: string | null;
   course_id: string | null;
   course_name_snapshot: string | null;
   course_value_snapshot: string | null;
@@ -47,20 +50,12 @@ type ChannelSnapshotRow = QueryResultRow & {
   name: string;
 };
 
-type AttendanceCityRow = QueryResultRow & {
-  city: string;
-};
-
-type MetaLeadCampaignRow = QueryResultRow & {
+type TurmaSnapshotRow = QueryResultRow & {
   id: string;
-  city: string | null;
-  campaign_name: string;
-};
-
-type AttendanceMatchRow = QueryResultRow & {
-  course_name: string;
+  course_id: string;
   city: string;
   state: string;
+  class_date: string;
 };
 
 function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
@@ -73,6 +68,9 @@ function mapLead(row: LeadRow, exposeAcquisitionChannel: boolean): LeadRecord {
     phone2: row.phone2,
     email: row.email,
     city: row.city,
+    turmaId: row.turma_id,
+    turmaName: row.turma_name,
+    turmaDate: row.turma_date,
     courseId: row.course_id,
     courseName: row.course_name_snapshot,
     courseValue: row.course_value_snapshot ? Number(row.course_value_snapshot) : null,
@@ -96,6 +94,7 @@ function parseLeadPayload(body: unknown) {
     phone2?: unknown;
     email?: unknown;
     city?: unknown;
+    turmaId?: unknown;
     courseId?: unknown;
     acquisitionChannelId?: unknown;
     unitId?: unknown;
@@ -108,6 +107,7 @@ function parseLeadPayload(body: unknown) {
     phone2: typeof data?.phone2 === "string" ? data.phone2.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
     city: typeof data?.city === "string" ? data.city.trim() : "",
+    turmaId: typeof data?.turmaId === "string" ? data.turmaId.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
     acquisitionChannelId:
       typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
@@ -177,140 +177,33 @@ async function getChannelSnapshot(channelId: string, unitId: string) {
   return { channel };
 }
 
-async function getCourseCity(courseId: string, unitId: string) {
-  if (!courseId || !isUuid(courseId)) {
-    return null;
+async function getTurmaSnapshot(turmaId: string, unitId: string, courseId: string) {
+  if (!turmaId || !isUuid(turmaId)) {
+    return { error: "Selecione uma turma ativa.", status: 400 };
   }
 
-  const result = await queryDb<AttendanceCityRow>(
+  const result = await queryDb<TurmaSnapshotRow>(
     `
-      select city
+      select id, course_id, city, state, class_date::text
       from app_course_attendances
-      where unit_id = $1
-        and course_id = $2
+      where id = $1
+        and unit_id = $2
         and status = 'active'
-        and not exists (
-          select 1
-          from app_course_attendances other
-          where other.unit_id = app_course_attendances.unit_id
-            and other.course_id = app_course_attendances.course_id
-            and other.status = 'active'
-            and other.id <> app_course_attendances.id
-        )
-      order by created_at asc
       limit 1
     `,
-    [unitId, courseId],
+    [turmaId, unitId],
   );
+  const turma = result.rows[0];
 
-  return result.rows[0]?.city ?? null;
-}
-
-function campaignMatchesAttendance(campaignName: string, attendance: AttendanceMatchRow) {
-  const normalizedCampaign = ` ${normalizeRoutingText(campaignName)} `;
-  const normalizedCourse = ` ${normalizeRoutingText(attendance.course_name)} `;
-  const normalizedCity = ` ${normalizeRoutingText(attendance.city)} `;
-  const normalizedState = ` ${normalizeRoutingText(attendance.state)} `;
-
-  return (
-    normalizedCampaign.includes(normalizedCourse) &&
-    normalizedCampaign.includes(normalizedCity) &&
-    normalizedCampaign.includes(normalizedState)
-  );
-}
-
-async function fillMetaLeadCitiesFromCampaigns(unitId: string) {
-  const [leadsResult, attendancesResult] = await Promise.all([
-    queryDb<MetaLeadCampaignRow>(
-      `
-        select
-          l.id,
-          l.city,
-          e.campaign_name
-        from app_leads l
-        inner join app_meta_lead_events e on e.lead_id = l.id
-        where l.unit_id = $1
-          and e.campaign_name is not null
-      `,
-      [unitId],
-    ),
-    queryDb<AttendanceMatchRow>(
-      `
-        select
-          c.name as course_name,
-          a.city,
-          a.state
-        from app_course_attendances a
-        inner join app_courses c on c.id = a.course_id
-        where a.status = 'active'
-          and c.status = 'active'
-      `,
-    ),
-  ]);
-
-  for (const lead of leadsResult.rows) {
-    const matches = attendancesResult.rows.filter((attendance) =>
-      campaignMatchesAttendance(lead.campaign_name, attendance),
-    );
-    const matchedCity = matches.length === 1 ? matches[0].city : null;
-
-    if (matchedCity && matchedCity !== lead.city) {
-      await queryDb(
-        `
-          update app_leads
-          set city = $2,
-              updated_at = now()
-          where id = $1
-        `,
-        [lead.id, matchedCity],
-      );
-    }
+  if (!turma) {
+    return { error: "Turma não encontrada ou inativa.", status: 404 };
   }
-}
 
-async function fillLeadCitiesFromAttendances(unitId: string) {
-  await queryDb(
-    `
-      update app_leads l
-      set
-        city = (
-          select a.city
-        from app_course_attendances a
-        where a.unit_id = l.unit_id
-          and a.course_id = l.course_id
-          and a.status = 'active'
-          and not exists (
-            select 1
-            from app_course_attendances other
-            where other.unit_id = a.unit_id
-              and other.course_id = a.course_id
-              and other.status = 'active'
-              and other.id <> a.id
-          )
-        order by a.created_at asc
-        limit 1
-        ),
-        updated_at = now()
-      where l.unit_id = $1
-        and nullif(l.city, '') is null
-        and exists (
-          select 1
-          from app_course_attendances a
-          where a.unit_id = l.unit_id
-            and a.course_id = l.course_id
-            and a.status = 'active'
-            and not exists (
-              select 1
-              from app_course_attendances other
-              where other.unit_id = a.unit_id
-                and other.course_id = a.course_id
-                and other.status = 'active'
-                and other.id <> a.id
-            )
-        )
-    `,
-    [unitId],
-  );
+  if (courseId && turma.course_id !== courseId) {
+    return { error: "A turma não pertence ao curso selecionado.", status: 400 };
+  }
+
+  return { turma };
 }
 
 export const Route = createFileRoute("/api/crm/leads")({
@@ -331,8 +224,6 @@ export const Route = createFileRoute("/api/crm/leads")({
 
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
-        await fillMetaLeadCitiesFromCampaigns(unit.id);
-        await fillLeadCitiesFromAttendances(unit.id);
 
         const listView = getLeadListView(request);
         if (listView === "students" && !canViewStudents(session.user.role)) {
@@ -351,15 +242,13 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.phone,
               l.phone2,
               l.email,
-              coalesce(l.city, (
-                select a.city
-                from app_course_attendances a
-                where a.unit_id = l.unit_id
-                  and a.course_id = l.course_id
-                  and a.status = 'active'
-                order by a.created_at asc
-                limit 1
-              )) as city,
+              l.city,
+              l.turma_id,
+              case
+                when turma.id is not null then turma.city || ' - ' || turma.state
+                else null
+              end as turma_name,
+              turma.class_date::text as turma_date,
               l.course_id,
               l.course_name_snapshot,
               l.course_value_snapshot::text,
@@ -376,6 +265,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             from app_leads l
             inner join app_units un on un.id = l.unit_id
             left join app_users owner on owner.id = l.created_by
+            left join app_course_attendances turma on turma.id = l.turma_id
             left join app_lead_import_rows import_info on import_info.lead_id = l.id
             left join lateral (
               select e.campaign_name, e.form_id
@@ -432,15 +322,6 @@ export const Route = createFileRoute("/api/crm/leads")({
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
 
-        const courseResult = await getCourseSnapshot(payload.courseId, unit.id);
-
-        if (courseResult.error) {
-          return Response.json(
-            { ok: false, error: courseResult.error },
-            { status: courseResult.status },
-          );
-        }
-
         const channelResult = await getChannelSnapshot(payload.acquisitionChannelId, unit.id);
 
         if (channelResult.error) {
@@ -450,10 +331,32 @@ export const Route = createFileRoute("/api/crm/leads")({
           );
         }
 
-        const course = courseResult.course;
         const channel = channelResult.channel;
-        const resolvedCity =
-          (await getCourseCity(course?.id ?? payload.courseId, unit.id)) ?? payload.city;
+        const turmaResult = await getTurmaSnapshot(
+          payload.turmaId,
+          unit.id,
+          payload.courseId,
+        );
+
+        if ("error" in turmaResult) {
+          return Response.json(
+            { ok: false, error: turmaResult.error },
+            { status: turmaResult.status },
+          );
+        }
+
+        const turma = turmaResult.turma;
+        const courseResult = await getCourseSnapshot(turma.course_id, unit.id);
+
+        if (courseResult.error || !courseResult.course) {
+          return Response.json(
+            { ok: false, error: courseResult.error ?? "Curso da turma não encontrado." },
+            { status: courseResult.status ?? 404 },
+          );
+        }
+
+        const course = courseResult.course;
+        const turmaName = `${turma.city} - ${turma.state}`;
         const result = await queryDb<LeadRow>(
           `
             insert into app_leads (
@@ -463,6 +366,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               phone2,
               email,
               city,
+              turma_id,
               course_id,
               course_name_snapshot,
               course_value_snapshot,
@@ -471,7 +375,7 @@ export const Route = createFileRoute("/api/crm/leads")({
               observations,
               created_by
             )
-            values ($1, $2, $3, nullif($4, ''), nullif($5, ''), nullif($6, ''), $7, $8, $9, $10, $11, nullif($12, ''), $13)
+            values ($1, $2, $3, nullif($4, ''), nullif($5, ''), $6, $7, $8, $9, $10, $11, $12, nullif($13, ''), $14)
             returning
               id,
               unit_id,
@@ -481,13 +385,16 @@ export const Route = createFileRoute("/api/crm/leads")({
               phone2,
               email,
               city,
+              turma_id,
+              $16::text as turma_name,
+              $17::text as turma_date,
               course_id,
               course_name_snapshot,
               course_value_snapshot::text,
               acquisition_channel_id,
               acquisition_channel_name_snapshot,
               created_by,
-              $14::text as created_by_name,
+              $15::text as created_by_name,
               observations,
               null::text as campaign_name,
               null::text as form_id,
@@ -500,7 +407,8 @@ export const Route = createFileRoute("/api/crm/leads")({
             payload.phone,
             payload.phone2,
             payload.email,
-            resolvedCity,
+            turmaName,
+            turma.id,
             course?.id ?? null,
             course?.name ?? null,
             course ? Number(course.value) : null,
@@ -509,6 +417,8 @@ export const Route = createFileRoute("/api/crm/leads")({
             payload.observations,
             session.user.id,
             session.user.name,
+            turmaName,
+            turma.class_date,
           ],
         );
 

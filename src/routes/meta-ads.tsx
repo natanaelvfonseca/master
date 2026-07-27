@@ -23,7 +23,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +93,7 @@ type MetaForm = {
   attendance_id: string | null;
   attendance_city: string | null;
   attendance_state: string | null;
+  attendance_class_date: string | null;
   attendance_consultant_ids: Array<string>;
   funnel_name: string | null;
   initial_stage: string;
@@ -135,6 +135,8 @@ type OptionRow = {
   name: string;
   status?: string;
   role?: string;
+  courseId?: string;
+  classDate?: string;
 };
 
 type MetaState = {
@@ -153,6 +155,7 @@ type MetaState = {
     courses: Array<OptionRow>;
     channels: Array<OptionRow>;
     consultants: Array<OptionRow>;
+    attendances: Array<OptionRow>;
   };
 };
 
@@ -179,9 +182,6 @@ type FormConfig = {
   unitId: string;
   courseId: string;
   attendanceId: string;
-  attendanceCity: string;
-  attendanceState: string;
-  attendanceConsultantIds: Array<string>;
   funnelName: string;
   initialStage: string;
   acquisitionChannelId: string;
@@ -267,9 +267,6 @@ function emptyFormConfig(pageDbId = ""): FormConfig {
     unitId: "",
     courseId: "",
     attendanceId: "",
-    attendanceCity: "",
-    attendanceState: "",
-    attendanceConsultantIds: [],
     funnelName: "Captação",
     initialStage: "Leads Novos",
     acquisitionChannelId: "",
@@ -408,9 +405,6 @@ function MetaAdsPage() {
         unitId: form.unit_id ?? "",
         courseId: form.course_id ?? "",
         attendanceId: form.attendance_id ?? "",
-        attendanceCity: form.attendance_city ?? "",
-        attendanceState: form.attendance_state ?? "",
-        attendanceConsultantIds: form.attendance_consultant_ids ?? [],
         funnelName: form.funnel_name ?? "",
         initialStage: form.initial_stage,
         acquisitionChannelId: form.acquisition_channel_id ?? "",
@@ -454,25 +448,6 @@ function MetaAdsPage() {
       return;
     }
 
-    const hasAttendanceConfiguration = Boolean(
-      formConfig.attendanceId ||
-        formConfig.attendanceCity.trim() ||
-        formConfig.attendanceState.trim() ||
-        formConfig.attendanceConsultantIds.length,
-    );
-
-    if (
-      hasAttendanceConfiguration &&
-      (!formConfig.unitId ||
-        !formConfig.courseId ||
-        formConfig.attendanceCity.trim().length < 2 ||
-        !/^[A-Za-z]{2}$/.test(formConfig.attendanceState.trim()) ||
-        !formConfig.attendanceConsultantIds.length)
-    ) {
-      toast.error("Informe unidade, curso, cidade, UF e ao menos um consultor.");
-      return;
-    }
-
     void postAction({ action: "saveForm", ...formConfig }, "Formulário configurado.");
     setFormDialogOpen(false);
   }
@@ -496,9 +471,12 @@ function MetaAdsPage() {
     state?.options.courses.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitChannels =
     state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
-  const unitConsultants =
-    state?.options.consultants.filter(
-      (item) => item.unitId === formConfig.unitId && item.status === "active",
+  const unitAttendances =
+    state?.options.attendances.filter(
+      (item) =>
+        item.unitId === formConfig.unitId &&
+        item.courseId === formConfig.courseId &&
+        item.status === "active",
     ) ?? [];
   return (
     <div className="space-y-6">
@@ -963,7 +941,7 @@ function MetaAdsPage() {
         units={state?.options.units ?? []}
         courses={unitCourses}
         channels={unitChannels}
-        consultants={unitConsultants}
+        attendances={unitAttendances}
         saving={saving}
         onOpenChange={setFormDialogOpen}
         onFormChange={setFormConfig}
@@ -1197,7 +1175,7 @@ function EventTable({
               {event.routing_source ? (
                 <div className="mt-1 text-xs font-medium text-muted-foreground">
                   {event.routing_source === "campaign_matrix"
-                    ? "Curso + cidade"
+                    ? "Curso + turma"
                     : "Padrão do formulário"}
                 </div>
               ) : null}
@@ -1334,7 +1312,7 @@ function FormDialog({
   units,
   courses,
   channels,
-  consultants,
+  attendances,
   saving,
   onOpenChange,
   onFormChange,
@@ -1346,7 +1324,7 @@ function FormDialog({
   units: Array<OptionRow>;
   courses: Array<OptionRow>;
   channels: Array<OptionRow>;
-  consultants: Array<OptionRow>;
+  attendances: Array<OptionRow>;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onFormChange: React.Dispatch<React.SetStateAction<FormConfig>>;
@@ -1410,9 +1388,6 @@ function FormDialog({
                     courseId: "",
                     acquisitionChannelId: "",
                     attendanceId: "",
-                    attendanceCity: "",
-                    attendanceState: "",
-                    attendanceConsultantIds: [],
                   }))
                 }
               >
@@ -1455,84 +1430,43 @@ function FormDialog({
             </Field>
             <div className="space-y-4 rounded-lg border border-primary/15 bg-muted/20 p-4 md:col-span-2">
               <div>
-                <h3 className="font-semibold">Atendimento por curso e cidade</h3>
+                <h3 className="font-semibold">Turma do formulário</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  A campanha deve conter o curso e a cidade no padrão [Curso] [Cidade-UF].
-                  Os leads serão distribuídos em rodízio entre os consultores selecionados.
+                  A campanha continua no padrão [Curso] [Cidade-UF]. A turma define a data
+                  e os consultores que receberão os leads.
                 </p>
               </div>
-              <div className="grid gap-4 md:grid-cols-[1fr_120px]">
-                <Field label="Cidade">
-                  <Input
-                    value={form.attendanceCity}
-                    onChange={(event) =>
-                      onFormChange((current) => ({
-                        ...current,
-                        attendanceCity: event.target.value,
-                      }))
-                    }
-                    placeholder="Ex.: Belo Horizonte"
-                  />
-                </Field>
-                <Field label="UF">
-                  <Input
-                    value={form.attendanceState}
-                    maxLength={2}
-                    onChange={(event) =>
-                      onFormChange((current) => ({
-                        ...current,
-                        attendanceState: event.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="MG"
-                  />
-                </Field>
-              </div>
-              <div className="space-y-2">
-                <Label>Responsáveis pelo atendimento</Label>
-                {!form.unitId ? (
-                  <p className="text-sm text-muted-foreground">
-                    Selecione uma unidade para visualizar os consultores.
-                  </p>
-                ) : consultants.length ? (
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {consultants.map((consultant) => {
-                      const checked = form.attendanceConsultantIds.includes(consultant.id);
-
-                      return (
-                        <label
-                          key={`${consultant.id}-${consultant.unitId}`}
-                          className="flex cursor-pointer items-center gap-3 rounded-md border bg-background p-3 text-sm"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(nextChecked) =>
-                              onFormChange((current) => ({
-                                ...current,
-                                attendanceConsultantIds: nextChecked
-                                  ? Array.from(
-                                      new Set([
-                                        ...current.attendanceConsultantIds,
-                                        consultant.id,
-                                      ]),
-                                    )
-                                  : current.attendanceConsultantIds.filter(
-                                      (id) => id !== consultant.id,
-                                    ),
-                              }))
-                            }
-                          />
-                          <span>{consultant.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum consultor, gerente ou diretor ativo nesta unidade.
-                  </p>
-                )}
-              </div>
+              <Field label="Turma de fallback (opcional)">
+                <Select
+                  value={form.attendanceId || NO_SELECTION}
+                  onValueChange={(value) =>
+                    onFormChange((current) => ({
+                      ...current,
+                      attendanceId: value === NO_SELECTION ? "" : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a turma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_SELECTION}>Identificar pelo nome da campanha</SelectItem>
+                    {attendances.map((attendance) => (
+                      <SelectItem key={attendance.id} value={attendance.id}>
+                        {attendance.name}
+                        {attendance.classDate
+                          ? ` · ${new Intl.DateTimeFormat("pt-BR", {
+                              timeZone: "UTC",
+                            }).format(new Date(`${attendance.classDate}T12:00:00Z`))}`
+                          : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Cadastre datas e responsáveis em Gestão → Cadastro → Turmas.
+                </p>
+              </Field>
             </div>
             <Field label="Canal de aquisição">
               <Select

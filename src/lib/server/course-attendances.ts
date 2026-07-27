@@ -12,6 +12,8 @@ export type CourseAttendanceRecord = {
   courseName: string;
   city: string;
   state: string;
+  name: string;
+  classDate: string;
   status: CourseAttendanceStatus;
   consultantIds: Array<string>;
   consultantNames: Array<string>;
@@ -26,6 +28,7 @@ type AttendanceRow = QueryResultRow & {
   course_name: string;
   city: string;
   state: string;
+  class_date: string;
   status: CourseAttendanceStatus;
   consultant_ids: Array<string> | null;
   consultant_names: Array<string> | null;
@@ -68,12 +71,50 @@ export async function ensureCourseAttendanceSchema() {
       city text not null,
       city_normalized text not null,
       state text not null,
+      class_date date not null default date '2026-10-20',
       round_robin_cursor integer not null default 0 check (round_robin_cursor >= 0),
       status text not null default 'active' check (status in ('active', 'inactive')),
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now(),
       unique (unit_id, course_id, city_normalized, state)
     );
+
+    alter table app_course_attendances
+      add column if not exists class_date date;
+    update app_course_attendances
+      set class_date = date '2026-10-20'
+      where class_date is null;
+    alter table app_course_attendances
+      alter column class_date set default date '2026-10-20',
+      alter column class_date set not null;
+    do $$
+    declare
+      legacy_constraint text;
+    begin
+      select conname
+      into legacy_constraint
+      from pg_constraint
+      where conrelid = 'app_course_attendances'::regclass
+        and contype = 'u'
+        and pg_get_constraintdef(oid) =
+          'UNIQUE (unit_id, course_id, city_normalized, state)'
+      limit 1;
+
+      if legacy_constraint is not null then
+        execute format(
+          'alter table app_course_attendances drop constraint %I',
+          legacy_constraint
+        );
+      end if;
+    end
+    $$;
+    create unique index if not exists app_course_attendances_identity_idx
+      on app_course_attendances (unit_id, course_id, city_normalized, state, class_date);
+    create unique index if not exists app_course_attendances_active_route_idx
+      on app_course_attendances (unit_id, course_id, city_normalized, state)
+      where status = 'active';
+    create index if not exists app_course_attendances_date_idx
+      on app_course_attendances (unit_id, status, class_date);
 
     create index if not exists app_course_attendances_unit_idx
       on app_course_attendances (unit_id, status);
@@ -87,6 +128,11 @@ export async function ensureCourseAttendanceSchema() {
 
     create index if not exists app_course_attendance_consultants_user_idx
       on app_course_attendance_consultants (user_id);
+
+    alter table app_leads
+      add column if not exists turma_id uuid references app_course_attendances(id) on delete set null;
+    create index if not exists app_leads_turma_idx
+      on app_leads (unit_id, turma_id);
   `)
     .then(() => undefined)
     .catch((error) => {
@@ -106,6 +152,8 @@ function mapAttendance(row: AttendanceRow): CourseAttendanceRecord {
     courseName: row.course_name,
     city: row.city,
     state: row.state,
+    name: `${row.city} - ${row.state}`,
+    classDate: row.class_date,
     status: row.status,
     consultantIds: row.consultant_ids ?? [],
     consultantNames: row.consultant_names ?? [],
@@ -127,6 +175,7 @@ export async function listCourseAttendances(unitId: string) {
           c.name as course_name,
           a.city,
           a.state,
+          a.class_date::text,
           a.status,
           a.round_robin_cursor,
           coalesce(
@@ -146,7 +195,7 @@ export async function listCourseAttendances(unitId: string) {
         left join app_users consultant on consultant.id = ac.user_id
         where a.unit_id = $1
         group by a.id, u.id, c.id
-        order by c.name asc, a.state asc, a.city asc
+        order by a.status asc, a.class_date asc, c.name asc, a.state asc, a.city asc
       `,
       [unitId],
     ),
@@ -182,6 +231,7 @@ type AttendanceInput = {
   courseId?: unknown;
   city?: unknown;
   state?: unknown;
+  classDate?: unknown;
   status?: unknown;
   consultantIds?: unknown;
 };
@@ -192,6 +242,7 @@ function parseInput(input: AttendanceInput) {
   const courseId = typeof input.courseId === "string" ? input.courseId.trim() : "";
   const city = typeof input.city === "string" ? input.city.trim().replace(/\s+/g, " ") : "";
   const state = typeof input.state === "string" ? input.state.trim().toUpperCase() : "";
+  const classDate = typeof input.classDate === "string" ? input.classDate.trim() : "";
   const consultantIds = Array.isArray(input.consultantIds)
     ? Array.from(
         new Set(
@@ -206,8 +257,15 @@ function parseInput(input: AttendanceInput) {
     throw new Error("Atendimento inválido.");
   }
 
-  if (!isUuid(unitId) || !isUuid(courseId) || city.length < 2 || !/^[A-Z]{2}$/.test(state)) {
-    throw new Error("Informe curso, cidade e UF válidos.");
+  if (
+    !isUuid(unitId) ||
+    !isUuid(courseId) ||
+    city.length < 2 ||
+    !/^[A-Z]{2}$/.test(state) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(classDate) ||
+    Number.isNaN(Date.parse(`${classDate}T12:00:00Z`))
+  ) {
+    throw new Error("Informe curso, turma, UF e data válidos.");
   }
 
   if (!consultantIds.length) {
@@ -221,6 +279,7 @@ function parseInput(input: AttendanceInput) {
     city,
     cityNormalized: normalizeRoutingText(city),
     state,
+    classDate,
     status: input.status === "inactive" ? ("inactive" as const) : ("active" as const),
     consultantIds,
   };
@@ -271,9 +330,10 @@ export async function saveCourseAttendance(input: AttendanceInput) {
                 city = $3,
                 city_normalized = $4,
                 state = $5,
-                status = $6,
+                class_date = $6::date,
+                status = $7,
                 updated_at = now()
-            where id = $1 and unit_id = $7
+            where id = $1 and unit_id = $8
             returning id
           `,
           [
@@ -282,6 +342,7 @@ export async function saveCourseAttendance(input: AttendanceInput) {
             data.city,
             data.cityNormalized,
             data.state,
+            data.classDate,
             data.status,
             data.unitId,
           ],
@@ -289,9 +350,9 @@ export async function saveCourseAttendance(input: AttendanceInput) {
       : await client.query<{ id: string }>(
           `
             insert into app_course_attendances (
-              unit_id, course_id, city, city_normalized, state, status
+              unit_id, course_id, city, city_normalized, state, class_date, status
             )
-            values ($1, $2, $3, $4, $5, $6)
+            values ($1, $2, $3, $4, $5, $6::date, $7)
             returning id
           `,
           [
@@ -300,6 +361,7 @@ export async function saveCourseAttendance(input: AttendanceInput) {
             data.city,
             data.cityNormalized,
             data.state,
+            data.classDate,
             data.status,
           ],
         );
@@ -398,6 +460,7 @@ function findRegisteredCampaignMatches<
 export async function findCampaignAttendance(
   client: PoolClient,
   campaignName: string | null,
+  unitId: string | null = null,
 ) {
   if (!campaignName) {
     return { attendance: null, error: "Campanha sem nome." } as const;
@@ -419,6 +482,7 @@ export async function findCampaignAttendance(
     inner join app_courses c on c.id = a.course_id
     where a.status = 'active'
       and c.status = 'active'
+      and ($1::uuid is null or a.unit_id = $1)
   `;
 
   let matches: Array<CampaignAttendanceRow> = [];
@@ -427,11 +491,11 @@ export async function findCampaignAttendance(
     const result = await client.query<CampaignAttendanceRow>(
       `
         ${selectAttendanceSql}
-          and a.city_normalized = $1
-          and a.state = $2
+          and a.city_normalized = $2
+          and a.state = $3
         for update of a
       `,
-      [parsed.normalizedCity, parsed.state],
+      [unitId, parsed.normalizedCity, parsed.state],
     );
     matches = result.rows.filter(
       (row) => normalizeRoutingText(row.course_name) === parsed.normalizedCourse,
@@ -444,6 +508,7 @@ export async function findCampaignAttendance(
         ${selectAttendanceSql}
         for update of a
       `,
+      [unitId],
     );
     matches = findRegisteredCampaignMatches(campaignName, registeredResult.rows);
   }

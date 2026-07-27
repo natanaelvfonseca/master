@@ -59,6 +59,7 @@ type TransferLead = {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turmaName: string | null;
   courseName: string | null;
   acquisitionChannelName: string | null;
   stage: LeadStage;
@@ -131,7 +132,7 @@ function leadMatchesSearch(lead: TransferLead, search: string) {
     lead.phone,
     lead.phone2,
     lead.email,
-    lead.city,
+    lead.turmaName,
     lead.courseName,
     lead.acquisitionChannelName,
     lead.campaignName,
@@ -527,7 +528,7 @@ function LeadTransferCenter() {
                             <div className="font-semibold text-foreground">{lead.fullName}</div>
                             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                               <span>{lead.phone}</span>
-                              {lead.city ? <span>{lead.city}</span> : null}
+                              {lead.turmaName ? <span>Turma: {lead.turmaName}</span> : null}
                             </div>
                           </TableCell>
                           <TableCell>

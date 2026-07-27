@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { canViewManagement, isExecutiveRole, isMasterRole } from "@/lib/auth-types";
 import {
-  deleteCourseAttendance,
   listCourseAttendances,
   saveCourseAttendance,
 } from "@/lib/server/course-attendances";
@@ -14,10 +13,10 @@ function attendanceError(error: unknown) {
     "code" in error &&
     error.code === "23505"
   ) {
-    return "Já existe um atendimento para este curso, cidade e UF.";
+    return "Já existe uma turma ativa para este curso e local.";
   }
 
-  return error instanceof Error ? error.message : "Falha ao salvar atendimento.";
+  return error instanceof Error ? error.message : "Falha ao salvar turma.";
 }
 
 async function authorize(request: Request, requestedUnitId: string) {
@@ -100,23 +99,14 @@ export const Route = createFileRoute("/api/gestao/attendances")({
         }
       },
       DELETE: async ({ request }) => {
-        const body = await request.json().catch(() => null);
-        const requestedUnitId = typeof body?.unitId === "string" ? body.unitId : "";
-        const auth = await authorize(request, requestedUnitId);
-
-        if ("response" in auth) {
-          return auth.response;
-        }
-
-        try {
-          await deleteCourseAttendance(String(body?.id ?? ""), auth.unitId);
-          return Response.json({ ok: true });
-        } catch (error) {
-          return Response.json(
-            { ok: false, error: error instanceof Error ? error.message : "Falha ao excluir atendimento." },
-            { status: 400 },
-          );
-        }
+        await request.text().catch(() => "");
+        return Response.json(
+          {
+            ok: false,
+            error: "Turmas preservam o histórico dos relatórios. Marque a turma como inativa.",
+          },
+          { status: 405 },
+        );
       },
     },
   },

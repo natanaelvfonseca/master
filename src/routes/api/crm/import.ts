@@ -8,7 +8,13 @@ import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
 type ConsultantRow = QueryResultRow & { id: string; name: string; email: string };
-type CourseRow = QueryResultRow & { id: string; name: string; value: string; cities: Array<string> };
+type CourseRow = QueryResultRow & { id: string; name: string; value: string };
+type TurmaRow = QueryResultRow & {
+  id: string;
+  course_id: string;
+  name: string;
+  class_date: string;
+};
 type ImportRow = {
   fullName: string;
   phone: string;
@@ -76,14 +82,30 @@ async function listCourses(unitId: string) {
     select
       c.id,
       c.name,
-      c.value::text,
-      coalesce(array_agg(distinct a.city order by a.city) filter (where a.status = 'active'), '{}') as cities
+      c.value::text
     from app_courses c
-    left join app_course_attendances a on a.course_id = c.id and a.unit_id = c.unit_id
     where c.unit_id = $1 and c.status = 'active'
-    group by c.id, c.name, c.value
     order by c.name
   `, [unitId]);
+  return result.rows;
+}
+
+async function listTurmas(unitId: string) {
+  const result = await queryDb<TurmaRow>(
+    `
+      select
+        id,
+        course_id,
+        city || ' - ' || state as name,
+        class_date::text
+      from app_course_attendances
+      where unit_id = $1
+        and status = 'active'
+      order by class_date, city, state
+    `,
+    [unitId],
+  );
+
   return result.rows;
 }
 
@@ -99,8 +121,12 @@ export const Route = createFileRoute("/api/crm/import")({
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
         await ensureLeadImportSchema();
-        const [consultants, courses] = await Promise.all([listConsultants(unit.id), listCourses(unit.id)]);
-        return Response.json({ consultants, courses }, { headers: { "Cache-Control": "no-store" } });
+        const [consultants, courses, turmas] = await Promise.all([
+          listConsultants(unit.id),
+          listCourses(unit.id),
+          listTurmas(unit.id),
+        ]);
+        return Response.json({ consultants, courses, turmas }, { headers: { "Cache-Control": "no-store" } });
       },
       POST: async ({ request }) => {
         const session = await getSessionFromRequest(request);
@@ -116,12 +142,12 @@ export const Route = createFileRoute("/api/crm/import")({
           : [];
         const skipDuplicates = body?.skipDuplicates !== false;
         const courseId = typeof body?.courseId === "string" ? body.courseId.trim() : "";
-        const city = clean(body?.city, 200);
+        const turmaId = typeof body?.turmaId === "string" ? body.turmaId.trim() : "";
 
         if (!rows.length) return Response.json({ error: "Nenhuma linha para importar." }, { status: 400 });
         if (!consultantIds.length) return Response.json({ error: "Selecione ao menos um consultor." }, { status: 400 });
         if (!isUuid(courseId)) return Response.json({ error: "Selecione um curso válido." }, { status: 400 });
-        if (!city) return Response.json({ error: "Informe a cidade dos leads." }, { status: 400 });
+        if (!isUuid(turmaId)) return Response.json({ error: "Selecione a turma dos leads." }, { status: 400 });
         const invalidRows = rows.filter((row) => !row.fullName || !normalizePhone(row.phone));
         if (invalidRows.length) return Response.json({ error: `${invalidRows.length} linha(s) sem nome ou telefone válido.` }, { status: 400 });
 
@@ -136,6 +162,20 @@ export const Route = createFileRoute("/api/crm/import")({
         `, [courseId, unit.id]);
         const course = courseResult.rows[0];
         if (!course) return Response.json({ error: "Curso não encontrado na unidade ativa." }, { status: 400 });
+        const turmaResult = await queryDb<{ id: string; name: string }>(
+          `
+            select id, city || ' - ' || state as name
+            from app_course_attendances
+            where id = $1
+              and unit_id = $2
+              and course_id = $3
+              and status = 'active'
+            limit 1
+          `,
+          [turmaId, unit.id, course.id],
+        );
+        const turma = turmaResult.rows[0];
+        if (!turma) return Response.json({ error: "Turma inválida para o curso selecionado." }, { status: 400 });
         const availableIds = new Set(available.map((item) => item.id));
         if (consultantIds.some((id) => !availableIds.has(id))) {
           return Response.json({ error: "Há consultores inválidos ou fora da unidade." }, { status: 400 });
@@ -162,12 +202,13 @@ export const Route = createFileRoute("/api/crm/import")({
                   await client.query(`
                     update app_leads
                     set city = $2,
-                        course_id = $3,
-                        course_name_snapshot = $4,
-                        course_value_snapshot = $5,
+                        turma_id = $3,
+                        course_id = $4,
+                        course_name_snapshot = $5,
+                        course_value_snapshot = $6,
                         updated_at = now()
                     where id = $1
-                  `, [existing.rows[0].id, city, course.id, course.name, Number(course.value)]);
+                  `, [existing.rows[0].id, turma.name, turma.id, course.id, course.name, Number(course.value)]);
                   updated += 1;
                 } else {
                   duplicates += 1;
@@ -178,12 +219,12 @@ export const Route = createFileRoute("/api/crm/import")({
             const consultantId = consultantIds.length === 1 ? consultantIds[0] : consultantIds[randomInt(consultantIds.length)];
             const lead = await client.query<{ id: string }>(`
               insert into app_leads (
-                unit_id, full_name, phone, phone2, city, course_id, course_name_snapshot,
+                unit_id, full_name, phone, phone2, city, turma_id, course_id, course_name_snapshot,
                 course_value_snapshot, observations, stage, created_by
               )
-              values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, nullif($9, ''), 'Leads Novos', $10)
+              values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, $9, nullif($10, ''), 'Leads Novos', $11)
               returning id
-            `, [unit.id, row.fullName, phone, phone2, city, course.id, course.name, Number(course.value), row.observations, consultantId]);
+            `, [unit.id, row.fullName, phone, phone2, turma.name, turma.id, course.id, course.name, Number(course.value), row.observations, consultantId]);
             await client.query(`
               insert into app_lead_import_rows (lead_id, campaign_name, form_id, whatsapp_number, imported_by)
               values ($1, nullif($2, ''), nullif($3, ''), nullif($4, ''), $5)

@@ -28,6 +28,7 @@ type TransferLeadRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turma_name: string | null;
   course_name_snapshot: string | null;
   acquisition_channel_name_snapshot: string | null;
   stage: LeadStage;
@@ -75,6 +76,7 @@ function mapTransferLead(row: TransferLeadRow) {
     phone2: row.phone2,
     email: row.email,
     city: row.city,
+    turmaName: row.turma_name,
     courseName: row.course_name_snapshot,
     acquisitionChannelName: row.acquisition_channel_name_snapshot,
     stage: row.stage,
@@ -137,6 +139,10 @@ async function listTransferLeads(unitId: string, immediateTransfer: boolean, inc
         l.phone2,
         l.email,
         l.city,
+        case
+          when turma.id is not null then turma.city || ' - ' || turma.state
+          else null
+        end as turma_name,
         l.course_name_snapshot,
         l.acquisition_channel_name_snapshot,
         l.stage,
@@ -149,6 +155,7 @@ async function listTransferLeads(unitId: string, immediateTransfer: boolean, inc
         ($2::boolean or l.created_at <= now() - interval '48 hours') as transferable
       from app_leads l
       left join app_users owner on owner.id = l.created_by
+      left join app_course_attendances turma on turma.id = l.turma_id
       ${metaJoin}
       where l.unit_id = $1
         and l.stage <> 'Matriculado'

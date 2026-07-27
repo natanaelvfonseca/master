@@ -203,7 +203,7 @@ function Branding() {
                 <GrowthDataBar key={city.city} label={city.city} value={city.leads} max={Math.max(...data.cities.map((item) => item.leads), 1)} detail={`${city.enrollments} matrículas · ${formatPercent(city.conversionRate)}`} accent="success" />
               ))}
             </div>
-          ) : <GrowthEmptyPanel icon={Target} title="Sem praças identificadas" description="A análise regional depende da cidade roteada para o lead." />}
+          ) : <GrowthEmptyPanel icon={Target} title="Sem turmas identificadas" description="A análise depende da turma roteada para o lead." />}
         </ChartCard>
       </div>
     </div>

@@ -8,7 +8,6 @@ import {
   findCampaignAttendance,
   normalizeRoutingText,
   parseCampaignRoute,
-  saveCourseAttendance,
 } from "@/lib/server/course-attendances";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
@@ -86,6 +85,7 @@ type MetaFormRow = QueryResultRow & {
   attendance_id: string | null;
   attendance_city: string | null;
   attendance_state: string | null;
+  attendance_class_date: string | null;
   attendance_consultant_ids: Array<string> | null;
   funnel_name: string | null;
   initial_stage: LeadStage;
@@ -141,6 +141,16 @@ type ConsultantCandidateRow = QueryResultRow & {
   id: string;
   name: string;
   open_leads: string;
+};
+
+type ActiveAttendanceRow = QueryResultRow & {
+  id: string;
+  unit_id: string;
+  course_id: string;
+  course_name: string;
+  city: string;
+  state: string;
+  round_robin_cursor: number;
 };
 
 type DefaultMarketingOwnerRow = QueryResultRow & {
@@ -1076,6 +1086,7 @@ export async function listMetaState() {
           c.name as course_name,
           attendance.city as attendance_city,
           attendance.state as attendance_state,
+          attendance.class_date::text as attendance_class_date,
           coalesce(
             (
               select array_agg(ac.user_id::text order by ac.user_id)
@@ -1171,6 +1182,21 @@ export async function listMetaState() {
               where u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
             ) consultant
           ), '[]'::jsonb) as consultants
+          ,
+          coalesce((
+            select jsonb_agg(
+              jsonb_build_object(
+                'id', turma.id,
+                'unitId', turma.unit_id,
+                'courseId', turma.course_id,
+                'name', turma.city || ' - ' || turma.state,
+                'classDate', turma.class_date,
+                'status', turma.status
+              )
+              order by turma.class_date, turma.city, turma.state
+            )
+            from app_course_attendances turma
+          ), '[]'::jsonb) as attendances
       `,
     ),
     queryDb<
@@ -1305,61 +1331,37 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
   const formName = stringOrNull(input.formName) ?? metaFormId;
   const unitId = stringOrNull(input.unitId);
   const courseId = stringOrNull(input.courseId);
-  let attendanceId = stringOrNull(input.attendanceId);
-  const attendanceCity = stringOrNull(input.attendanceCity);
-  const attendanceState = stringOrNull(input.attendanceState);
-  const attendanceConsultantIds = Array.isArray(input.attendanceConsultantIds)
-    ? input.attendanceConsultantIds
-    : [];
+  const attendanceId = stringOrNull(input.attendanceId);
 
   if (!pageDbId || !isUuid(pageDbId) || !metaFormId || !formName) {
     throw new Error("Formulário inválido.");
   }
 
-  const hasAttendanceConfiguration = Boolean(
-    attendanceId ||
-      attendanceCity ||
-      attendanceState ||
-      attendanceConsultantIds.length,
-  );
   let savedAttendanceId: string | null = null;
 
-  if (hasAttendanceConfiguration) {
+  if (attendanceId) {
     if (!unitId || !courseId) {
-      throw new Error("Selecione a unidade e o curso para configurar o atendimento.");
+      throw new Error("Selecione a unidade e o curso da turma.");
     }
 
-    if (!attendanceId && attendanceCity && attendanceState) {
-      const existingAttendance = await queryDb<{ id: string }>(
-        `
-          select id
-          from app_course_attendances
-          where unit_id = $1
-            and course_id = $2
-            and city_normalized = $3
-            and state = $4
-          limit 1
-        `,
-        [
-          unitId,
-          courseId,
-          normalizeRoutingText(attendanceCity),
-          attendanceState.toUpperCase(),
-        ],
-      );
-      attendanceId = existingAttendance.rows[0]?.id ?? null;
+    const attendanceResult = await queryDb<{ id: string }>(
+      `
+        select id
+        from app_course_attendances
+        where id = $1
+          and unit_id = $2
+          and course_id = $3
+          and status = 'active'
+        limit 1
+      `,
+      [attendanceId, unitId, courseId],
+    );
+
+    if (!attendanceResult.rows[0]) {
+      throw new Error("Turma ativa inválida para a unidade e o curso selecionados.");
     }
 
-    const attendance = await saveCourseAttendance({
-      id: attendanceId,
-      unitId,
-      courseId,
-      city: attendanceCity,
-      state: attendanceState,
-      consultantIds: attendanceConsultantIds,
-      status: input.status,
-    });
-    savedAttendanceId = attendance.id;
+    savedAttendanceId = attendanceResult.rows[0].id;
   }
 
   const fieldMapping =
@@ -1847,6 +1849,35 @@ async function getCourseSnapshot(
   return result.rows[0] ?? null;
 }
 
+async function getActiveAttendanceById(client: PoolClient, attendanceId: string | null) {
+  if (!attendanceId) {
+    return null;
+  }
+
+  const result = await client.query<ActiveAttendanceRow>(
+    `
+      select
+        turma.id,
+        turma.unit_id,
+        turma.course_id,
+        course.name as course_name,
+        turma.city,
+        turma.state,
+        turma.round_robin_cursor
+      from app_course_attendances turma
+      inner join app_courses course on course.id = turma.course_id
+      where turma.id = $1
+        and turma.status = 'active'
+        and course.status = 'active'
+      limit 1
+      for update of turma
+    `,
+    [attendanceId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 async function getCourseByName(client: PoolClient, courseName: string, unitId: string | null) {
   if (!courseName || !unitId) {
     return null;
@@ -2073,26 +2104,35 @@ async function processEventById(eventId: string) {
       return { status: "error", leadId: null };
     }
 
-    const campaignRouting = await findCampaignAttendance(client, event.campaign_name);
-    const attendance = campaignRouting.attendance;
+    const campaignRouting = await findCampaignAttendance(
+      client,
+      event.campaign_name,
+      form.unit_id,
+    );
+    const formAttendance = campaignRouting.attendance
+      ? null
+      : await getActiveAttendanceById(client, form.attendance_id);
+    const attendance = campaignRouting.attendance ?? formAttendance;
     const attendanceAssignment = attendance
       ? await chooseAttendanceConsultant(client, attendance)
       : null;
-    const resolvedAttendance = attendanceAssignment?.userId ? attendance : null;
-    const routingError =
-      attendance && !resolvedAttendance ? attendanceAssignment?.reason : campaignRouting.error;
-    const targetUnitId = resolvedAttendance?.unit_id ?? form.unit_id;
-    const course = resolvedAttendance
-      ? await getCourseSnapshot(client, resolvedAttendance.course_id, resolvedAttendance.unit_id)
+    const routingError = attendance
+      ? attendanceAssignment?.userId
+        ? null
+        : attendanceAssignment?.reason
+      : campaignRouting.error;
+    const targetUnitId = attendance?.unit_id ?? form.unit_id;
+    const course = attendance
+      ? await getCourseSnapshot(client, attendance.course_id, attendance.unit_id)
       : ((await getCourseSnapshot(client, form.course_id, form.unit_id)) ??
         (await getCourseByName(client, mapped.courseName, form.unit_id)));
     const channel =
       (await getChannelSnapshot(client, form.acquisition_channel_id, targetUnitId)) ??
-      (resolvedAttendance
+      (attendance
         ? await getChannelByName(client, form.acquisition_channel_name, targetUnitId)
         : null);
     const assignment =
-      resolvedAttendance && attendanceAssignment
+      attendance && attendanceAssignment
         ? attendanceAssignment
         : await chooseConsultant(client, form);
     const marketingFallback = assignment.userId
@@ -2106,8 +2146,11 @@ async function processEventById(eventId: string) {
             reason: `${assignment.reason} Lead atribuido automaticamente ao Marketing.`,
           }
         : assignment;
-    const routingSource = resolvedAttendance ? "campaign_matrix" : "form_fallback";
-    const leadCity = campaignCityValue(event.campaign_name, attendance?.city ?? null) || mapped.city;
+    const routingSource =
+      attendance && campaignRouting.attendance ? "campaign_matrix" : "form_fallback";
+    const turmaName = attendance
+      ? `${attendance.city} - ${attendance.state}`
+      : campaignCityValue(event.campaign_name, null) || mapped.city;
     const leadFullName = mapped.fullName || `Lead Meta ${event.leadgen_id}`;
     const leadPhone = mapped.phone || "";
     const leadPhone2 = mapped.phone2 || "";
@@ -2120,6 +2163,7 @@ async function processEventById(eventId: string) {
           phone2,
           email,
           city,
+          turma_id,
           course_id,
           course_name_snapshot,
           course_value_snapshot,
@@ -2129,7 +2173,7 @@ async function processEventById(eventId: string) {
           stage,
           created_by
         )
-        values ($1, $2, $3, nullif($4, ''), nullif($5, ''), nullif($6, ''), $7, $8, $9, $10, $11, nullif($12, ''), $13, $14)
+        values ($1, $2, $3, nullif($4, ''), nullif($5, ''), nullif($6, ''), $7, $8, $9, $10, $11, $12, nullif($13, ''), $14, $15)
         returning id
       `,
       [
@@ -2138,7 +2182,8 @@ async function processEventById(eventId: string) {
         leadPhone,
         leadPhone2,
         mapped.email,
-        leadCity,
+        turmaName,
+        attendance?.id ?? null,
         course?.id ?? null,
         course?.name ?? (mapped.courseName || null),
         course ? Number(course.value) : null,
@@ -2148,8 +2193,8 @@ async function processEventById(eventId: string) {
           [
             mapped.observations,
             event.ad_name ? `Anúncio: ${event.ad_name}` : "",
-            resolvedAttendance
-              ? `Roteamento: ${resolvedAttendance.course_name} - ${resolvedAttendance.city}-${resolvedAttendance.state}`
+            attendance
+              ? `Roteamento: ${attendance.course_name} - ${attendance.city}-${attendance.state}`
               : routingError
                 ? `Roteamento padrão: ${routingError}`
                 : "",
@@ -2193,12 +2238,13 @@ async function processEventById(eventId: string) {
           fullName: leadFullName,
           phone: leadPhone,
           phone2: leadPhone2,
-          city: leadCity,
+          city: turmaName,
+          turmaId: attendance?.id ?? null,
         }),
-        resolvedAttendance?.id ?? null,
+        attendance?.id ?? null,
         finalAssignment.userId,
         routingSource,
-        resolvedAttendance ? null : routingError,
+        attendance && attendanceAssignment?.userId ? null : routingError,
       ],
     );
 

@@ -20,6 +20,7 @@ type LeadEditableRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turma_id: string | null;
   course_id: string | null;
   acquisition_channel_id: string | null;
   acquisition_channel_name_snapshot: string | null;
@@ -38,8 +39,11 @@ type ChannelSnapshotRow = QueryResultRow & {
   name: string;
 };
 
-type AttendanceCityRow = QueryResultRow & {
+type TurmaSnapshotRow = QueryResultRow & {
+  id: string;
+  course_id: string;
   city: string;
+  state: string;
 };
 
 const allowedStages: Array<LeadStage> = [
@@ -76,6 +80,7 @@ function parseLeadUpdate(body: unknown) {
     phone2?: unknown;
     email?: unknown;
     city?: unknown;
+    turmaId?: unknown;
     courseId?: unknown;
     acquisitionChannelId?: unknown;
     observations?: unknown;
@@ -88,6 +93,7 @@ function parseLeadUpdate(body: unknown) {
     phone2: typeof data?.phone2 === "string" ? data.phone2.trim() : "",
     email: typeof data?.email === "string" ? data.email.trim() : "",
     city: typeof data?.city === "string" ? data.city.trim() : "",
+    turmaId: typeof data?.turmaId === "string" ? data.turmaId.trim() : "",
     courseId: typeof data?.courseId === "string" ? data.courseId.trim() : "",
     acquisitionChannelId:
       typeof data?.acquisitionChannelId === "string" ? data.acquisitionChannelId.trim() : "",
@@ -152,33 +158,38 @@ async function getChannelSnapshot(channelId: string, unitId: string) {
   return { channel };
 }
 
-async function getCourseCity(courseId: string, unitId: string) {
-  if (!courseId || !isUuid(courseId)) {
-    return null;
+async function getTurmaSnapshot(
+  turmaId: string,
+  unitId: string,
+  courseId: string,
+  allowInactive: boolean,
+) {
+  if (!turmaId || !isUuid(turmaId)) {
+    return { error: "Selecione uma turma ativa.", status: 400 };
   }
 
-  const result = await queryDb<AttendanceCityRow>(
+  const result = await queryDb<TurmaSnapshotRow>(
     `
-      select city
+      select id, course_id, city, state
       from app_course_attendances
-      where unit_id = $1
-        and course_id = $2
-        and status = 'active'
-        and not exists (
-          select 1
-          from app_course_attendances other
-          where other.unit_id = app_course_attendances.unit_id
-            and other.course_id = app_course_attendances.course_id
-            and other.status = 'active'
-            and other.id <> app_course_attendances.id
-        )
-      order by created_at asc
+      where id = $1
+        and unit_id = $2
+        and ($3::boolean or status = 'active')
       limit 1
     `,
-    [unitId, courseId],
+    [turmaId, unitId, allowInactive],
   );
+  const turma = result.rows[0];
 
-  return result.rows[0]?.city ?? null;
+  if (!turma) {
+    return { error: "Turma não encontrada ou inativa.", status: 404 };
+  }
+
+  if (courseId && turma.course_id !== courseId) {
+    return { error: "A turma não pertence ao curso selecionado.", status: 400 };
+  }
+
+  return { turma };
 }
 
 async function recordPaidStudentPayment(leadId: string, userId: string) {
@@ -255,6 +266,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               phone2,
               email,
               city,
+              turma_id,
               course_id,
               acquisition_channel_id,
               acquisition_channel_name_snapshot,
@@ -313,6 +325,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
           payload.phone2 !== "" ||
           payload.email !== "" ||
           payload.city !== "" ||
+          payload.turmaId !== "" ||
           payload.courseId !== "" ||
           payload.acquisitionChannelId !== "" ||
           payload.observations !== "";
@@ -327,15 +340,6 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             : lead.stage;
 
         if (payload.fullName && payload.phone) {
-          const courseResult = await getCourseSnapshot(payload.courseId, lead.unit_id);
-
-          if (courseResult.error) {
-            return Response.json(
-              { ok: false, error: courseResult.error },
-              { status: courseResult.status },
-            );
-          }
-
           const consultantEditingOwnLead = session.user.role === "CONSULTOR";
           const channelResult = consultantEditingOwnLead
             ? { channel: null }
@@ -348,9 +352,31 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             );
           }
 
-          const resolvedCity =
-            (await getCourseCity(courseResult.course?.id ?? payload.courseId, lead.unit_id)) ??
-            payload.city;
+          const turmaResult = await getTurmaSnapshot(
+            payload.turmaId,
+            lead.unit_id,
+            payload.courseId,
+            payload.turmaId === lead.turma_id,
+          );
+
+          if ("error" in turmaResult) {
+            return Response.json(
+              { ok: false, error: turmaResult.error },
+              { status: turmaResult.status },
+            );
+          }
+
+          const turma = turmaResult.turma;
+          const courseResult = await getCourseSnapshot(turma.course_id, lead.unit_id);
+
+          if (courseResult.error || !courseResult.course) {
+            return Response.json(
+              { ok: false, error: courseResult.error ?? "Curso da turma não encontrado." },
+              { status: courseResult.status ?? 404 },
+            );
+          }
+
+          const turmaName = `${turma.city} - ${turma.state}`;
 
           await queryDb(
             `
@@ -360,40 +386,41 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
                 phone = $3,
                 phone2 = nullif($4, ''),
                 email = nullif($5, ''),
-                city = nullif($6, ''),
-                course_id = $7,
-                course_name_snapshot = $8,
-                course_value_snapshot = $9,
-                acquisition_channel_id = $10,
-                acquisition_channel_name_snapshot = $11,
-                observations = nullif($12, ''),
-                stage = $13,
+                city = $6,
+                turma_id = $7,
+                course_id = $8,
+                course_name_snapshot = $9,
+                course_value_snapshot = $10,
+                acquisition_channel_id = $11,
+                acquisition_channel_name_snapshot = $12,
+                observations = nullif($13, ''),
+                stage = $14,
                 first_contact_at = case
-                  when $13 <> 'Leads Novos' then coalesce(first_contact_at, now())
+                  when $14 <> 'Leads Novos' then coalesce(first_contact_at, now())
                   else first_contact_at
                 end,
                 last_follow_up_at = case
-                  when $13 <> stage and $13 <> 'Leads Novos' then now()
+                  when $14 <> stage and $14 <> 'Leads Novos' then now()
                   else last_follow_up_at
                 end,
                 follow_up_count = case
-                  when $13 <> stage and $13 <> 'Leads Novos' then follow_up_count + 1
+                  when $14 <> stage and $14 <> 'Leads Novos' then follow_up_count + 1
                   else follow_up_count
                 end,
                 converted_at = case
-                  when $13 = 'Matriculado' then coalesce(converted_at, now())
+                  when $14 = 'Matriculado' then coalesce(converted_at, now())
                   else converted_at
                 end,
                 converted_by = case
-                  when $13 = 'Matriculado' then coalesce(converted_by, $14)
+                  when $14 = 'Matriculado' then coalesce(converted_by, $15)
                   else converted_by
                 end,
                 payment_status = case
-                  when $13 = 'Matriculado' then 'paid'
+                  when $14 = 'Matriculado' then 'paid'
                   else payment_status
                 end,
                 payment_confirmed_at = case
-                  when $13 = 'Matriculado' then coalesce(payment_confirmed_at, now())
+                  when $14 = 'Matriculado' then coalesce(payment_confirmed_at, now())
                   else payment_confirmed_at
                 end,
                 updated_at = now()
@@ -405,7 +432,8 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               payload.phone,
               payload.phone2,
               payload.email,
-              resolvedCity,
+              turmaName,
+              turma.id,
               courseResult.course?.id ?? null,
               courseResult.course?.name ?? null,
               courseResult.course ? Number(courseResult.course.value) : null,

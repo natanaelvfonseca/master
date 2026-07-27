@@ -180,14 +180,14 @@ function BI() {
           ) : <GrowthEmptyPanel icon={GraduationCap} title="Sem cursos no período" description="Os cursos aparecerão conforme os leads forem roteados." />}
         </ChartCard>
 
-        <ChartCard title="Conversão por cidade">
+        <ChartCard title="Conversão por turma">
           {isLoading ? <GrowthLoading /> : data?.cities.length ? (
             <div className="space-y-4">
               {data.cities.map((city) => (
                 <GrowthDataBar key={city.city} label={city.city} value={city.leads} max={cityMax} detail={`${city.enrollments} matrículas · ${formatPercent(city.conversionRate)}`} accent="success" />
               ))}
             </div>
-          ) : <GrowthEmptyPanel icon={Target} title="Sem cidades no período" description="A análise geográfica depende da cidade registrada no lead." />}
+          ) : <GrowthEmptyPanel icon={Target} title="Sem turmas no período" description="A análise depende da turma registrada no lead." />}
         </ChartCard>
       </div>
 
@@ -310,7 +310,7 @@ function BI() {
                 <GrowthDataBar key={city.city} label={city.city} value={city.leads} max={cityMax} detail={`${city.enrollments} matrículas · ${formatPercent(city.conversionRate)}`} accent="success" />
               ))}
             </div>
-          ) : <GrowthEmptyPanel icon={Target} title="Sem praças identificadas" description="A análise regional depende da cidade roteada para o lead." />}
+          ) : <GrowthEmptyPanel icon={Target} title="Sem turmas identificadas" description="A análise depende da turma roteada para o lead." />}
         </ChartCard>
       </div>
     </div>

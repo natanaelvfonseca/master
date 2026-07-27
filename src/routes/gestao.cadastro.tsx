@@ -2,10 +2,10 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpenCheck,
+  CalendarDays,
   Edit3,
   GraduationCap,
   Lock,
-  MapPin,
   Plus,
   RadioTower,
   Sparkles,
@@ -48,6 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type CourseFormState = {
   name: string;
@@ -64,8 +65,7 @@ type ChannelFormState = {
 
 type DeleteTarget =
   | { kind: "course"; id: string; name: string }
-  | { kind: "channel"; id: string; name: string }
-  | { kind: "attendance"; id: string; name: string };
+  | { kind: "channel"; id: string; name: string };
 
 type CoursesResponse = {
   courses: Array<CourseRecord>;
@@ -83,6 +83,8 @@ type AttendanceRecord = {
   courseName: string;
   city: string;
   state: string;
+  name: string;
+  classDate: string;
   status: CommercialStatus;
   consultantIds: Array<string>;
   consultantNames: Array<string>;
@@ -97,6 +99,7 @@ type AttendanceFormState = {
   courseId: string;
   city: string;
   state: string;
+  classDate: string;
   consultantIds: Array<string>;
   status: CommercialStatus;
 };
@@ -123,11 +126,12 @@ const initialAttendanceForm: AttendanceFormState = {
   courseId: "",
   city: "",
   state: "",
+  classDate: "2026-10-20",
   consultantIds: [],
   status: "active",
 };
 
-const SHOW_LEGACY_ATTENDANCE_CONFIGURATION = false;
+const SHOW_TURMA_CONFIGURATION = true;
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as T & { error?: string };
@@ -163,6 +167,8 @@ function CadastroPage() {
   const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
   const [channelDialogOpen, setChannelDialogOpen] = React.useState(false);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = React.useState(false);
+  const [attendanceStatusTab, setAttendanceStatusTab] =
+    React.useState<CommercialStatus>("active");
   const [editingCourseId, setEditingCourseId] = React.useState<string | null>(null);
   const [editingChannelId, setEditingChannelId] = React.useState<string | null>(null);
   const [editingAttendanceId, setEditingAttendanceId] = React.useState<string | null>(null);
@@ -287,6 +293,7 @@ function CadastroPage() {
       courseId: attendance.courseId,
       city: attendance.city,
       state: attendance.state,
+      classDate: attendance.classDate,
       consultantIds: attendance.consultantIds,
       status: attendance.status,
     });
@@ -413,11 +420,11 @@ function CadastroPage() {
         }),
       );
 
-      toast.success(editingAttendanceId ? "Atendimento atualizado." : "Atendimento criado.");
+      toast.success(editingAttendanceId ? "Turma atualizada." : "Turma criada.");
       setAttendanceDialogOpen(false);
       await loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao salvar atendimento.");
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar turma.");
     } finally {
       setSavingAttendance(false);
     }
@@ -434,31 +441,20 @@ function CadastroPage() {
       const endpoint =
         deleteTarget.kind === "course"
           ? `/api/gestao/courses/${deleteTarget.id}${unitQuery(activeUnitId)}`
-          : deleteTarget.kind === "channel"
-            ? `/api/gestao/channels/${deleteTarget.id}${unitQuery(activeUnitId)}`
-            : "/api/gestao/attendances";
+          : `/api/gestao/channels/${deleteTarget.id}${unitQuery(activeUnitId)}`;
 
       await readJson<{ ok: true }>(
         await fetch(endpoint, {
           method: "DELETE",
           credentials: "same-origin",
-          headers:
-            deleteTarget.kind === "attendance"
-              ? { Accept: "application/json", "Content-Type": "application/json" }
-              : { Accept: "application/json" },
-          body:
-            deleteTarget.kind === "attendance"
-              ? JSON.stringify({ id: deleteTarget.id, unitId: activeUnitId })
-              : undefined,
+          headers: { Accept: "application/json" },
         }),
       );
 
       toast.success(
         deleteTarget.kind === "course"
           ? "Curso excluído."
-          : deleteTarget.kind === "channel"
-            ? "Canal excluído."
-            : "Atendimento excluído.",
+          : "Canal excluído.",
       );
       setDeleteTarget(null);
       await loadData();
@@ -536,7 +532,7 @@ function CadastroPage() {
                   <TableHead className="px-5">Nome</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
+                  <TableHead className="w-[88px] pr-5 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -696,34 +692,52 @@ function CadastroPage() {
         </Card>
       </div>
 
-      {SHOW_LEGACY_ATTENDANCE_CONFIGURATION ? (
+      {SHOW_TURMA_CONFIGURATION ? (
         <Card className="animate-panel-rise overflow-hidden border-primary/10 shadow-card">
           <CardHeader className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-card to-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <MapPin className="h-5 w-5" />
+                  <CalendarDays className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Atendimentos por curso e cidade</CardTitle>
+                  <CardTitle className="text-base">Turmas</CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Defina quem recebe cada combinação identificada no nome das campanhas.
+                    Defina data, curso e responsáveis para cada turma identificada nas campanhas.
                   </p>
                 </div>
               </div>
               <Button onClick={openNewAttendanceDialog} className="bg-gradient-primary">
                 <Plus className="h-4 w-4" />
-                Novo Atendimento
+                Nova Turma
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            <div className="border-b px-5 py-3">
+              <Tabs
+                value={attendanceStatusTab}
+                onValueChange={(value) =>
+                  setAttendanceStatusTab(value as CommercialStatus)
+                }
+              >
+                <TabsList>
+                  <TabsTrigger value="active">
+                    Turmas ativas ({attendances.filter((item) => item.status === "active").length})
+                  </TabsTrigger>
+                  <TabsTrigger value="inactive">
+                    Turmas inativas ({attendances.filter((item) => item.status === "inactive").length})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="px-5">Curso</TableHead>
-                  <TableHead>Praça</TableHead>
-                  <TableHead>Consultores</TableHead>
+                  <TableHead>Turma</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Responsáveis</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[128px] pr-5 text-right">Ações</TableHead>
                 </TableRow>
@@ -731,16 +745,21 @@ function CadastroPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Carregando atendimentos...
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Carregando turmas...
                     </TableCell>
                   </TableRow>
-                ) : attendances.length ? (
-                  attendances.map((attendance) => (
+                ) : attendances.some((item) => item.status === attendanceStatusTab) ? (
+                  attendances
+                    .filter((item) => item.status === attendanceStatusTab)
+                    .map((attendance) => (
                     <TableRow key={attendance.id}>
                       <TableCell className="px-5 font-semibold">{attendance.courseName}</TableCell>
+                      <TableCell>{attendance.name}</TableCell>
                       <TableCell>
-                        {attendance.city}-{attendance.state}
+                        {new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+                          new Date(`${attendance.classDate}T12:00:00Z`),
+                        )}
                       </TableCell>
                       <TableCell className="max-w-md">
                         <div className="flex flex-wrap gap-1">
@@ -761,34 +780,18 @@ function CadastroPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditAttendanceDialog(attendance)}
-                            aria-label={`Editar ${attendance.courseName} em ${attendance.city}`}
+                            aria-label={`Editar turma ${attendance.name}`}
                           >
                             <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() =>
-                              setDeleteTarget({
-                                kind: "attendance",
-                                id: attendance.id,
-                                name: `${attendance.courseName} - ${attendance.city}-${attendance.state}`,
-                              })
-                            }
-                            aria-label={`Excluir atendimento ${attendance.courseName}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                    ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      Nenhuma combinação cadastrada.
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      Nenhuma turma {attendanceStatusTab === "active" ? "ativa" : "inativa"}.
                     </TableCell>
                   </TableRow>
                 )}
@@ -816,7 +819,7 @@ function CadastroPage() {
         onFormChange={setChannelForm}
         onSubmit={handleChannelSubmit}
       />
-      {SHOW_LEGACY_ATTENDANCE_CONFIGURATION ? (
+      {SHOW_TURMA_CONFIGURATION ? (
         <AttendanceDialog
           open={attendanceDialogOpen}
           editing={Boolean(editingAttendanceId)}
@@ -1108,9 +1111,9 @@ function AttendanceDialog({
       <DialogContent className="border-primary/20 bg-card shadow-elegant sm:max-w-2xl">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle>{editing ? "Editar atendimento" : "Novo atendimento"}</DialogTitle>
+            <DialogTitle>{editing ? "Editar turma" : "Nova turma"}</DialogTitle>
             <DialogDescription>
-              O nome da campanha deve conter [Curso] [Cidade-UF] para usar esta distribuição.
+              A campanha continua usando [Curso] [Cidade-UF] para localizar esta turma.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-5 md:grid-cols-2">
@@ -1135,14 +1138,14 @@ function AttendanceDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="attendance-city">Cidade</Label>
+              <Label htmlFor="attendance-city">Nome da turma (cidade)</Label>
               <Input
                 id="attendance-city"
                 value={form.city}
                 onChange={(event) =>
                   onFormChange((current) => ({ ...current, city: event.target.value }))
                 }
-                placeholder="Ex.: Juiz de Fora"
+                placeholder="Ex.: Salvador"
                 required
               />
             </div>
@@ -1163,7 +1166,19 @@ function AttendanceDialog({
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Consultores participantes</Label>
+              <Label htmlFor="attendance-date">Data da turma</Label>
+              <Input
+                id="attendance-date"
+                type="date"
+                value={form.classDate}
+                onChange={(event) =>
+                  onFormChange((current) => ({ ...current, classDate: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Responsáveis pela turma</Label>
               <div className="grid max-h-52 gap-2 overflow-y-auto rounded-lg border bg-background/70 p-3 sm:grid-cols-2">
                 {consultants.length ? (
                   consultants.map((consultant) => (
@@ -1181,7 +1196,7 @@ function AttendanceDialog({
                   ))
                 ) : (
                   <span className="text-sm text-muted-foreground">
-                    Cadastre consultores ativos nesta unidade.
+                    Cadastre consultores, gerentes ou diretores ativos nesta unidade.
                   </span>
                 )}
               </div>
@@ -1201,8 +1216,8 @@ function AttendanceDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
+                  <SelectItem value="active">Turma ativa</SelectItem>
+                  <SelectItem value="inactive">Turma inativa/fechada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1219,10 +1234,11 @@ function AttendanceDialog({
                 !form.courseId ||
                 !form.city.trim() ||
                 form.state.length !== 2 ||
+                !form.classDate ||
                 !form.consultantIds.length
               }
             >
-              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar atendimento"}
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar turma"}
             </Button>
           </DialogFooter>
         </form>
