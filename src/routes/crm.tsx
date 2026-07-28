@@ -14,6 +14,7 @@ import {
   Phone,
   Plus,
   Search,
+  Smartphone,
   Trash2,
   UserCheck,
   UserPlus,
@@ -294,21 +295,19 @@ function getAgeHours(value: string) {
   return Math.max(0, Math.floor((Date.now() - createdAt) / 3_600_000));
 }
 
-function formatLeadAge(value: string) {
-  const ageHours = getAgeHours(value);
+function formatLeadCreatedTime(value: string) {
+  const createdAt = new Date(value);
 
-  if (ageHours < 1) {
-    return "Criado agora";
+  if (Number.isNaN(createdAt.getTime())) {
+    return "Horário não informado";
   }
 
-  if (ageHours < 24) {
-    return `Criado há ${ageHours}h`;
-  }
-
-  const days = Math.floor(ageHours / 24);
-  const hours = ageHours % 24;
-
-  return hours ? `Criado há ${days}d ${hours}h` : `Criado há ${days}d`;
+  return `Criado às ${new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/Sao_Paulo",
+  }).format(createdAt)}`;
 }
 
 function formatTransferLeadAge(lead: TransferLead) {
@@ -1548,11 +1547,11 @@ function LeadPipelineCard({
       } ${syncing ? "ring-2 ring-primary/25" : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <button
             type="button"
             onClick={canEdit ? onEdit : undefined}
-            className={`truncate text-left text-sm font-semibold ${
+            className={`line-clamp-2 block w-full break-words text-left text-sm font-semibold leading-tight [overflow-wrap:anywhere] ${
               canEdit ? "transition hover:text-primary" : "cursor-default"
             }`}
           >
@@ -1564,8 +1563,8 @@ function LeadPipelineCard({
           </div>
           {lead.phone2 ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" />
-              <span className="truncate">Telefone 2: {lead.phone2}</span>
+              <Smartphone className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{lead.phone2}</span>
             </div>
           ) : null}
           {lead.email ? (
@@ -1574,23 +1573,10 @@ function LeadPipelineCard({
               <span className="truncate">{lead.email}</span>
             </div>
           ) : null}
-          {lead.turmaName ? (
-            <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-foreground">
-              <CalendarClock className="h-3.5 w-3.5 text-primary" />
-              <span className="truncate">
-                Turma: {lead.turmaName}
-                {lead.turmaDate
-                  ? ` · ${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
-                      new Date(`${lead.turmaDate}T12:00:00Z`),
-                    )}`
-                  : ""}
-              </span>
-            </div>
-          ) : null}
           {canViewLeadAge ? (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-primary">
-              <Clock3 className="h-3.5 w-3.5" />
-              <span className="truncate">{formatLeadAge(lead.createdAt)}</span>
+              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{formatLeadCreatedTime(lead.createdAt)}</span>
             </div>
           ) : null}
           {canViewOwner && lead.createdByName ? (
@@ -1605,7 +1591,7 @@ function LeadPipelineCard({
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-destructive opacity-70 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+            className="h-8 w-8 shrink-0 text-destructive opacity-70 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
             onClick={onRemove}
             disabled={removing}
             aria-label={`Remover ${lead.fullName}`}
@@ -1615,9 +1601,12 @@ function LeadPipelineCard({
         ) : null}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {lead.courseName ? (
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {lead.courseName}
+        {lead.turmaName || lead.courseName ? (
+          <Badge
+            variant="secondary"
+            className="h-auto max-w-full whitespace-normal break-words bg-primary/10 px-2.5 py-1 text-left leading-tight text-primary [overflow-wrap:anywhere]"
+          >
+            {lead.turmaName ?? lead.courseName}
           </Badge>
         ) : null}
         {canViewAcquisitionChannel && lead.acquisitionChannelName ? (
