@@ -487,7 +487,9 @@ function MetaAdsPage() {
   const unitChannels =
     state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitAttendances =
-    state?.options.attendances.filter((item) => item.status === "active") ?? [];
+    state?.options.attendances.filter(
+      (item) => item.status === "active" && item.unitId === formConfig.unitId,
+    ) ?? [];
   const processedEvents =
     state?.events.filter((event) => ["processed", "duplicate"].includes(event.status)) ?? [];
   const pendingConfigurationEvents =
@@ -1554,16 +1556,17 @@ function FormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_SELECTION}>Sem turma (somente formulário inativo)</SelectItem>
-                    {attendances.map((attendance) => (
-                      <SelectItem key={attendance.id} value={attendance.id}>
-                        {attendance.name}
-                        {attendance.classDate
-                          ? ` · ${new Intl.DateTimeFormat("pt-BR", {
-                              timeZone: "UTC",
-                            }).format(new Date(`${attendance.classDate}T12:00:00Z`))}`
-                          : ""}
+                    {attendances.length ? (
+                      attendances.map((attendance) => (
+                        <SelectItem key={attendance.id} value={attendance.id}>
+                          {attendance.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="__no_attendance__" disabled>
+                        Nenhuma turma ativa nesta unidade
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
