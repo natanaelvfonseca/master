@@ -102,6 +102,30 @@ export type GrowthConsultantMetric = {
   followUpRate: number;
 };
 
+export type GrowthTurmaOption = {
+  id: string;
+  unitId: string;
+  name: string;
+  status: "active" | "inactive";
+  classDate: string;
+};
+
+export type GrowthTurmaMetric = {
+  id: string;
+  unitId: string;
+  name: string;
+  courseName: string;
+  city: string;
+  state: string;
+  classDate: string;
+  status: "active" | "inactive";
+  leads: number;
+  enrollments: number;
+  confirmedRevenue: number;
+  pipelinePotential: number;
+  conversionRate: number;
+};
+
 export type GrowthResponse = {
   scope: GrowthScope;
   availableUnits: Array<UnitSummary>;
@@ -115,4 +139,7 @@ export type GrowthResponse = {
   trend: Array<GrowthTrendMetric>;
   campaigns: Array<GrowthCampaignMetric>;
   consultants: Array<GrowthConsultantMetric>;
+  availableTurmas: Array<GrowthTurmaOption>;
+  turmas: Array<GrowthTurmaMetric>;
+  turmaConsultants: Array<GrowthConsultantMetric>;
 };

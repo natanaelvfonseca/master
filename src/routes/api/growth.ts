@@ -8,6 +8,7 @@ import type {
   GrowthCourseMetric,
   GrowthFunnelMetric,
   GrowthSourceMetric,
+  GrowthTurmaMetric,
   GrowthUnitMetric,
 } from "@/lib/growth-types";
 import {
@@ -16,7 +17,7 @@ import {
   type AuthSession,
   type UnitSummary,
 } from "@/lib/auth-types";
-import { ensureCommercialSchema } from "@/lib/server/commercial-schema";
+import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { queryDb } from "@/lib/server/db";
 import { ensureMetaLeadSchema } from "@/lib/server/meta-leads";
@@ -131,6 +132,24 @@ type TaskSummaryRow = QueryResultRow & {
   today_follow_ups: string | number;
 };
 
+type TurmaOptionRow = QueryResultRow & {
+  id: string;
+  unit_id: string;
+  name: string;
+  status: "active" | "inactive";
+  class_date: string;
+};
+
+type TurmaMetricRow = TurmaOptionRow & {
+  course_name: string;
+  city: string;
+  state: string;
+  leads: string | number;
+  enrollments: string | number;
+  confirmed_revenue: string | number | null;
+  pipeline_potential: string | number | null;
+};
+
 function toNumber(value: string | number | null | undefined) {
   return Number(value ?? 0) || 0;
 }
@@ -139,7 +158,11 @@ function percentage(part: number, total: number) {
   return total > 0 ? (part / total) * 100 : 0;
 }
 
-async function readTaskSummary(unitIds: Array<string>, consultantId: string | null) {
+async function readTaskSummary(
+  unitIds: Array<string>,
+  consultantId: string | null,
+  turmaId: string | null,
+) {
   const tableResult = await queryDb<{ table_name: string | null } & QueryResultRow>(
     `select to_regclass('public.app_crm_tasks')::text as table_name`,
   );
@@ -156,12 +179,14 @@ async function readTaskSummary(unitIds: Array<string>, consultantId: string | nu
           where due_at >= date_trunc('day', now())
             and due_at < date_trunc('day', now()) + interval '1 day'
         ) as today_follow_ups
-      from app_crm_tasks
-      where unit_id = any($1::uuid[])
-        and ($2::uuid is null or created_by = $2)
-        and status = 'pending'
+      from app_crm_tasks task
+      inner join app_leads lead on lead.id = task.lead_id
+      where task.unit_id = any($1::uuid[])
+        and ($2::uuid is null or task.created_by = $2)
+        and ($3::uuid is null or lead.turma_id = $3)
+        and task.status = 'pending'
     `,
-    [unitIds, consultantId],
+    [unitIds, consultantId, turmaId],
   );
 
   return {
@@ -304,6 +329,29 @@ function mapConsultants(rows: Array<ConsultantRow>): Array<GrowthConsultantMetri
   });
 }
 
+function mapTurmas(rows: Array<TurmaMetricRow>): Array<GrowthTurmaMetric> {
+  return rows.map((row) => {
+    const leads = toNumber(row.leads);
+    const enrollments = toNumber(row.enrollments);
+
+    return {
+      id: row.id,
+      unitId: row.unit_id,
+      name: row.name,
+      courseName: row.course_name,
+      city: row.city,
+      state: row.state,
+      classDate: row.class_date,
+      status: row.status,
+      leads,
+      enrollments,
+      confirmedRevenue: toNumber(row.confirmed_revenue),
+      pipelinePotential: toNumber(row.pipeline_potential),
+      conversionRate: percentage(enrollments, leads),
+    };
+  });
+}
+
 function emptyResponse(scope: GrowthScopeSelection) {
   return {
     scope: { mode: scope.mode, label: scope.label, unit: scope.unit },
@@ -344,6 +392,9 @@ function emptyResponse(scope: GrowthScopeSelection) {
     trend: [],
     campaigns: [],
     consultants: [],
+    availableTurmas: [],
+    turmas: [],
+    turmaConsultants: [],
   };
 }
 
@@ -370,11 +421,55 @@ export const Route = createFileRoute("/api/growth")({
         await Promise.all([ensureCommercialSchema(), ensureMetaLeadSchema()]);
 
         const periodDays = readPeriod(request);
-        const params = [scope.unitIds, scope.consultantId, periodDays] as const;
+        const requestedTurmaId = new URL(request.url).searchParams.get("turmaId")?.trim() ?? "";
+        if (requestedTurmaId && !isUuid(requestedTurmaId)) {
+          return Response.json({ ok: false, error: "Turma inválida." }, { status: 400 });
+        }
+
+        const availableTurmasResult = await queryDb<TurmaOptionRow>(
+          `
+            select
+              turma.id,
+              turma.unit_id,
+              course.name || ' · ' || turma.city || '/' || turma.state ||
+                ' · ' || to_char(turma.class_date, 'DD/MM/YYYY') as name,
+              turma.status,
+              turma.class_date::text
+            from app_course_attendances turma
+            inner join app_courses course on course.id = turma.course_id
+            where turma.unit_id = any($1::uuid[])
+            order by
+              case when turma.status = 'active' then 0 else 1 end,
+              turma.class_date desc,
+              course.name,
+              turma.city
+          `,
+          [scope.unitIds],
+        );
+        const selectedTurmaId = requestedTurmaId || null;
+
+        if (
+          selectedTurmaId &&
+          !availableTurmasResult.rows.some((turma) => turma.id === selectedTurmaId)
+        ) {
+          return Response.json(
+            { ok: false, error: "Turma indisponível no escopo selecionado." },
+            { status: 403 },
+          );
+        }
+
+        const params = [scope.unitIds, scope.consultantId, periodDays, selectedTurmaId] as const;
         const scopedWhere = `
           unit_id = any($1::uuid[])
           and ($2::uuid is null or created_by = $2)
           and created_at >= current_date - make_interval(days => $3::int)
+          and ($4::uuid is null or turma_id = $4)
+        `;
+        const scopedLeadWhere = `
+          lead.unit_id = any($1::uuid[])
+          and ($2::uuid is null or lead.created_by = $2)
+          and lead.created_at >= current_date - make_interval(days => $3::int)
+          and ($4::uuid is null or lead.turma_id = $4)
         `;
 
         const [
@@ -389,6 +484,7 @@ export const Route = createFileRoute("/api/growth")({
           campaignResult,
           consultantResult,
           metaSummaryResult,
+          turmaResult,
         ] = await Promise.all([
           queryDb<SummaryRow>(
             `
@@ -541,27 +637,20 @@ export const Route = createFileRoute("/api/growth")({
           ),
           queryDb<CityRow>(
             `
-              select coalesce(
-                       (
-                         select turma.city || ' - ' || turma.state
-                         from app_course_attendances turma
-                         where turma.id = app_leads.turma_id
-                       ),
-                       nullif(city, '')
-                     ) as city,
-                     count(*) as leads,
-                     count(*) filter (where stage = 'Matriculado') as enrollments
-              from app_leads
-              where ${scopedWhere}
-                and coalesce(
-                  (
-                    select turma.city
-                    from app_course_attendances turma
-                    where turma.id = app_leads.turma_id
-                  ),
-                  nullif(city, '')
-                ) is not null
-              group by 1
+              select
+                case when turma.id is not null then
+                  coalesce(course.name, 'Curso') || ' · ' ||
+                  turma.city || '/' || turma.state || ' · ' ||
+                  to_char(turma.class_date, 'DD/MM/YYYY')
+                else nullif(lead.city, '') end as city,
+                count(*) as leads,
+                count(*) filter (where lead.stage = 'Matriculado') as enrollments
+              from app_leads lead
+              left join app_course_attendances turma on turma.id = lead.turma_id
+              left join app_courses course on course.id = turma.course_id
+              where ${scopedLeadWhere}
+                and (turma.id is not null or nullif(lead.city, '') is not null)
+              group by 1, lead.turma_id
               order by count(*) desc, city asc
               limit 10
             `,
@@ -598,6 +687,7 @@ export const Route = createFileRoute("/api/growth")({
               left join app_leads l on l.unit_id = u.id
                 and ($2::uuid is null or l.created_by = $2)
                 and l.created_at >= current_date - make_interval(days => $3::int)
+                and ($4::uuid is null or l.turma_id = $4)
               left join paid_by_lead p on p.lead_id = l.id
               group by u.id, u.name, selected.ord
               order by selected.ord
@@ -639,6 +729,7 @@ export const Route = createFileRoute("/api/growth")({
               where l.unit_id = any($1::uuid[])
                 and ($2::uuid is null or l.created_by = $2)
                 and l.created_at >= current_date - make_interval(days => $3::int)
+                and ($4::uuid is null or l.turma_id = $4)
               group by 1
               order by count(*) desc
               limit 12
@@ -676,8 +767,9 @@ export const Route = createFileRoute("/api/growth")({
               left join app_leads l on l.created_by = u.id
                 and l.unit_id = uu.unit_id
                 and l.created_at >= current_date - make_interval(days => $3::int)
+                and ($4::uuid is null or l.turma_id = $4)
               left join paid_by_lead p on p.lead_id = l.id
-              where u.role = 'CONSULTOR' and u.status = 'active'
+              where u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR') and u.status = 'active'
                 and ($2::uuid is null or u.id = $2)
               group by u.id, u.name
               order by count(l.id) filter (where l.stage = 'Matriculado') desc, count(l.id) desc
@@ -693,8 +785,68 @@ export const Route = createFileRoute("/api/growth")({
               where l.unit_id = any($1::uuid[])
                 and ($2::uuid is null or l.created_by = $2)
                 and l.created_at >= current_date - make_interval(days => $3::int)
+                and ($4::uuid is null or l.turma_id = $4)
             `,
             params,
+          ),
+          queryDb<TurmaMetricRow>(
+            `
+              with scoped_leads as (
+                select *
+                from app_leads
+                where unit_id = any($1::uuid[])
+                  and ($2::uuid is null or created_by = $2)
+                  and created_at >= current_date - make_interval(days => $3::int)
+                  and turma_id is not null
+              ),
+              paid_by_lead as (
+                select p.lead_id, sum(p.amount) as paid_amount
+                from app_student_payments p
+                inner join scoped_leads l on l.id = p.lead_id
+                where p.status = 'paid'
+                group by p.lead_id
+              )
+              select
+                turma.id,
+                turma.unit_id,
+                course.name || ' · ' || turma.city || '/' || turma.state ||
+                  ' · ' || to_char(turma.class_date, 'DD/MM/YYYY') as name,
+                turma.status,
+                turma.class_date::text,
+                course.name as course_name,
+                turma.city,
+                turma.state,
+                count(l.id) as leads,
+                count(l.id) filter (where l.stage = 'Matriculado') as enrollments,
+                coalesce(
+                  sum(
+                    coalesce(
+                      paid.paid_amount,
+                      case when l.stage = 'Matriculado' then l.course_value_snapshot else 0 end
+                    )
+                  ),
+                  0
+                ) as confirmed_revenue,
+                coalesce(
+                  sum(l.course_value_snapshot) filter (where l.stage <> 'Matriculado'),
+                  0
+                ) as pipeline_potential
+              from app_course_attendances turma
+              inner join app_courses course on course.id = turma.course_id
+              inner join scoped_leads l on l.turma_id = turma.id
+              left join paid_by_lead paid on paid.lead_id = l.id
+              where turma.unit_id = any($1::uuid[])
+              group by
+                turma.id,
+                turma.unit_id,
+                turma.status,
+                turma.class_date,
+                turma.city,
+                turma.state,
+                course.name
+              order by count(l.id) desc, turma.class_date desc, course.name
+            `,
+            [scope.unitIds, scope.consultantId, periodDays],
           ),
         ]);
 
@@ -704,7 +856,11 @@ export const Route = createFileRoute("/api/growth")({
         const leadsReceived = toNumber(summary?.leads_received);
         const enrollments = toNumber(summary?.enrollments);
         const leadsWithSource = toNumber(summary?.leads_with_source);
-        const taskSummary = await readTaskSummary(scope.unitIds, scope.consultantId);
+        const taskSummary = await readTaskSummary(
+          scope.unitIds,
+          scope.consultantId,
+          selectedTurmaId,
+        );
         const funnelCounts = new Map(
           funnelResult.rows.map((row) => [row.stage, toNumber(row.leads)] as const),
         );
@@ -756,6 +912,17 @@ export const Route = createFileRoute("/api/growth")({
             })),
             campaigns: mapCampaigns(campaignResult.rows),
             consultants: mapConsultants(consultantResult.rows),
+            availableTurmas: availableTurmasResult.rows.map((turma) => ({
+              id: turma.id,
+              unitId: turma.unit_id,
+              name: turma.name,
+              status: turma.status,
+              classDate: turma.class_date,
+            })),
+            turmas: mapTurmas(turmaResult.rows),
+            turmaConsultants: selectedTurmaId
+              ? mapConsultants(consultantResult.rows).filter((consultant) => consultant.leads > 0)
+              : [],
           },
           { headers: { "Cache-Control": "no-store" } },
         );

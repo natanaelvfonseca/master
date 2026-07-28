@@ -13,6 +13,7 @@ type TurmaRow = QueryResultRow & {
   id: string;
   course_id: string;
   name: string;
+  location: string;
   class_date: string;
 };
 type ImportRow = {
@@ -94,14 +95,17 @@ async function listTurmas(unitId: string) {
   const result = await queryDb<TurmaRow>(
     `
       select
-        id,
-        course_id,
-        city || ' - ' || state as name,
-        class_date::text
-      from app_course_attendances
-      where unit_id = $1
-        and status = 'active'
-      order by class_date, city, state
+        turma.id,
+        turma.course_id,
+        course.name || ' · ' || turma.city || '/' || turma.state ||
+          ' · ' || to_char(turma.class_date, 'DD/MM/YYYY') as name,
+        turma.city || ' - ' || turma.state as location,
+        turma.class_date::text
+      from app_course_attendances turma
+      inner join app_courses course on course.id = turma.course_id
+      where turma.unit_id = $1
+        and turma.status = 'active'
+      order by turma.class_date, course.name, turma.city, turma.state
     `,
     [unitId],
   );
@@ -162,14 +166,19 @@ export const Route = createFileRoute("/api/crm/import")({
         `, [courseId, unit.id]);
         const course = courseResult.rows[0];
         if (!course) return Response.json({ error: "Curso não encontrado na unidade ativa." }, { status: 400 });
-        const turmaResult = await queryDb<{ id: string; name: string }>(
+        const turmaResult = await queryDb<{ id: string; name: string; location: string }>(
           `
-            select id, city || ' - ' || state as name
-            from app_course_attendances
-            where id = $1
-              and unit_id = $2
-              and course_id = $3
-              and status = 'active'
+            select
+              turma.id,
+              course.name || ' · ' || turma.city || '/' || turma.state ||
+                ' · ' || to_char(turma.class_date, 'DD/MM/YYYY') as name,
+              turma.city || ' - ' || turma.state as location
+            from app_course_attendances turma
+            inner join app_courses course on course.id = turma.course_id
+            where turma.id = $1
+              and turma.unit_id = $2
+              and turma.course_id = $3
+              and turma.status = 'active'
             limit 1
           `,
           [turmaId, unit.id, course.id],
@@ -208,7 +217,7 @@ export const Route = createFileRoute("/api/crm/import")({
                         course_value_snapshot = $6,
                         updated_at = now()
                     where id = $1
-                  `, [existing.rows[0].id, turma.name, turma.id, course.id, course.name, Number(course.value)]);
+                  `, [existing.rows[0].id, turma.location, turma.id, course.id, course.name, Number(course.value)]);
                   updated += 1;
                 } else {
                   duplicates += 1;
@@ -224,7 +233,7 @@ export const Route = createFileRoute("/api/crm/import")({
               )
               values ($1, $2, $3, nullif($4, ''), $5, $6, $7, $8, $9, nullif($10, ''), 'Leads Novos', $11)
               returning id
-            `, [unit.id, row.fullName, phone, phone2, turma.name, turma.id, course.id, course.name, Number(course.value), row.observations, consultantId]);
+            `, [unit.id, row.fullName, phone, phone2, turma.location, turma.id, course.id, course.name, Number(course.value), row.observations, consultantId]);
             await client.query(`
               insert into app_lead_import_rows (lead_id, campaign_name, form_id, whatsapp_number, imported_by)
               values ($1, nullif($2, ''), nullif($3, ''), nullif($4, ''), $5)

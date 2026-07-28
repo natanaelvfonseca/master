@@ -139,10 +139,11 @@ async function listTransferLeads(unitId: string, immediateTransfer: boolean, inc
         l.phone2,
         l.email,
         l.city,
-        case
-          when turma.id is not null then turma.city || ' - ' || turma.state
-          else null
-        end as turma_name,
+        case when turma.id is not null then
+          coalesce(course.name, l.course_name_snapshot, 'Curso') || ' · ' ||
+          turma.city || '/' || turma.state || ' · ' ||
+          to_char(turma.class_date, 'DD/MM/YYYY')
+        else null end as turma_name,
         l.course_name_snapshot,
         l.acquisition_channel_name_snapshot,
         l.stage,
@@ -156,6 +157,7 @@ async function listTransferLeads(unitId: string, immediateTransfer: boolean, inc
       from app_leads l
       left join app_users owner on owner.id = l.created_by
       left join app_course_attendances turma on turma.id = l.turma_id
+      left join app_courses course on course.id = turma.course_id
       ${metaJoin}
       where l.unit_id = $1
         and l.stage <> 'Matriculado'

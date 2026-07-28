@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { canManageMetaAds, canViewMetaAds } from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
+import { formatCommercialDate } from "@/lib/commercial-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,7 @@ type MetaEvent = {
   status: string;
   error_message: string | null;
   distribution_reason: string | null;
-  routing_source: "campaign_matrix" | "form_fallback" | null;
+  routing_source: "form_turma" | "campaign_matrix" | "form_fallback" | null;
   routing_error: string | null;
 };
 
@@ -448,6 +449,11 @@ function MetaAdsPage() {
       return;
     }
 
+    if (formConfig.status === "active" && !formConfig.attendanceId) {
+      toast.error("Selecione a turma que receberá os leads deste formulário.");
+      return;
+    }
+
     void postAction({ action: "saveForm", ...formConfig }, "Formulário configurado.");
     setFormDialogOpen(false);
   }
@@ -472,12 +478,7 @@ function MetaAdsPage() {
   const unitChannels =
     state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitAttendances =
-    state?.options.attendances.filter(
-      (item) =>
-        item.unitId === formConfig.unitId &&
-        item.courseId === formConfig.courseId &&
-        item.status === "active",
-    ) ?? [];
+    state?.options.attendances.filter((item) => item.status === "active") ?? [];
   return (
     <div className="space-y-6">
       <PageHeader
@@ -1097,7 +1098,7 @@ function FormsTable({
           <TableHead>Form ID</TableHead>
           <TableHead>Página</TableHead>
           <TableHead>Unidade</TableHead>
-          <TableHead>Curso</TableHead>
+          <TableHead>Turma</TableHead>
           <TableHead>Etapa</TableHead>
           <TableHead>Leads</TableHead>
           <TableHead>Status</TableHead>
@@ -1111,7 +1112,22 @@ function FormsTable({
             <TableCell>{form.meta_form_id}</TableCell>
             <TableCell>{form.page_name}</TableCell>
             <TableCell>{form.unit_name ?? "Pendente"}</TableCell>
-            <TableCell>{form.course_name ?? "--"}</TableCell>
+            <TableCell>
+              {form.attendance_id ? (
+                <div>
+                  <div className="font-medium">
+                    {form.course_name} · {form.attendance_city}/{form.attendance_state}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatCommercialDate(form.attendance_class_date)}
+                  </div>
+                </div>
+              ) : (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                  {form.status === "active" ? "Configuração legada" : "Sem turma"}
+                </Badge>
+              )}
+            </TableCell>
             <TableCell>{form.initial_stage}</TableCell>
             <TableCell>{form.leads_received_count}</TableCell>
             <TableCell>
@@ -1174,9 +1190,11 @@ function EventTable({
               <Badge className={statusClass(event.status)}>{event.status}</Badge>
               {event.routing_source ? (
                 <div className="mt-1 text-xs font-medium text-muted-foreground">
-                  {event.routing_source === "campaign_matrix"
-                    ? "Curso + turma"
-                    : "Padrão do formulário"}
+                  {event.routing_source === "form_turma"
+                    ? "Turma do formulário"
+                    : event.routing_source === "campaign_matrix"
+                      ? "Campanha legada"
+                      : "Padrão do formulário"}
                 </div>
               ) : null}
               {event.error_message ? (
@@ -1432,25 +1450,34 @@ function FormDialog({
               <div>
                 <h3 className="font-semibold">Turma do formulário</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  A campanha continua no padrão [Curso] [Cidade-UF]. A turma define a data
-                  e os consultores que receberão os leads.
+                  Todos os leads deste Form ID serão vinculados à turma e distribuídos entre
+                  os responsáveis cadastrados nela.
                 </p>
               </div>
-              <Field label="Turma de fallback (opcional)">
+              <Field label="Turma">
                 <Select
                   value={form.attendanceId || NO_SELECTION}
                   onValueChange={(value) =>
-                    onFormChange((current) => ({
-                      ...current,
-                      attendanceId: value === NO_SELECTION ? "" : value,
-                    }))
+                    onFormChange((current) => {
+                      const attendance = attendances.find((item) => item.id === value);
+                      return {
+                        ...current,
+                        attendanceId: value === NO_SELECTION ? "" : value,
+                        unitId: attendance?.unitId ?? current.unitId,
+                        courseId: attendance?.courseId ?? current.courseId,
+                        acquisitionChannelId:
+                          attendance?.unitId === current.unitId
+                            ? current.acquisitionChannelId
+                            : "",
+                      };
+                    })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a turma" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_SELECTION}>Identificar pelo nome da campanha</SelectItem>
+                    <SelectItem value={NO_SELECTION}>Sem turma (somente formulário inativo)</SelectItem>
                     {attendances.map((attendance) => (
                       <SelectItem key={attendance.id} value={attendance.id}>
                         {attendance.name}
@@ -1464,7 +1491,7 @@ function FormDialog({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Cadastre datas e responsáveis em Gestão → Cadastro → Turmas.
+                  A unidade e o curso serão definidos automaticamente pela turma selecionada.
                 </p>
               </Field>
             </div>

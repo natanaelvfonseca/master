@@ -376,7 +376,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
             );
           }
 
-          const turmaName = `${turma.city} - ${turma.state}`;
+          const turmaLocation = `${turma.city} - ${turma.state}`;
 
           await queryDb(
             `
@@ -432,7 +432,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
               payload.phone,
               payload.phone2,
               payload.email,
-              turmaName,
+              turmaLocation,
               turma.id,
               courseResult.course?.id ?? null,
               courseResult.course?.name ?? null,

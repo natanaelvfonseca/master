@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Lock } from "lucide-react";
 import type { AuthSession } from "@/lib/auth-types";
 import { canViewNetworkGrowth } from "@/lib/auth-types";
+import type { GrowthTurmaOption } from "@/lib/growth-types";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -84,6 +85,32 @@ export function GrowthPeriodSelect({
         <SelectItem value="30">Últimos 30 dias</SelectItem>
         <SelectItem value="90">Últimos 90 dias</SelectItem>
         <SelectItem value="365">Últimos 12 meses</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function GrowthTurmaSelect({
+  turmas,
+  value,
+  onValueChange,
+}: {
+  turmas: Array<GrowthTurmaOption>;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <Select value={value || "all"} onValueChange={(next) => onValueChange(next === "all" ? "" : next)}>
+      <SelectTrigger className="w-full md:w-[360px]">
+        <SelectValue placeholder="Todas as turmas" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todas as turmas</SelectItem>
+        {turmas.map((turma) => (
+          <SelectItem key={turma.id} value={turma.id}>
+            {turma.name}{turma.status === "inactive" ? " · Inativa" : ""}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

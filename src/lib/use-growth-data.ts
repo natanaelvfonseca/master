@@ -16,15 +16,22 @@ async function readJson<T>(response: Response): Promise<T> {
   return data;
 }
 
-function growthQuery(scopeValue: string, periodDays: number) {
+function growthQuery(scopeValue: string, periodDays: number, turmaId: string) {
+  const turmaQuery = turmaId ? `&turmaId=${encodeURIComponent(turmaId)}` : "";
+
   if (scopeValue === "all") {
-    return `?scope=all&period=${periodDays}`;
+    return `?scope=all&period=${periodDays}${turmaQuery}`;
   }
 
-  return `?unitId=${encodeURIComponent(scopeValue)}&period=${periodDays}`;
+  return `?unitId=${encodeURIComponent(scopeValue)}&period=${periodDays}${turmaQuery}`;
 }
 
-export function useGrowthData(scopeValue: string, enabled: boolean, periodDays = 30) {
+export function useGrowthData(
+  scopeValue: string,
+  enabled: boolean,
+  periodDays = 30,
+  turmaId = "",
+) {
   const [data, setData] = React.useState<GrowthResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -41,7 +48,7 @@ export function useGrowthData(scopeValue: string, enabled: boolean, periodDays =
 
       try {
         const nextData = await readJson<GrowthResponse>(
-          await fetch(`/api/growth${growthQuery(scopeValue, periodDays)}`, {
+          await fetch(`/api/growth${growthQuery(scopeValue, periodDays, turmaId)}`, {
             credentials: "same-origin",
             headers: { Accept: "application/json" },
           }),
@@ -67,7 +74,7 @@ export function useGrowthData(scopeValue: string, enabled: boolean, periodDays =
     return () => {
       ignore = true;
     };
-  }, [enabled, periodDays, scopeValue]);
+  }, [enabled, periodDays, scopeValue, turmaId]);
 
   return { data, loading };
 }

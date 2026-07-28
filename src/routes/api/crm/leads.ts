@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import type { LeadRecord, LeadStage, StudentStage } from "@/lib/commercial-types";
+import {
+  buildTurmaLabel,
+  type LeadRecord,
+  type LeadStage,
+  type StudentStage,
+} from "@/lib/commercial-types";
 import {
   ensureCommercialSchema,
   getUnitFromBody,
@@ -244,10 +249,11 @@ export const Route = createFileRoute("/api/crm/leads")({
               l.email,
               l.city,
               l.turma_id,
-              case
-                when turma.id is not null then turma.city || ' - ' || turma.state
-                else null
-              end as turma_name,
+              case when turma.id is not null then
+                coalesce(course.name, l.course_name_snapshot, 'Curso') || ' · ' ||
+                turma.city || '/' || turma.state || ' · ' ||
+                to_char(turma.class_date, 'DD/MM/YYYY')
+              else null end as turma_name,
               turma.class_date::text as turma_date,
               l.course_id,
               l.course_name_snapshot,
@@ -266,6 +272,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             inner join app_units un on un.id = l.unit_id
             left join app_users owner on owner.id = l.created_by
             left join app_course_attendances turma on turma.id = l.turma_id
+            left join app_courses course on course.id = turma.course_id
             left join app_lead_import_rows import_info on import_info.lead_id = l.id
             left join lateral (
               select e.campaign_name, e.form_id
@@ -356,7 +363,13 @@ export const Route = createFileRoute("/api/crm/leads")({
         }
 
         const course = courseResult.course;
-        const turmaName = `${turma.city} - ${turma.state}`;
+        const turmaLocation = `${turma.city} - ${turma.state}`;
+        const turmaName = buildTurmaLabel({
+          courseName: course.name,
+          city: turma.city,
+          state: turma.state,
+          classDate: turma.class_date,
+        });
         const result = await queryDb<LeadRow>(
           `
             insert into app_leads (
@@ -407,7 +420,7 @@ export const Route = createFileRoute("/api/crm/leads")({
             payload.phone,
             payload.phone2,
             payload.email,
-            turmaName,
+            turmaLocation,
             turma.id,
             course?.id ?? null,
             course?.name ?? null,

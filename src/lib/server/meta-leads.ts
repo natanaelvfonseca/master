@@ -130,7 +130,7 @@ type MetaEventRow = QueryResultRow & {
   distribution_reason: string | null;
   attendance_id: string | null;
   assigned_user_id: string | null;
-  routing_source: "campaign_matrix" | "form_fallback" | null;
+  routing_source: "form_turma" | "campaign_matrix" | "form_fallback" | null;
   routing_error: string | null;
   payload: Record<string, unknown>;
   lead_payload: Record<string, unknown> | null;
@@ -1189,13 +1189,16 @@ export async function listMetaState() {
                 'id', turma.id,
                 'unitId', turma.unit_id,
                 'courseId', turma.course_id,
-                'name', turma.city || ' - ' || turma.state,
+                'name',
+                  course.name || ' · ' || turma.city || '/' || turma.state ||
+                  ' · ' || to_char(turma.class_date, 'DD/MM/YYYY'),
                 'classDate', turma.class_date,
                 'status', turma.status
               )
               order by turma.class_date, turma.city, turma.state
             )
             from app_course_attendances turma
+            inner join app_courses course on course.id = turma.course_id
           ), '[]'::jsonb) as attendances
       `,
     ),
@@ -1332,36 +1335,67 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
   const unitId = stringOrNull(input.unitId);
   const courseId = stringOrNull(input.courseId);
   const attendanceId = stringOrNull(input.attendanceId);
+  const status = input.status === "active" ? "active" : "inactive";
+  const requestedChannelId = stringOrNull(input.acquisitionChannelId);
 
   if (!pageDbId || !isUuid(pageDbId) || !metaFormId || !formName) {
     throw new Error("Formulário inválido.");
   }
 
   let savedAttendanceId: string | null = null;
+  let savedUnitId = unitId && isUuid(unitId) ? unitId : null;
+  let savedCourseId = courseId && isUuid(courseId) ? courseId : null;
 
   if (attendanceId) {
-    if (!unitId || !courseId) {
-      throw new Error("Selecione a unidade e o curso da turma.");
-    }
-
-    const attendanceResult = await queryDb<{ id: string }>(
+    const attendanceResult = await queryDb<{
+      id: string;
+      unit_id: string;
+      course_id: string;
+    }>(
       `
-        select id
+        select id, unit_id, course_id
         from app_course_attendances
         where id = $1
-          and unit_id = $2
-          and course_id = $3
           and status = 'active'
         limit 1
       `,
-      [attendanceId, unitId, courseId],
+      [attendanceId],
     );
 
-    if (!attendanceResult.rows[0]) {
-      throw new Error("Turma ativa inválida para a unidade e o curso selecionados.");
+    const attendance = attendanceResult.rows[0];
+
+    if (!attendance) {
+      throw new Error("Selecione uma turma ativa.");
     }
 
-    savedAttendanceId = attendanceResult.rows[0].id;
+    savedAttendanceId = attendance.id;
+    savedUnitId = attendance.unit_id;
+    savedCourseId = attendance.course_id;
+  } else if (status === "active") {
+    throw new Error("Selecione a turma que receberá os leads deste formulário.");
+  }
+
+  let savedChannelId =
+    requestedChannelId && isUuid(requestedChannelId) ? requestedChannelId : null;
+
+  if (savedChannelId && savedUnitId) {
+    const channelResult = await queryDb<{ id: string }>(
+      `
+        select id
+        from app_acquisition_channels
+        where id = $1
+          and unit_id = $2
+          and status = 'active'
+        limit 1
+      `,
+      [savedChannelId, savedUnitId],
+    );
+
+    if (!channelResult.rows[0]) {
+      throw new Error("O canal de aquisição não pertence à unidade da turma.");
+    }
+  } else if (!savedUnitId) {
+    savedChannelId = null;
   }
 
   const fieldMapping =
@@ -1421,17 +1455,17 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
         pageDbId,
         formName,
         metaFormId,
-        unitId && isUuid(unitId) ? unitId : null,
-        courseId && isUuid(courseId) ? courseId : null,
+        savedUnitId,
+        savedCourseId,
         savedAttendanceId,
         stringOrNull(input.funnelName) ?? "",
         initialStage,
-        isUuid(String(input.acquisitionChannelId ?? "")) ? input.acquisitionChannelId : null,
+        savedChannelId,
         null,
         "round_robin",
         JSON.stringify(normalizeMapping(fieldMapping)),
         JSON.stringify(settings),
-        input.status === "active" ? "active" : "inactive",
+        status,
       ],
     );
     const formId = formResult.rows[0].id;
@@ -2104,15 +2138,27 @@ async function processEventById(eventId: string) {
       return { status: "error", leadId: null };
     }
 
-    const campaignRouting = await findCampaignAttendance(
-      client,
-      event.campaign_name,
-      form.unit_id,
-    );
-    const formAttendance = campaignRouting.attendance
-      ? null
-      : await getActiveAttendanceById(client, form.attendance_id);
-    const attendance = campaignRouting.attendance ?? formAttendance;
+    const formAttendance = await getActiveAttendanceById(client, form.attendance_id);
+
+    if (form.attendance_id && !formAttendance) {
+      await client.query(
+        `
+          update app_meta_lead_events
+          set status = 'pending_configuration',
+              form_db_id = $2,
+              routing_error = 'A turma vinculada ao formulário está inativa ou indisponível.',
+              updated_at = now()
+          where id = $1
+        `,
+        [event.id, form.id],
+      );
+      return { status: "pending_configuration", leadId: null };
+    }
+
+    const campaignRouting = form.attendance_id
+      ? { attendance: null, error: null }
+      : await findCampaignAttendance(client, event.campaign_name, form.unit_id);
+    const attendance = formAttendance ?? campaignRouting.attendance;
     const attendanceAssignment = attendance
       ? await chooseAttendanceConsultant(client, attendance)
       : null;
@@ -2146,8 +2192,11 @@ async function processEventById(eventId: string) {
             reason: `${assignment.reason} Lead atribuido automaticamente ao Marketing.`,
           }
         : assignment;
-    const routingSource =
-      attendance && campaignRouting.attendance ? "campaign_matrix" : "form_fallback";
+    const routingSource = formAttendance
+      ? "form_turma"
+      : attendance && campaignRouting.attendance
+        ? "campaign_matrix"
+        : "form_fallback";
     const turmaName = attendance
       ? `${attendance.city} - ${attendance.state}`
       : campaignCityValue(event.campaign_name, null) || mapped.city;

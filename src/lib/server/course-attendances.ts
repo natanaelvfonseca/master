@@ -1,4 +1,5 @@
 import type { PoolClient, QueryResultRow } from "pg";
+import { buildTurmaLabel } from "@/lib/commercial-types";
 import { isUuid } from "@/lib/server/commercial-schema";
 import { queryDb, withTransaction } from "@/lib/server/db";
 
@@ -110,9 +111,7 @@ export async function ensureCourseAttendanceSchema() {
     $$;
     create unique index if not exists app_course_attendances_identity_idx
       on app_course_attendances (unit_id, course_id, city_normalized, state, class_date);
-    create unique index if not exists app_course_attendances_active_route_idx
-      on app_course_attendances (unit_id, course_id, city_normalized, state)
-      where status = 'active';
+    drop index if exists app_course_attendances_active_route_idx;
     create index if not exists app_course_attendances_date_idx
       on app_course_attendances (unit_id, status, class_date);
 
@@ -152,7 +151,12 @@ function mapAttendance(row: AttendanceRow): CourseAttendanceRecord {
     courseName: row.course_name,
     city: row.city,
     state: row.state,
-    name: `${row.city} - ${row.state}`,
+    name: buildTurmaLabel({
+      courseName: row.course_name,
+      city: row.city,
+      state: row.state,
+      classDate: row.class_date,
+    }),
     classDate: row.class_date,
     status: row.status,
     consultantIds: row.consultant_ids ?? [],
@@ -382,6 +386,24 @@ export async function saveCourseAttendance(input: AttendanceInput) {
           values ($1, $2)
         `,
         [attendance.id, consultantId],
+      );
+    }
+
+    const metaFormsTable = await client.query<{ table_name: string | null }>(
+      `select to_regclass('public.app_meta_forms')::text as table_name`,
+    );
+
+    if (metaFormsTable.rows[0]?.table_name) {
+      await client.query(
+        `
+          update app_meta_forms
+          set unit_id = $2,
+              course_id = $3,
+              status = case when $4 = 'inactive' then 'inactive' else status end,
+              updated_at = now()
+          where attendance_id = $1
+        `,
+        [attendance.id, data.unitId, data.courseId, data.status],
       );
     }
 

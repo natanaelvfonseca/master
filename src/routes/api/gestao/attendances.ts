@@ -13,7 +13,7 @@ function attendanceError(error: unknown) {
     "code" in error &&
     error.code === "23505"
   ) {
-    return "Já existe uma turma ativa para este curso e local.";
+    return "Já existe uma turma com o mesmo curso, local e data nesta unidade.";
   }
 
   return error instanceof Error ? error.message : "Falha ao salvar turma.";

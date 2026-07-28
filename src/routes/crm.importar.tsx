@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type TargetField = "ignore" | "fullName" | "phone" | "phone2" | "campaignName" | "formId" | "observations";
 type Consultant = { id: string; name: string; email: string };
 type Course = { id: string; name: string; value: string };
-type Turma = { id: string; course_id: string; name: string; class_date: string };
+type Turma = { id: string; course_id: string; name: string; location: string; class_date: string };
 type ParsedCsv = { headers: Array<string>; rows: Array<Array<string>> };
 
 const fieldLabels: Record<TargetField, string> = {
@@ -177,7 +177,7 @@ function LeadImporter() {
 
         <Card><CardHeader><CardTitle>Curso e turma</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2"><Label>Curso dos leads</Label><Select value={courseId} onValueChange={(value) => { setCourseId(value); setTurmaId(""); }}><SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger><SelectContent>{courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>Turma dos leads</Label><Select value={turmaId} onValueChange={setTurmaId}><SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger><SelectContent>{turmas.filter((turma) => turma.course_id === courseId).map((turma) => <SelectItem key={turma.id} value={turma.id}>{turma.name} · {new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${turma.class_date}T12:00:00Z`))}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-2"><Label>Turma dos leads</Label><Select value={turmaId} onValueChange={setTurmaId}><SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger><SelectContent>{turmas.filter((turma) => turma.course_id === courseId).map((turma) => <SelectItem key={turma.id} value={turma.id}>{turma.name}</SelectItem>)}</SelectContent></Select></div>
         </CardContent></Card>
 
         <Card><CardHeader><CardTitle>Direcionamento</CardTitle></CardHeader><CardContent className="space-y-4">

@@ -41,6 +41,7 @@ import {
   GrowthLoading,
   GrowthPeriodSelect,
   GrowthScopeSelect,
+  GrowthTurmaSelect,
   metricValue,
 } from "@/components/growth/GrowthDashboardPrimitives";
 import { useAuth } from "@/lib/auth";
@@ -80,7 +81,9 @@ function BI() {
   const { session, loading: authLoading } = useAuth();
   const [scopeValue, setScopeValue] = React.useState("");
   const [periodDays, setPeriodDays] = React.useState(30);
-  const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;  const activeUnitId = session?.activeUnit?.id ?? "";
+  const [turmaId, setTurmaId] = React.useState("");
+  const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
+  const activeUnitId = session?.activeUnit?.id ?? "";
 
   React.useEffect(() => {
     if (!session) return;
@@ -90,7 +93,19 @@ function BI() {
     });
   }, [activeUnitId, canViewNetwork, session]);
 
-  const { data, loading } = useGrowthData(scopeValue, Boolean(session && scopeValue), periodDays);
+  const { data, loading } = useGrowthData(
+    scopeValue,
+    Boolean(session && scopeValue),
+    periodDays,
+    turmaId,
+  );
+
+  React.useEffect(() => {
+    if (turmaId && data && !data.availableTurmas.some((turma) => turma.id === turmaId)) {
+      setTurmaId("");
+    }
+  }, [data, turmaId]);
+
   const isLoading = authLoading || loading;
   const metrics = data?.metrics ?? emptyMetrics;
   const courseMax = Math.max(...(data?.courses.map((item) => item.leads) ?? [0]), 0);
@@ -99,6 +114,8 @@ function BI() {
   const sourceMax = Math.max(...(data?.sources.map((item) => item.leads) ?? [0]), 1);
   const sourcePie = data?.sources.map((item) => ({ name: item.source, value: item.leads })) ?? [];
   const funnelData = data?.funnel.filter((item) => item.leads > 0) ?? [];
+  const turmaMax = Math.max(...(data?.turmas.map((item) => item.leads) ?? [0]), 0);
+  const displayedConsultants = turmaId ? data?.turmaConsultants : data?.consultants;
 
   return (
     <div className="space-y-6">      <PageHeader
@@ -110,6 +127,11 @@ function BI() {
             <div className="flex flex-wrap gap-2">
               <GrowthPeriodSelect value={periodDays} onValueChange={setPeriodDays} />
               <GrowthScopeSelect session={session} value={scopeValue} onValueChange={setScopeValue} />
+              <GrowthTurmaSelect
+                turmas={data?.availableTurmas ?? []}
+                value={turmaId}
+                onValueChange={setTurmaId}
+              />
             </div>
           ) : null
         }
@@ -181,24 +203,32 @@ function BI() {
         </ChartCard>
 
         <ChartCard title="Conversão por turma">
-          {isLoading ? <GrowthLoading /> : data?.cities.length ? (
+          {isLoading ? <GrowthLoading /> : data?.turmas.length ? (
             <div className="space-y-4">
-              {data.cities.map((city) => (
-                <GrowthDataBar key={city.city} label={city.city} value={city.leads} max={cityMax} detail={`${city.enrollments} matrículas · ${formatPercent(city.conversionRate)}`} accent="success" />
+              {data.turmas.map((turma) => (
+                <GrowthDataBar key={turma.id} label={turma.name} value={turma.leads} max={turmaMax} detail={`${turma.enrollments} matrículas · ${formatPercent(turma.conversionRate)}`} accent="success" />
               ))}
             </div>
           ) : <GrowthEmptyPanel icon={Target} title="Sem turmas no período" description="A análise depende da turma registrada no lead." />}
         </ChartCard>
       </div>
 
-      <ChartCard title={data?.scope.mode === "individual" ? "Minha produtividade" : "Performance dos consultores"}>
-        {isLoading ? <GrowthLoading /> : data?.consultants.length ? (
+      <ChartCard
+        title={
+          turmaId
+            ? "Resultado por responsável atual da turma"
+            : data?.scope.mode === "individual"
+              ? "Minha produtividade"
+              : "Performance dos responsáveis"
+        }
+      >
+        {isLoading ? <GrowthLoading /> : displayedConsultants?.length ? (
           <div className="overflow-x-auto">
             <div className="min-w-[720px] space-y-2">
               <div className="grid grid-cols-[minmax(180px,1fr)_repeat(5,100px)] gap-3 border-b px-3 pb-2 text-xs font-semibold text-muted-foreground">
                 <span>Consultor</span><span>Leads</span><span>Qualificados</span><span>Matrículas</span><span>Conversão</span><span>Follow-up</span>
               </div>
-              {data.consultants.map((item) => (
+              {displayedConsultants.map((item) => (
                 <div key={item.id} className="grid grid-cols-[minmax(180px,1fr)_repeat(5,100px)] gap-3 rounded-md bg-muted/25 px-3 py-3 text-sm">
                   <span className="font-semibold">{item.name}</span>
                   <span>{item.leads}</span>
@@ -211,6 +241,42 @@ function BI() {
             </div>
           </div>
         ) : <GrowthEmptyPanel icon={Users} title="Sem produtividade calculada" description="Os consultores aparecerão quando receberem leads." />}
+      </ChartCard>
+
+      <ChartCard title="Desempenho por turma">
+        {isLoading ? <GrowthLoading /> : data?.turmas.length ? (
+          <div className="overflow-x-auto">
+            <div className="min-w-[920px] space-y-2">
+              <div className="grid grid-cols-[minmax(300px,1.7fr)_repeat(5,minmax(110px,.6fr))] gap-3 border-b px-3 pb-2 text-xs font-semibold text-muted-foreground">
+                <span>Turma</span>
+                <span>Leads</span>
+                <span>Matrículas</span>
+                <span>Conversão</span>
+                <span>Receita confirmada</span>
+                <span>Potencial</span>
+              </div>
+              {data.turmas.map((turma) => (
+                <div
+                  key={turma.id}
+                  className="grid grid-cols-[minmax(300px,1.7fr)_repeat(5,minmax(110px,.6fr))] gap-3 rounded-md bg-muted/25 px-3 py-3 text-sm"
+                >
+                  <span className="font-semibold">{turma.name}</span>
+                  <span>{turma.leads}</span>
+                  <span>{turma.enrollments}</span>
+                  <span>{formatPercent(turma.conversionRate)}</span>
+                  <span>{formatCurrency(turma.confirmedRevenue)}</span>
+                  <span>{formatCurrency(turma.pipelinePotential)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <GrowthEmptyPanel
+            icon={GraduationCap}
+            title="Sem desempenho por turma"
+            description="As turmas aparecerão quando receberem leads no período selecionado."
+          />
+        )}
       </ChartCard>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">

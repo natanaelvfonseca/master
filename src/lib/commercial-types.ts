@@ -1,5 +1,20 @@
 export type CommercialStatus = "active" | "inactive";
 
+export function formatCommercialDate(value: string | null | undefined) {
+  if (!value) return "";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+export function buildTurmaLabel(input: {
+  courseName: string;
+  city: string;
+  state: string;
+  classDate: string;
+}) {
+  return `${input.courseName} · ${input.city}/${input.state} · ${formatCommercialDate(input.classDate)}`;
+}
+
 export type CourseRecord = {
   id: string;
   unitId: string;
