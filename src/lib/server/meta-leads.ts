@@ -1058,8 +1058,9 @@ export function verifyMetaSignature(
   return expected.length === signature.length && expected === signature;
 }
 
-export async function listMetaState() {
+export async function listMetaState(eventSearch = "") {
   const integration = await ensureMetaIntegration();
+  const normalizedEventSearch = eventSearch.trim().slice(0, 200);
 
   const [pagesResult, formsResult, eventsResult, optionsResult, alertsResult] = await Promise.all([
     queryDb<MetaPageRow>(
@@ -1117,6 +1118,74 @@ export async function listMetaState() {
     ),
     queryDb<MetaEventRow>(
       `
+        with matching_events as (
+          select
+            id,
+            page_db_id,
+            form_db_id,
+            lead_id,
+            page_id,
+            form_id,
+            leadgen_id,
+            campaign_id,
+            campaign_name,
+            adset_id,
+            adset_name,
+            ad_id,
+            ad_name,
+            form_name,
+            page_name,
+            meta_created_time::text,
+            received_at,
+            processed_at,
+            status,
+            error_message,
+            distribution_reason,
+            attendance_id,
+            assigned_user_id,
+            routing_source,
+            routing_error,
+            payload,
+            lead_payload,
+            mapped_payload,
+            case
+              when status in ('processed', 'duplicate') then 'processed'
+              else 'pending_configuration'
+            end as event_group
+          from app_meta_lead_events
+          where (
+            $1::text = ''
+            or concat_ws(
+              ' ',
+              id::text,
+              lead_id::text,
+              page_id,
+              form_id,
+              leadgen_id,
+              campaign_id,
+              campaign_name,
+              adset_id,
+              adset_name,
+              ad_id,
+              ad_name,
+              form_name,
+              page_name,
+              lead_payload::text,
+              mapped_payload::text,
+              error_message,
+              routing_error
+            ) ilike '%' || $1 || '%'
+          )
+        ),
+        ranked_events as (
+          select
+            matching_events.*,
+            row_number() over (
+              partition by event_group
+              order by received_at desc
+            ) as event_rank
+          from matching_events
+        )
         select
           id,
           page_db_id,
@@ -1133,7 +1202,7 @@ export async function listMetaState() {
           ad_name,
           form_name,
           page_name,
-          meta_created_time::text,
+          meta_created_time,
           received_at::text,
           processed_at::text,
           status,
@@ -1146,10 +1215,11 @@ export async function listMetaState() {
           payload,
           lead_payload,
           mapped_payload
-        from app_meta_lead_events
+        from ranked_events
+        where event_rank <= 300
         order by received_at desc
-        limit 100
       `,
+      [normalizedEventSearch],
     ),
     queryDb<QueryResultRow>(
       `

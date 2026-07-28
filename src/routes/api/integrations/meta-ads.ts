@@ -48,7 +48,8 @@ export const Route = createFileRoute("/api/integrations/meta-ads")({
           return auth.response;
         }
 
-        const state = await listMetaState();
+        const eventSearch = new URL(request.url).searchParams.get("eventSearch") ?? "";
+        const state = await listMetaState(eventSearch);
 
         return Response.json(state, { headers: { "Cache-Control": "no-store" } });
       },

@@ -15,6 +15,7 @@ import {
   RadioTower,
   Route as RouteIcon,
   Settings2,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { canManageMetaAds, canViewMetaAds } from "@/lib/auth-types";
@@ -297,6 +298,7 @@ function MetaAdsPage() {
   const [duplicateFormId, setDuplicateFormId] = React.useState("");
   const [duplicateName, setDuplicateName] = React.useState("");
   const [selectedFormsUnitId, setSelectedFormsUnitId] = React.useState("");
+  const [eventSearch, setEventSearch] = React.useState("");
   const [integrationForm, setIntegrationForm] = React.useState<IntegrationForm>({
     appId: "",
     appSecret: "",
@@ -314,7 +316,7 @@ function MetaAdsPage() {
     state?.forms.filter((form) => form.status === "active" && form.unit_id).length ?? 0;
   const activeForms = state?.forms.filter((form) => form.status === "active").length ?? 0;
 
-  const loadState = React.useCallback(async () => {
+  const loadState = React.useCallback(async (search = eventSearch) => {
     if (!canAccess) {
       setLoading(false);
       return;
@@ -324,10 +326,13 @@ function MetaAdsPage() {
 
     try {
       const data = await readJson<MetaState>(
-        await fetch("/api/integrations/meta-ads", {
+        await fetch(
+          `/api/integrations/meta-ads?eventSearch=${encodeURIComponent(search.trim())}`,
+          {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
-        }),
+          },
+        ),
       );
 
       setState(data);
@@ -349,11 +354,15 @@ function MetaAdsPage() {
     } finally {
       setLoading(false);
     }
-  }, [canAccess]);
+  }, [canAccess, eventSearch]);
 
   React.useEffect(() => {
-    void loadState();
-  }, [loadState]);
+    const timeout = window.setTimeout(() => {
+      void loadState(eventSearch);
+    }, eventSearch ? 300 : 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [eventSearch, loadState]);
 
   if (session && !canAccess) {
     return (
@@ -479,6 +488,10 @@ function MetaAdsPage() {
     state?.options.channels.filter((item) => item.unitId === formConfig.unitId) ?? [];
   const unitAttendances =
     state?.options.attendances.filter((item) => item.status === "active") ?? [];
+  const processedEvents =
+    state?.events.filter((event) => ["processed", "duplicate"].includes(event.status)) ?? [];
+  const pendingConfigurationEvents =
+    state?.events.filter((event) => !["processed", "duplicate"].includes(event.status)) ?? [];
   return (
     <div className="space-y-6">
       <PageHeader
@@ -793,23 +806,78 @@ function MetaAdsPage() {
 
         <TabsContent value="events">
           <Card className="border-primary/10 shadow-card">
-            <CardHeader>
-              <CardTitle className="text-base">Histórico de eventos</CardTitle>
+            <CardHeader className="space-y-4">
+              <div>
+                <CardTitle className="text-base">Histórico de eventos</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pesquise pelos dados do lead, IDs, formulário, página, campanha ou anúncio.
+                </p>
+              </div>
+              <div className="relative max-w-2xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={eventSearch}
+                  onChange={(event) => setEventSearch(event.target.value)}
+                  placeholder="Buscar evento, lead, telefone, Form ID, campanha..."
+                  className="pl-9"
+                />
+              </div>
             </CardHeader>
             <CardContent>
-              <EventTable
-                events={state?.events ?? []}
-                readOnly={!canManage}
-                onReprocess={(event) => {
-                  setBusyAction(event.id);
-                  void postAction(
-                    { action: "reprocessEvent", eventId: event.id },
-                    "Evento reprocessado.",
-                  );
-                }}
-                onConfigure={(event) => openFormDialog(undefined, event)}
-                busyAction={busyAction}
-              />
+              <Tabs defaultValue="pending_configuration" className="space-y-4">
+                <TabsList className="grid h-auto w-full max-w-2xl grid-cols-2">
+                  <TabsTrigger value="processed">
+                    Eventos processados ({processedEvents.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending_configuration">
+                    Pendentes de configuração ({pendingConfigurationEvents.length})
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="processed">
+                  <EventTable
+                    events={processedEvents}
+                    emptyMessage={
+                      eventSearch
+                        ? "Nenhum evento processado encontrado para esta pesquisa."
+                        : "Nenhum evento processado encontrado."
+                    }
+                    readOnly={!canManage}
+                    onReprocess={(event) => {
+                      setBusyAction(event.id);
+                      void postAction(
+                        { action: "reprocessEvent", eventId: event.id },
+                        "Evento reprocessado.",
+                      );
+                    }}
+                    onConfigure={(event) => openFormDialog(undefined, event)}
+                    busyAction={busyAction}
+                  />
+                </TabsContent>
+                <TabsContent value="pending_configuration">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Eventos aguardando configuração, com erro ou ainda não processados podem ser
+                    corrigidos e reprocessados por aqui.
+                  </p>
+                  <EventTable
+                    events={pendingConfigurationEvents}
+                    emptyMessage={
+                      eventSearch
+                        ? "Nenhum evento pendente encontrado para esta pesquisa."
+                        : "Não há eventos pendentes de configuração."
+                    }
+                    readOnly={!canManage}
+                    onReprocess={(event) => {
+                      setBusyAction(event.id);
+                      void postAction(
+                        { action: "reprocessEvent", eventId: event.id },
+                        "Evento reprocessado.",
+                      );
+                    }}
+                    onConfigure={(event) => openFormDialog(undefined, event)}
+                    busyAction={busyAction}
+                  />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1153,12 +1221,14 @@ function FormsTable({
 
 function EventTable({
   events,
+  emptyMessage = "Nenhum evento encontrado.",
   busyAction,
   readOnly = false,
   onReprocess,
   onConfigure,
 }: {
   events: Array<MetaEvent>;
+  emptyMessage?: string;
   busyAction: string | null;
   readOnly?: boolean;
   onReprocess: (event: MetaEvent) => void;
@@ -1177,7 +1247,7 @@ function EventTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {events.map((event) => (
+        {events.length ? events.map((event) => (
           <TableRow key={event.id}>
             <TableCell>{formatDate(event.received_at)}</TableCell>
             <TableCell>
@@ -1229,7 +1299,13 @@ function EventTable({
               ) : null}
             </TableCell>
           </TableRow>
-        ))}
+        )) : (
+          <TableRow>
+            <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
+              {emptyMessage}
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   );
