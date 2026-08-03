@@ -282,7 +282,11 @@ export const Route = createFileRoute("/api/crm/leads")({
               limit 1
             ) meta_info on true
             where l.unit_id = $1
-              and ($4::boolean or l.created_by = $2)
+              and (
+                $4::boolean
+                or ($3 = 'students' and coalesce(l.converted_by, l.created_by) = $2)
+                or ($3 = 'pipeline' and l.created_by = $2)
+              )
               and (
                 ($3 = 'students' and l.stage = 'Matriculado')
                 or ($3 = 'pipeline' and l.stage <> 'Matriculado')

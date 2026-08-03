@@ -1,10 +1,10 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Filter, Lock, Search, Trash2, Users, X } from "lucide-react";
+import { Filter, Lock, RotateCcw, Search, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import type { LeadRecord, StudentStage } from "@/lib/commercial-types";
 import { useAuth } from "@/lib/auth";
-import { canViewStudents } from "@/lib/auth-types";
+import { canOperateCrm, canTransferLeads, canViewStudents } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -71,12 +71,16 @@ export const Route = createFileRoute("/leads/")({
 function LeadsList() {
   const { session } = useAuth();
   const activeUnitId = session?.activeUnit?.id ?? "";
-  const canViewStudentList = session ? canViewStudents(session.user.role) : false;  const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
+  const canViewStudentList = session ? canViewStudents(session.user.role) : false;
+  const canReturnStudents = session ? canOperateCrm(session.user.role) : false;
+  const canDeleteStudents = session ? canTransferLeads(session.user.role) : false;
+  const [leads, setLeads] = React.useState<Array<LeadRecord>>([]);
   const [search, setSearch] = React.useState("");
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [filters, setFilters] = React.useState<StudentFilters>(() => emptyStudentFilters());
   const [loading, setLoading] = React.useState(true);
   const [removingLeadId, setRemovingLeadId] = React.useState<string | null>(null);
+  const [returningLeadId, setReturningLeadId] = React.useState<string | null>(null);
   const [syncingLeadId, setSyncingLeadId] = React.useState<string | null>(null);
   const [draggingLeadId, setDraggingLeadId] = React.useState<string | null>(null);
 
@@ -244,11 +248,51 @@ function LeadsList() {
     }
   }
 
+  async function handleReturnStudentToLeads(lead: LeadRecord) {
+    if (
+      !window.confirm(
+        `Voltar "${lead.fullName}" para Aguardando matrícula? A taxa confirmada será cancelada.`,
+      )
+    ) {
+      return;
+    }
+
+    setReturningLeadId(lead.id);
+
+    try {
+      await readJson<{ ok: true; stage: "Aguardando matrícula" }>(
+        await fetch(`/api/crm/leads/${lead.id}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "returnToLead" }),
+        }),
+      );
+
+      setLeads((current) => current.filter((item) => item.id !== lead.id));
+      toast.success("Aluno devolvido para Aguardando matrícula.");
+
+      if ("BroadcastChannel" in window) {
+        const channel = new BroadcastChannel(`crm-pipeline-${lead.unitId}`);
+        channel.postMessage({ type: "lead-stage-updated", leadId: lead.id });
+        channel.close();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao devolver aluno para leads.");
+    } finally {
+      setReturningLeadId(null);
+    }
+  }
+
   return (
     <div>      <PageHeader
         eyebrow="Comercial"
         title="Alunos"
-        description="Base de alunos convertidos quando a taxa foi confirmada no CRM Pipeline."
+        description={
+          session?.user.role === "CONSULTOR"
+            ? "Seus alunos matriculados e o andamento da confirmação de turma."
+            : "Base de alunos convertidos quando a taxa foi confirmada no CRM Pipeline."
+        }
       />
       <Card className="shadow-card">
         <div className="border-b border-border p-4">
@@ -431,18 +475,24 @@ function LeadsList() {
                               <div className="truncate font-semibold">{lead.fullName}</div>
                               <div className="text-xs text-muted-foreground">{lead.phone}</div>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => void handleRemoveStudent(lead)}
-                              disabled={removingLeadId === lead.id || syncingLeadId === lead.id}
-                              aria-label={`Remover ${lead.fullName}`}
-                              title="Remover aluno"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDeleteStudents ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => void handleRemoveStudent(lead)}
+                                disabled={
+                                  removingLeadId === lead.id ||
+                                  returningLeadId === lead.id ||
+                                  syncingLeadId === lead.id
+                                }
+                                aria-label={`Remover ${lead.fullName}`}
+                                title="Remover aluno"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                             <div>{lead.courseName ?? "Curso não informado"}</div>
@@ -467,6 +517,24 @@ function LeadsList() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {canReturnStudents ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="mt-2 w-full border-primary/25 text-primary hover:bg-primary hover:text-primary-foreground"
+                              onClick={() => void handleReturnStudentToLeads(lead)}
+                              disabled={
+                                returningLeadId === lead.id ||
+                                removingLeadId === lead.id ||
+                                syncingLeadId === lead.id
+                              }
+                            >
+                              <RotateCcw
+                                className={`mr-2 h-4 w-4 ${returningLeadId === lead.id ? "animate-spin" : ""}`}
+                              />
+                              {returningLeadId === lead.id ? "Voltando..." : "Voltar para Leads"}
+                            </Button>
+                          ) : null}
                         </Card>
                       ))}
                     </div>

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { canViewManagement, isExecutiveRole, isMasterRole } from "@/lib/auth-types";
+import { getUnitFromRequest } from "@/lib/server/commercial-schema";
 import {
   listCourseAttendances,
   saveCourseAttendance,
@@ -44,14 +45,31 @@ export const Route = createFileRoute("/api/gestao/attendances")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const auth = await authorize(request, url.searchParams.get("unitId") ?? "");
+        const session = await getSessionFromRequest(request);
 
-        if ("response" in auth) {
-          return auth.response;
+        if (!session) {
+          return Response.json({ ok: false, error: "Não autenticado." }, { status: 401 });
         }
 
-        return Response.json(await listCourseAttendances(auth.unitId), {
+        const unit = getUnitFromRequest(session, request);
+
+        if (!unit) {
+          return Response.json({ ok: false, error: "Unidade indisponível." }, { status: 403 });
+        }
+
+        const data = await listCourseAttendances(unit.id);
+        const response = canViewManagement(session.user.role)
+          ? data
+          : {
+              attendances: data.attendances.map((attendance) => ({
+                ...attendance,
+                consultantIds: [],
+                consultantNames: [],
+              })),
+              consultants: [],
+            };
+
+        return Response.json(response, {
           headers: { "Cache-Control": "no-store" },
         });
       },

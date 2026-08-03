@@ -5,7 +5,7 @@ import { canOperateCrm, canTransferLeads } from "@/lib/auth-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
-import { queryDb } from "@/lib/server/db";
+import { queryDb, withTransaction } from "@/lib/server/db";
 
 type LeadUnitRow = QueryResultRow & {
   unit_id: string;
@@ -71,6 +71,11 @@ function parseStage(body: unknown) {
 function parseStudentStage(body: unknown) {
   const data = body as { studentStage?: unknown };
   return typeof data?.studentStage === "string" ? data.studentStage.trim() : "";
+}
+
+function parseLeadAction(body: unknown) {
+  const data = body as { action?: unknown };
+  return data?.action === "returnToLead" ? "returnToLead" : null;
 }
 
 function parseLeadUpdate(body: unknown) {
@@ -252,6 +257,7 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
         const payload = parseLeadUpdate(body);
         const nextStage = payload.stage || parseStage(body);
         const nextStudentStage = parseStudentStage(body);
+        const action = parseLeadAction(body);
 
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
@@ -293,6 +299,62 @@ export const Route = createFileRoute("/api/crm/leads/$id")({
 
         if (!canManageUnitLeads && lead.created_by !== session.user.id) {
           return Response.json({ ok: false, error: "Acesso negado." }, { status: 403 });
+        }
+
+        if (action === "returnToLead") {
+          if (lead.stage !== "Matriculado") {
+            return Response.json(
+              { ok: false, error: "O aluno já foi devolvido para o pipeline." },
+              { status: 409 },
+            );
+          }
+
+          const returnedToPipeline = await withTransaction(async (client) => {
+            const updateResult = await client.query(
+              `
+                update app_leads
+                set
+                  stage = 'Aguardando matrícula',
+                  student_stage = 'Matriculado',
+                  converted_at = null,
+                  converted_by = null,
+                  payment_status = 'pending',
+                  payment_confirmed_at = null,
+                  updated_at = now()
+                where id = $1
+                  and stage = 'Matriculado'
+              `,
+              [params.id],
+            );
+
+            if (updateResult.rowCount !== 1) {
+              return false;
+            }
+
+            await client.query(
+              `
+                update app_student_payments
+                set
+                  status = 'cancelled',
+                  paid_at = null,
+                  updated_at = now()
+                where lead_id = $1
+                  and status = 'paid'
+              `,
+              [params.id],
+            );
+
+            return true;
+          });
+
+          if (!returnedToPipeline) {
+            return Response.json(
+              { ok: false, error: "O aluno já foi devolvido para o pipeline." },
+              { status: 409 },
+            );
+          }
+
+          return Response.json({ ok: true, stage: "Aguardando matrícula" });
         }
 
         if (nextStudentStage) {

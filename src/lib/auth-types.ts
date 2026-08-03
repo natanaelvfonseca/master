@@ -109,7 +109,13 @@ export function canViewManagement(role: UserRole) {
 }
 
 export function canViewStudents(role: UserRole) {
-  return isMasterRole(role) || isExecutiveRole(role) || role === "DIRETOR" || role === "GERENTE";
+  return (
+    isMasterRole(role) ||
+    isExecutiveRole(role) ||
+    role === "DIRETOR" ||
+    role === "GERENTE" ||
+    role === "CONSULTOR"
+  );
 }
 
 export function canTransferLeads(role: UserRole) {
