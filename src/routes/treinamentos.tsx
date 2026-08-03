@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { upload } from "@vercel/blob/client";
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -19,7 +18,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
-  Upload,
+  Youtube,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -51,7 +49,6 @@ import {
   type TrainingLessonScope,
   type TrainingSummary,
   type TrainingTrailId,
-  type TrainingVideoSource,
 } from "@/lib/training-types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -71,10 +68,7 @@ type UploadFormState = {
   durationLabel: string;
   orderIndex: string;
   scope: TrainingLessonScope;
-  videoSource: TrainingVideoSource;
   videoUrl: string;
-  videoFile: File | null;
-  thumbnailFile: File | null;
 };
 
 type EditFormState = Pick<
@@ -89,15 +83,9 @@ const initialUploadForm: UploadFormState = {
   durationLabel: "",
   orderIndex: "0",
   scope: "global",
-  videoSource: "upload",
   videoUrl: "",
-  videoFile: null,
-  thumbnailFile: null,
 };
 
-const TRAINING_UPLOAD_URL = "/api/training/upload";
-const MAX_VIDEO_UPLOAD_BYTES = 1024 * 1024 * 1024;
-const MAX_THUMBNAIL_UPLOAD_BYTES = 10 * 1024 * 1024;
 const PLAYBACK_RATES = ["0.75", "1", "1.25", "1.5", "2"] as const;
 
 const trailStyles: Record<
@@ -178,68 +166,45 @@ function buildVideoSrc(lesson: TrainingLesson, unitId: string) {
   return `/api/training/video?${params.toString()}`;
 }
 
-function validateVideoFile(file: File) {
-  if (!file.type.startsWith("video/")) {
-    toast.error("Selecione um vídeo válido.");
-    return false;
-  }
+function getYouTubeVideoId(value: string | null | undefined) {
+  if (!value) return null;
 
-  if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
-    toast.error("O vídeo precisa ter até 1 GB.");
-    return false;
-  }
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let candidate = "";
 
-  return true;
+    if (host === "youtu.be") {
+      candidate = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    } else if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
+      if (url.pathname === "/watch") {
+        candidate = url.searchParams.get("v") ?? "";
+      } else {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0] ?? "")) {
+          candidate = parts[1] ?? "";
+        }
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
 }
 
-function validateImageFile(file: File) {
-  if (!file.type.startsWith("image/")) {
-    toast.error("Selecione uma imagem válida.");
-    return false;
-  }
-
-  if (file.size > MAX_THUMBNAIL_UPLOAD_BYTES) {
-    toast.error("A capa precisa ter até 10 MB.");
-    return false;
-  }
-
-  return true;
-}
-
-function getSafeFileName(file: File) {
-  const extension =
-    file.name
-      .split(".")
-      .pop()
-      ?.toLowerCase()
-      .replace(/[^a-z0-9]/g, "") ?? "";
-  const baseName =
-    file.name
-      .replace(/\.[^.]+$/, "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "arquivo";
-
-  return extension ? `${baseName}.${extension}` : baseName;
-}
-
-async function uploadTrainingAsset(
-  file: File,
-  kind: "video" | "thumbnail",
-  onProgress: (percentage: number) => void,
-) {
-  const blob = await upload(`treinamentos/${kind}/${Date.now()}-${getSafeFileName(file)}`, file, {
-    access: "public",
-    contentType: file.type,
-    handleUploadUrl: TRAINING_UPLOAD_URL,
-    multipart: kind === "video",
-    clientPayload: JSON.stringify({ kind }),
-    onUploadProgress: ({ percentage }) => onProgress(Math.round(percentage)),
+function buildYouTubeEmbedUrl(videoId: string) {
+  const params = new URLSearchParams({
+    controls: "1",
+    playsinline: "1",
+    rel: "0",
   });
 
-  return blob.url;
+  if (typeof window !== "undefined") {
+    params.set("origin", window.location.origin);
+  }
+
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
 function TrainingPlaceholder({ trail }: { trail: TrainingTrailId }) {
@@ -272,33 +237,9 @@ function UploadDialog({
 }) {
   const [form, setForm] = useState<UploadFormState>(initialUploadForm);
   const [uploading, setUploading] = useState(false);
-  const [uploadStep, setUploadStep] = useState("");
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const updateForm = (patch: Partial<UploadFormState>) => {
     setForm((current) => ({ ...current, ...patch }));
-  };
-
-  const handleVideoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    event.target.value = "";
-
-    if (!file || !validateVideoFile(file)) {
-      return;
-    }
-
-    updateForm({ videoFile: file });
-  };
-
-  const handleThumbnailChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    event.target.value = "";
-
-    if (!file || !validateImageFile(file)) {
-      return;
-    }
-
-    updateForm({ thumbnailFile: file });
   };
 
   const submit = async () => {
@@ -312,45 +253,16 @@ function UploadDialog({
       return;
     }
 
-    if (form.videoSource === "upload" && !form.videoFile) {
-      toast.error("Envie o vídeo da aula.");
-      return;
-    }
+    const youtubeVideoId = getYouTubeVideoId(form.videoUrl);
 
-    if (form.videoSource === "url" && !form.videoUrl.trim()) {
-      toast.error("Informe a URL do vídeo.");
+    if (!youtubeVideoId) {
+      toast.error("Informe um link válido do YouTube.");
       return;
     }
 
     setUploading(true);
-    setUploadProgress(0);
 
     try {
-      let videoUrl = form.videoUrl.trim();
-      let videoFileName = "video-url";
-      let videoMimeType = "video/mp4";
-      let thumbnailDataUrl: string | null = null;
-
-      if (form.videoSource === "upload" && form.videoFile) {
-        setUploadStep("Enviando vídeo da aula");
-        videoUrl = await uploadTrainingAsset(form.videoFile, "video", setUploadProgress);
-        videoFileName = form.videoFile.name;
-        videoMimeType = form.videoFile.type || "video/mp4";
-      }
-
-      if (form.thumbnailFile) {
-        setUploadStep("Enviando capa da aula");
-        setUploadProgress(0);
-        thumbnailDataUrl = await uploadTrainingAsset(
-          form.thumbnailFile,
-          "thumbnail",
-          setUploadProgress,
-        );
-      }
-
-      setUploadStep("Publicando na trilha");
-      setUploadProgress(100);
-
       const data = await readJson<TrainingResponse>(
         await fetch("/api/training", {
           method: "POST",
@@ -368,10 +280,10 @@ function UploadDialog({
             orderIndex: form.orderIndex,
             scope: form.scope,
             videoSource: "url",
-            videoUrl,
-            videoFileName,
-            videoMimeType,
-            thumbnailDataUrl,
+            videoUrl: `https://www.youtube.com/watch?v=${youtubeVideoId}`,
+            videoFileName: `youtube-${youtubeVideoId}`,
+            videoMimeType: "video/youtube",
+            thumbnailDataUrl: `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`,
           }),
         }),
       );
@@ -387,8 +299,6 @@ function UploadDialog({
       toast.error(error instanceof Error ? error.message : "Falha ao publicar aula.");
     } finally {
       setUploading(false);
-      setUploadStep("");
-      setUploadProgress(0);
     }
   };
 
@@ -403,7 +313,7 @@ function UploadDialog({
         <DialogHeader>
           <DialogTitle>Publicar aula</DialogTitle>
           <DialogDescription>
-            Curadoria de conteúdos para a trilha de aprendizagem da equipe.
+            Cole o link de um vídeo do YouTube para publicar sem consumir o armazenamento da plataforma.
           </DialogDescription>
         </DialogHeader>
 
@@ -476,79 +386,27 @@ function UploadDialog({
               placeholder="Resumo objetivo do que o time vai aprender nesta aula."
             />
           </div>
-          <div className="space-y-1.5">
-            <Label>Origem do vídeo</Label>
-            <Select
-              value={form.videoSource}
-              onValueChange={(value) => updateForm({ videoSource: value as TrainingVideoSource })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="upload">Upload MP4/WebM</SelectItem>
-                <SelectItem value="url">URL HTTPS direta</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {form.videoSource === "upload" ? (
-            <div className="space-y-1.5">
-              <Label>Vídeo da aula</Label>
-              <input
-                id="training-video-upload"
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                className="hidden"
-                onChange={handleVideoChange}
-              />
-              <Button asChild variant="outline" className="w-full justify-start gap-2">
-                <label htmlFor="training-video-upload">
-                  <Upload className="h-4 w-4" />
-                  {form.videoFile ? form.videoFile.name : "Selecionar vídeo"}
-                </label>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>URL do vídeo</Label>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Link do vídeo no YouTube</Label>
+            <div className="relative">
+              <Youtube className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-600" />
               <Input
                 value={form.videoUrl}
                 onChange={(event) => updateForm({ videoUrl: event.target.value })}
-                placeholder="https://..."
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="pl-10"
               />
             </div>
-          )}
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Capa da aula</Label>
-            <input
-              id="training-thumbnail-upload"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={handleThumbnailChange}
-            />
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <label htmlFor="training-thumbnail-upload">
-                <Upload className="h-4 w-4" />
-                {form.thumbnailFile ? form.thumbnailFile.name : "Selecionar capa"}
-              </label>
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Aceita links youtube.com, youtu.be, Shorts e transmissões. A capa será preenchida automaticamente.
+            </p>
           </div>
         </div>
 
         {uploading ? (
-          <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-2 font-bold text-primary">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {uploadStep || "Preparando publicação"}
-              </div>
-              <span className="font-black text-primary">{uploadProgress}%</span>
-            </div>
-            <Progress value={uploadProgress} className="mt-3 h-2" />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Mantenha esta janela aberta enquanto o vídeo é enviado.
-            </p>
+          <div className="flex items-center gap-2 rounded-xl border border-primary/15 bg-primary/5 p-4 text-sm font-bold text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Publicando aula na trilha
           </div>
         ) : null}
 
@@ -560,7 +418,7 @@ function UploadDialog({
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Upload className="h-4 w-4" />
+              <Youtube className="h-4 w-4" />
             )}
             Publicar aula
           </Button>
@@ -770,6 +628,7 @@ function Treinamentos() {
       null,
     [lessons, selectedLessonId, selectedTrail],
   );
+  const selectedYouTubeVideoId = getYouTubeVideoId(selectedLesson?.videoUrl);
   const lessonsByTrail = useMemo(
     () =>
       visibleTrails.reduce(
@@ -1177,41 +1036,60 @@ function Treinamentos() {
                       </div>
                       <h3 className="mt-1 truncate text-lg font-black">{selectedLesson.title}</h3>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-xs font-bold text-white/55">Velocidade</span>
-                      <Select value={playbackRate} onValueChange={changePlaybackRate}>
-                        <SelectTrigger className="h-8 w-24 border-white/25 bg-white/10 text-xs text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PLAYBACK_RATES.map((rate) => (
-                            <SelectItem key={rate} value={rate}>
-                              {rate}x
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {selectedYouTubeVideoId ? (
+                      <Badge className="shrink-0 border-white/15 bg-white/10 text-white hover:bg-white/10">
+                        <Play className="mr-1.5 h-3.5 w-3.5 text-[#f6cf62]" />
+                        Player Academia Master
+                      </Badge>
+                    ) : (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs font-bold text-white/55">Velocidade</span>
+                        <Select value={playbackRate} onValueChange={changePlaybackRate}>
+                          <SelectTrigger className="h-8 w-24 border-white/25 bg-white/10 text-xs text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PLAYBACK_RATES.map((rate) => (
+                              <SelectItem key={rate} value={rate}>
+                                {rate}x
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-[#030917] p-2 sm:p-3">
-                    <video
-                      key={selectedLesson.id}
-                      ref={videoRef}
-                      className="aspect-video w-full bg-black"
-                      controls
-                      controlsList="nodownload noremoteplayback"
-                      disablePictureInPicture
-                      disableRemotePlayback
-                      onContextMenu={(event) => event.preventDefault()}
-                      onDragStart={(event) => event.preventDefault()}
-                      poster={selectedLesson.thumbnailDataUrl ?? undefined}
-                      preload="metadata"
-                      src={buildVideoSrc(selectedLesson, activeUnitId)}
-                      onLoadedMetadata={(event) => {
-                        event.currentTarget.playbackRate = Number(playbackRate);
-                      }}
-                    />
+                    {selectedYouTubeVideoId ? (
+                      <iframe
+                        key={selectedLesson.id}
+                        src={buildYouTubeEmbedUrl(selectedYouTubeVideoId)}
+                        title={`Aula: ${selectedLesson.title}`}
+                        className="aspect-video w-full bg-black"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        key={selectedLesson.id}
+                        ref={videoRef}
+                        className="aspect-video w-full bg-black"
+                        controls
+                        controlsList="nodownload noremoteplayback"
+                        disablePictureInPicture
+                        disableRemotePlayback
+                        onContextMenu={(event) => event.preventDefault()}
+                        onDragStart={(event) => event.preventDefault()}
+                        poster={selectedLesson.thumbnailDataUrl ?? undefined}
+                        preload="metadata"
+                        src={buildVideoSrc(selectedLesson, activeUnitId)}
+                        onLoadedMetadata={(event) => {
+                          event.currentTarget.playbackRate = Number(playbackRate);
+                        }}
+                      />
+                    )}
                   </div>
 
                   <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:p-7">

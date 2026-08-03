@@ -189,6 +189,33 @@ function normalizeVideoUrl(value: string) {
   }
 }
 
+function getYouTubeVideoId(value: string) {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let candidate = "";
+
+    if (host === "youtu.be") {
+      candidate = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    } else if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
+      if (url.pathname === "/watch") {
+        candidate = url.searchParams.get("v") ?? "";
+      } else {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (["embed", "shorts", "live"].includes(parts[0] ?? "")) {
+          candidate = parts[1] ?? "";
+        }
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeMediaReference(value: string) {
   if (!value) {
     return null;
@@ -378,9 +405,8 @@ export const Route = createFileRoute("/api/training")({
           const durationLabel = readString(body.durationLabel, 40);
           const orderIndex = Number.parseInt(readString(body.orderIndex, 12), 10) || 0;
           const trail = isTrainingTrail(body.trail) ? body.trail : "plataforma";
-          const videoUrl = normalizeVideoUrl(readString(body.videoUrl, MAX_MEDIA_URL_LENGTH));
-          const thumbnailDataUrl = normalizeMediaReference(
-            readString(body.thumbnailDataUrl ?? body.thumbnailUrl, MAX_MEDIA_URL_LENGTH),
+          const youtubeVideoId = getYouTubeVideoId(
+            normalizeVideoUrl(readString(body.videoUrl, MAX_MEDIA_URL_LENGTH)),
           );
 
           if (scope === "unit" && !requestedUnit) {
@@ -394,12 +420,15 @@ export const Route = createFileRoute("/api/training")({
             );
           }
 
-          if (!videoUrl) {
+          if (!youtubeVideoId) {
             return Response.json(
-              { ok: false, error: "Informe uma URL HTTPS direta do vídeo." },
+              { ok: false, error: "Informe um link válido do YouTube." },
               { status: 400 },
             );
           }
+
+          const videoUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
+          const thumbnailDataUrl = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
 
           input = {
             unitId: scope === "unit" ? (requestedUnit?.id ?? null) : null,
@@ -411,8 +440,8 @@ export const Route = createFileRoute("/api/training")({
             thumbnailDataUrl,
             videoSource: "url",
             videoUrl,
-            videoFileName: readString(body.videoFileName, 240) || "video-url",
-            videoMimeType: readString(body.videoMimeType, 120) || "video/mp4",
+            videoFileName: `youtube-${youtubeVideoId}`,
+            videoMimeType: "video/youtube",
             videoDataUrl: null,
           };
         } else {
