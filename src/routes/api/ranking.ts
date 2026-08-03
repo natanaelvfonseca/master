@@ -12,7 +12,6 @@ type RankingRow = QueryResultRow & {
   avatar_url: string | null;
   leads: string | number;
   taxa_feita: string | number;
-  last_taxa_at: string | null;
 };
 
 function toNumber(value: string | number | null | undefined) {
@@ -36,7 +35,6 @@ function mapRankingRow(row: RankingRow, index: number): RankingMember {
     leads,
     taxaFeita,
     conversionRate: percentage(taxaFeita, leads),
-    lastTaxaAt: row.last_taxa_at,
   };
 }
 
@@ -60,7 +58,14 @@ export const Route = createFileRoute("/api/ranking")({
 
         const result = await queryDb<RankingRow>(
           `
-            with consultants as (
+            with period as (
+              select
+                date_trunc('month', now() at time zone 'America/Sao_Paulo')
+                  at time zone 'America/Sao_Paulo' as starts_at,
+                (date_trunc('month', now() at time zone 'America/Sao_Paulo') + interval '1 month')
+                  at time zone 'America/Sao_Paulo' as ends_at
+            ),
+            consultants as (
               select distinct
                 u.id,
                 u.name,
@@ -77,20 +82,25 @@ export const Route = createFileRoute("/api/ranking")({
                 l.created_by as user_id,
                 count(*)::int as leads
               from app_leads l
+              cross join period p
               where l.unit_id = $1
                 and l.created_by is not null
+                and l.created_at >= p.starts_at
+                and l.created_at < p.ends_at
               group by l.created_by
             ),
             taxa_metrics as (
               select
                 coalesce(l.converted_by, l.created_by) as user_id,
-                count(*)::int as taxa_feita,
-                max(coalesce(l.payment_confirmed_at, l.converted_at, l.updated_at, l.created_at))::text as last_taxa_at
+                count(*)::int as taxa_feita
               from app_leads l
+              cross join period p
               where l.unit_id = $1
                 and l.stage = 'Matriculado'
                 and l.payment_status = 'paid'
                 and coalesce(l.converted_by, l.created_by) is not null
+                and coalesce(l.payment_confirmed_at, l.converted_at, l.updated_at, l.created_at) >= p.starts_at
+                and coalesce(l.payment_confirmed_at, l.converted_at, l.updated_at, l.created_at) < p.ends_at
               group by coalesce(l.converted_by, l.created_by)
             )
             select
@@ -99,8 +109,7 @@ export const Route = createFileRoute("/api/ranking")({
               c.email,
               c.avatar_url,
               coalesce(lm.leads, 0)::int as leads,
-              coalesce(tm.taxa_feita, 0)::int as taxa_feita,
-              tm.last_taxa_at
+              coalesce(tm.taxa_feita, 0)::int as taxa_feita
             from consultants c
             left join lead_metrics lm on lm.user_id = c.id
             left join taxa_metrics tm on tm.user_id = c.id

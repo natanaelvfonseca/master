@@ -9,7 +9,6 @@ export type RankingMember = {
   leads: number;
   taxaFeita: number;
   conversionRate: number;
-  lastTaxaAt: string | null;
 };
 
 export type RankingResponse = {

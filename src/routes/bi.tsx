@@ -36,6 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   formatCurrency,
   formatPercent,
+  GrowthAccessDenied,
   GrowthDataBar,
   GrowthEmptyPanel,
   GrowthLoading,
@@ -45,7 +46,7 @@ import {
   metricValue,
 } from "@/components/growth/GrowthDashboardPrimitives";
 import { useAuth } from "@/lib/auth";
-import { canViewNetworkGrowth } from "@/lib/auth-types";
+import { canViewNetworkGrowth, canViewReports } from "@/lib/auth-types";
 import { useGrowthData } from "@/lib/use-growth-data";
 
 const chartColors = ["#F97316", "#1236C9", "#22C55E", "#FF8A1F", "#C2410C", "#EF4444", "#06B6D4", "#8B5CF6"];
@@ -82,6 +83,7 @@ function BI() {
   const [scopeValue, setScopeValue] = React.useState("");
   const [periodDays, setPeriodDays] = React.useState(30);
   const [turmaId, setTurmaId] = React.useState("");
+  const canViewReport = session ? canViewReports(session.user.role) : false;
   const canViewNetwork = session ? canViewNetworkGrowth(session.user.role) : false;
   const activeUnitId = session?.activeUnit?.id ?? "";
 
@@ -95,7 +97,7 @@ function BI() {
 
   const { data, loading } = useGrowthData(
     scopeValue,
-    Boolean(session && scopeValue),
+    Boolean(session && canViewReport && scopeValue),
     periodDays,
     turmaId,
   );
@@ -116,6 +118,10 @@ function BI() {
   const funnelData = data?.funnel.filter((item) => item.leads > 0) ?? [];
   const turmaMax = Math.max(...(data?.turmas.map((item) => item.leads) ?? [0]), 0);
   const displayedConsultants = turmaId ? data?.turmaConsultants : data?.consultants;
+
+  if (session && !canViewReport) {
+    return <GrowthAccessDenied />;
+  }
 
   return (
     <div className="space-y-6">      <PageHeader

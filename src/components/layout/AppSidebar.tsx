@@ -42,8 +42,8 @@ import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
   canViewAttendances,
-  canViewGrowth,
   canViewManagement,
+  canViewReports,
   canViewStudents,
   canViewMetaAds,
   getInitials,
@@ -145,7 +145,7 @@ export function AppSidebar() {
   const visibleGroups = groups
     .filter(
       (group) =>
-        (group.label !== "Crescimento" || (user ? canViewGrowth(user.role) : false)) &&
+        (group.label !== "Crescimento" || (user ? canViewReports(user.role) : false)) &&
         (group.label !== "Gestão" ||
           canViewManagementArea ||
           canSeeMetaAds),

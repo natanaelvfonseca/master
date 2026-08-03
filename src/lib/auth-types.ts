@@ -90,6 +90,10 @@ export function canViewGrowth(role: UserRole) {
   return USER_ROLES.includes(role);
 }
 
+export function canViewReports(role: UserRole) {
+  return role !== "CONSULTOR";
+}
+
 export function canViewNetworkGrowth(role: UserRole) {
   return isMasterRole(role) || isExecutiveRole(role);
 }
