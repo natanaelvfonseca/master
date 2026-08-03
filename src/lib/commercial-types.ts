@@ -59,6 +59,7 @@ export type LeadStage =
 
 export type StudentStage =
   | "Matriculado"
+  | "Grupo de Alunos"
   | "Contrato Feito"
   | "Aluno Confirmado"
   | "Aluno Presente"

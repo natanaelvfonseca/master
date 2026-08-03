@@ -34,6 +34,7 @@ type StudentFilters = {
 const FILTER_ALL = "__all__";
 const studentStages: Array<StudentStage> = [
   "Matriculado",
+  "Grupo de Alunos",
   "Contrato Feito",
   "Aluno Confirmado",
   "Aluno Presente",

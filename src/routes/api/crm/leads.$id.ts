@@ -57,6 +57,7 @@ const allowedStages: Array<LeadStage> = [
 
 const allowedStudentStages: Array<StudentStage> = [
   "Matriculado",
+  "Grupo de Alunos",
   "Contrato Feito",
   "Aluno Confirmado",
   "Aluno Presente",
