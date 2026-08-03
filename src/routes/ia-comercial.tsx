@@ -52,7 +52,13 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
-import { canViewAttendances, getInitials, isExecutiveRole, isMasterRole } from "@/lib/auth-types";
+import {
+  canViewAttendances,
+  canViewSalesAi,
+  getInitials,
+  isExecutiveRole,
+  isMasterRole,
+} from "@/lib/auth-types";
 import type {
   SalesAiConsultantSummary,
   SalesAiCourseOption,
@@ -224,7 +230,10 @@ function firstScriptCourseForConsultant(
 
 function SalesAiPage() {
   const { session } = useAuth();
-  const canAccess = session ? canViewAttendances(session.user.role) : false;  const canUseUnitFilter =
+  const canAccess = session ? canViewSalesAi(session.user.role) : false;
+  const canViewLeadershipArea = session ? canViewAttendances(session.user.role) : false;
+  const consultantView = session?.user.role === "CONSULTOR";
+  const canUseUnitFilter =
     Boolean(session && (isMasterRole(session.user.role) || isExecutiveRole(session.user.role)));
   const [unitFilter, setUnitFilter] = React.useState(ATTENDANCE_ALL_UNITS);
   const [loading, setLoading] = React.useState(true);
@@ -304,7 +313,7 @@ function SalesAiPage() {
 
   const loadData = React.useCallback(
     async (silent = false) => {
-      if (!session || !canAccess) {
+      if (!session || !canViewLeadershipArea) {
         setLoading(false);
         return;
       }
@@ -347,7 +356,7 @@ function SalesAiPage() {
         }
       }
     },
-    [canAccess, canUseUnitFilter, session, unitFilter],
+    [canUseUnitFilter, canViewLeadershipArea, session, unitFilter],
   );
 
   React.useEffect(() => {
@@ -564,6 +573,73 @@ function SalesAiPage() {
     }
   }
 
+  if (consultantView) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="IA Comercial"
+          title="Sua IA de vendas"
+          description="Conecte seu WhatsApp profissional para ativar o acompanhamento inteligente dos seus atendimentos."
+        />
+
+        <ConsultantWhatsappConnection
+          state={evolutionState}
+          loading={loadingEvolution}
+          working={workingEvolution}
+          firstName={session?.user.name.split(/\s+/)[0] || "Consultor"}
+          unitName={session?.activeUnit?.name ?? "Unidade ativa"}
+          onConnect={() => void handleConnectWhatsapp()}
+          onDisconnect={() => void handleDisconnectWhatsapp()}
+          onRefresh={() => void loadEvolutionState()}
+        />
+
+        <Dialog open={qrOpen && evolutionState?.instance?.status !== "connected"} onOpenChange={setQrOpen}>
+          <DialogContent className="overflow-hidden p-0 sm:max-w-md">
+            <div className="bg-[#071a42] px-6 py-5 text-white">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-white">
+                  <QrCode className="h-5 w-5 text-[#f97316]" />
+                  Conectar WhatsApp
+                </DialogTitle>
+                <DialogDescription className="text-white/70">
+                  No celular, abra WhatsApp, acesse Aparelhos conectados e leia o código abaixo.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="flex flex-col items-center px-6 pb-6 pt-5">
+              {qrCode ? (
+                <div className="rounded-2xl border border-[#f97316]/20 bg-white p-3 shadow-[0_22px_55px_-30px_rgba(7,26,66,0.65)]">
+                  <img
+                    src={qrCode}
+                    alt="QR Code para conectar o WhatsApp"
+                    className="aspect-square w-64 max-w-full"
+                  />
+                </div>
+              ) : (
+                <div className="flex aspect-square w-64 max-w-full items-center justify-center rounded-2xl border bg-muted/50">
+                  <LoaderCircle className="h-7 w-7 animate-spin text-[#f97316]" />
+                </div>
+              )}
+              <p className="mt-4 max-w-xs text-center text-xs leading-5 text-muted-foreground">
+                Esta janela fechará automaticamente assim que a Evolution confirmar a conexão.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4"
+                onClick={() => void handleConnectWhatsapp()}
+                disabled={workingEvolution}
+              >
+                <RefreshCw className={cn("h-4 w-4", workingEvolution && "animate-spin")} />
+                Gerar novo QR Code
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -705,6 +781,152 @@ function SalesAiPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function ConsultantWhatsappConnection({
+  state,
+  loading,
+  working,
+  firstName,
+  unitName,
+  onConnect,
+  onDisconnect,
+  onRefresh,
+}: {
+  state: EvolutionState | null;
+  loading: boolean;
+  working: boolean;
+  firstName: string;
+  unitName: string;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onRefresh: () => void;
+}) {
+  const connected = state?.instance?.status === "connected";
+  const connecting = state?.instance?.status === "connecting";
+  const status = whatsappStatusInfo(state?.instance?.status);
+  const StatusIcon = status.icon;
+
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-[#071a42]/10 bg-[#071a42] text-white shadow-[0_28px_80px_-42px_rgba(7,26,66,0.85)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_18%,rgba(249,115,22,0.35),transparent_28%),radial-gradient(circle_at_10%_100%,rgba(255,255,255,0.10),transparent_35%)]" />
+      <div className="relative grid min-h-[560px] lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="flex flex-col justify-between gap-10 p-7 sm:p-10 lg:p-14">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-white/15 bg-white/10 text-white hover:bg-white/10">
+                {unitName}
+              </Badge>
+              <Badge variant="outline" className={status.className}>
+                <StatusIcon className={cn("mr-1.5 h-3.5 w-3.5", connecting && "animate-pulse")} />
+                {loading ? "Verificando status..." : status.label}
+              </Badge>
+            </div>
+
+            <p className="mt-10 text-xs font-bold uppercase tracking-[0.28em] text-[#fb923c]">
+              Master IA
+            </p>
+            <h2 className="mt-4 max-w-xl text-3xl font-black leading-tight tracking-[-0.035em] sm:text-5xl">
+              {connected
+                ? `${firstName}, sua IA está ativa.`
+                : `${firstName}, conecte seu WhatsApp para começar.`}
+            </h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-white/68 sm:text-base">
+              {connected
+                ? "A conexão está funcionando e suas conversas comerciais já podem ser acompanhadas pela IA. Você pode continuar atendendo normalmente pelo WhatsApp."
+                : "A conexão é individual e segura. Gere o QR Code, leia com o WhatsApp usado nos atendimentos e aguarde a confirmação automática."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {connected ? (
+              <>
+                <Button
+                  type="button"
+                  className="bg-white text-[#071a42] hover:bg-white/90"
+                  onClick={onRefresh}
+                  disabled={loading || working}
+                >
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                  Verificar conexão
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  onClick={onDisconnect}
+                  disabled={working}
+                >
+                  {working ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+                  Desconectar
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="h-11 bg-[#f97316] px-6 font-bold text-white hover:bg-[#ea580c]"
+                onClick={onConnect}
+                disabled={working || loading || !state?.configured}
+              >
+                {working ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                {connecting ? "Exibir QR Code" : "Gerar QR Code"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="relative flex items-center justify-center border-t border-white/10 bg-white/[0.045] p-7 lg:border-l lg:border-t-0 lg:p-12">
+          <div className="w-full max-w-sm rounded-[24px] border border-white/14 bg-white p-6 text-[#071a42] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.7)] sm:p-8">
+            {loading ? (
+              <div className="flex min-h-72 items-center justify-center">
+                <LoaderCircle className="h-7 w-7 animate-spin text-[#f97316]" />
+              </div>
+            ) : connected ? (
+              <div className="flex min-h-72 flex-col justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/60">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">
+                  Status conectado
+                </p>
+                <h3 className="mt-2 text-2xl font-black">Tudo pronto para vender.</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  Seu WhatsApp está vinculado ao seu usuário nesta unidade.
+                </p>
+                {state?.instance?.phoneNumber ? (
+                  <div className="mt-6 rounded-xl bg-[#fff7ed] px-4 py-3 text-sm font-bold text-[#c2410c]">
+                    {formatPhone(state.instance.phoneNumber)}
+                  </div>
+                ) : null}
+                <p className="mt-4 text-xs text-slate-400">
+                  Conectado em {formatDate(state?.instance?.connectedAt ?? null)}
+                </p>
+              </div>
+            ) : (
+              <div className="flex min-h-72 flex-col justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fff7ed] text-[#f97316]">
+                  <QrCode className="h-8 w-8" />
+                </div>
+                <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-[#f97316]">
+                  Status desconectado
+                </p>
+                <h3 className="mt-2 text-2xl font-black">A IA ainda está em pausa.</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  Gere o QR Code para ativar o acompanhamento das suas conversas comerciais.
+                </p>
+                {!state?.configured ? (
+                  <div className="mt-6 flex gap-2 rounded-xl bg-red-50 p-3 text-xs font-medium leading-5 text-red-700">
+                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    A Evolution API ainda não está disponível. Avise o administrador.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -41,9 +41,9 @@ import {
 import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
-  canViewAttendances,
   canViewManagement,
   canViewReports,
+  canViewSalesAi,
   canViewStudents,
   canViewMetaAds,
   getInitials,
@@ -115,7 +115,7 @@ export function AppSidebar() {
   const canViewManagementArea = user ? canViewManagement(user.role) : false;
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
-  const canSeeAttendances = user ? canViewAttendances(user.role) : false;
+  const canSeeSalesAi = user ? canViewSalesAi(user.role) : false;
   const canSwitchUnit =
     Boolean(user && (isDevRole(user.role) || isExecutiveRole(user.role))) &&
     (session?.units.length ?? 0) > 1;
@@ -157,7 +157,7 @@ export function AppSidebar() {
           (!item.managementOnly || canViewManagementArea) &&
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
-          (!item.attendancesOnly || canSeeAttendances) &&
+          (!item.attendancesOnly || canSeeSalesAi) &&
           (!item.devOnly || user?.role === "DEV"),
       ),
     }))
