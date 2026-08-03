@@ -90,7 +90,7 @@ const groups: Array<NavigationGroup> = [
     label: "Área de Membros",
     items: [
       { title: "Ranking", url: "/ranking", icon: Medal },
-      { title: "Cursos", url: "/treinamentos", icon: LibraryBig },
+      { title: "Academia Master", url: "/treinamentos", icon: LibraryBig },
     ],
   },
   {
