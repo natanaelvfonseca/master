@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as TreinamentosRouteImport } from './routes/treinamentos'
+import { Route as SolicitacoesAnunciosRouteImport } from './routes/solicitacoes-anuncios'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
@@ -44,6 +45,7 @@ import { Route as ApiIaComercialRouteImport } from './routes/api/ia-comercial'
 import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
+import { Route as ApiAdRequestsRouteImport } from './routes/api/ad-requests'
 import { Route as ApiWebhooksPlenaLeadsRouteImport } from './routes/api/webhooks/plena-leads'
 import { Route as ApiWebhooksMetaLeadsRouteImport } from './routes/api/webhooks/meta-leads'
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
@@ -90,6 +92,11 @@ const UnidadesRoute = UnidadesRouteImport.update({
 const TreinamentosRoute = TreinamentosRouteImport.update({
   id: '/treinamentos',
   path: '/treinamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SolicitacoesAnunciosRoute = SolicitacoesAnunciosRouteImport.update({
+  id: '/solicitacoes-anuncios',
+  path: '/solicitacoes-anuncios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperacaoRoute = RecuperacaoRouteImport.update({
@@ -250,6 +257,11 @@ const ApiDashboardRoute = ApiDashboardRouteImport.update({
 const ApiBrandLibraryRoute = ApiBrandLibraryRouteImport.update({
   id: '/api/brand-library',
   path: '/api/brand-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdRequestsRoute = ApiAdRequestsRouteImport.update({
+  id: '/api/ad-requests',
+  path: '/api/ad-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksPlenaLeadsRoute = ApiWebhooksPlenaLeadsRouteImport.update({
@@ -432,9 +444,11 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/ad-requests': typeof ApiAdRequestsRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
@@ -501,9 +515,11 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/ad-requests': typeof ApiAdRequestsRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
@@ -571,9 +587,11 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
+  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
+  '/api/ad-requests': typeof ApiAdRequestsRoute
   '/api/brand-library': typeof ApiBrandLibraryRoute
   '/api/dashboard': typeof ApiDashboardRoute
   '/api/growth': typeof ApiGrowthRoute
@@ -642,9 +660,11 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
+    | '/api/ad-requests'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
@@ -711,9 +731,11 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
+    | '/api/ad-requests'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
@@ -780,9 +802,11 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
+    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
+    | '/api/ad-requests'
     | '/api/brand-library'
     | '/api/dashboard'
     | '/api/growth'
@@ -850,9 +874,11 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
+  SolicitacoesAnunciosRoute: typeof SolicitacoesAnunciosRoute
   TreinamentosRoute: typeof TreinamentosRoute
   UnidadesRoute: typeof UnidadesRoute
   UsuariosRoute: typeof UsuariosRoute
+  ApiAdRequestsRoute: typeof ApiAdRequestsRoute
   ApiBrandLibraryRoute: typeof ApiBrandLibraryRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
   ApiGrowthRoute: typeof ApiGrowthRoute
@@ -917,6 +943,13 @@ declare module '@tanstack/react-router' {
       path: '/treinamentos'
       fullPath: '/treinamentos'
       preLoaderRoute: typeof TreinamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/solicitacoes-anuncios': {
+      id: '/solicitacoes-anuncios'
+      path: '/solicitacoes-anuncios'
+      fullPath: '/solicitacoes-anuncios'
+      preLoaderRoute: typeof SolicitacoesAnunciosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperacao': {
@@ -1141,6 +1174,13 @@ declare module '@tanstack/react-router' {
       path: '/api/brand-library'
       fullPath: '/api/brand-library'
       preLoaderRoute: typeof ApiBrandLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ad-requests': {
+      id: '/api/ad-requests'
+      path: '/api/ad-requests'
+      fullPath: '/api/ad-requests'
+      preLoaderRoute: typeof ApiAdRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/plena-leads': {
@@ -1459,9 +1499,11 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
+  SolicitacoesAnunciosRoute: SolicitacoesAnunciosRoute,
   TreinamentosRoute: TreinamentosRoute,
   UnidadesRoute: UnidadesRoute,
   UsuariosRoute: UsuariosRoute,
+  ApiAdRequestsRoute: ApiAdRequestsRoute,
   ApiBrandLibraryRoute: ApiBrandLibraryRoute,
   ApiDashboardRoute: ApiDashboardRoute,
   ApiGrowthRoute: ApiGrowthRoute,

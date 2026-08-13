@@ -10,6 +10,7 @@ import {
   LibraryBig,
   LogOut,
   MapPinned,
+  Megaphone,
   Medal,
   RadioTower,
   UserRoundCheck,
@@ -46,6 +47,7 @@ import {
   canViewSalesAi,
   canViewStudents,
   canViewMetaAds,
+  canViewAdRequests,
   getInitials,
   isDevRole,
   isExecutiveRole,
@@ -62,6 +64,7 @@ type NavigationItem = {
   studentViewOnly?: boolean;
   attendancesOnly?: boolean;
   devOnly?: boolean;
+  adRequestsOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -84,7 +87,10 @@ const groups: Array<NavigationGroup> = [
   },
   {
     label: "Crescimento",
-    items: [{ title: "Relatórios", url: "/bi", icon: ChartNoAxesCombined }],
+    items: [
+      { title: "Relatórios", url: "/bi", icon: ChartNoAxesCombined },
+      { title: "Solicitar anúncios", url: "/solicitacoes-anuncios", icon: Megaphone, adRequestsOnly: true },
+    ],
   },
   {
     label: "Área de Membros",
@@ -116,6 +122,7 @@ export function AppSidebar() {
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeSalesAi = user ? canViewSalesAi(user.role) : false;
+  const canSeeAdRequests = user ? canViewAdRequests(user.role) : false;
   const canSwitchUnit =
     Boolean(user && (isDevRole(user.role) || isExecutiveRole(user.role))) &&
     (session?.units.length ?? 0) > 1;
@@ -158,7 +165,8 @@ export function AppSidebar() {
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.attendancesOnly || canSeeSalesAi) &&
-          (!item.devOnly || user?.role === "DEV"),
+          (!item.devOnly || user?.role === "DEV") &&
+          (!item.adRequestsOnly || canSeeAdRequests),
       ),
     }))
     .filter((group) => group.items.length > 0);

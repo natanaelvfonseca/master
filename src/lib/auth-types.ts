@@ -146,6 +146,18 @@ export function canManageMetaAds(role: UserRole) {
   return isMasterRole(role);
 }
 
+export function canViewAdRequests(role: UserRole) {
+  return isMasterRole(role) || isExecutiveRole(role) || role === "DIRETOR";
+}
+
+export function canCreateAdRequests(role: UserRole) {
+  return role === "DIRETOR";
+}
+
+export function canManageAdRequests(role: UserRole) {
+  return isMasterRole(role);
+}
+
 export function canViewMetaAds(role: UserRole) {
   return isMasterRole(role) || role === "MARKETING";
 }
