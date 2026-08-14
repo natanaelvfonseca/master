@@ -71,11 +71,17 @@ export function canRegisterUsers(role: UserRole) {
 }
 
 export function canDeleteUsers(role: UserRole) {
-  return isMasterRole(role) || isExecutiveRole(role) || role === "DIRETOR" || role === "MARKETING";
+  return (
+    isMasterRole(role) ||
+    isExecutiveRole(role) ||
+    role === "DIRETOR" ||
+    role === "GERENTE" ||
+    role === "MARKETING"
+  );
 }
 
 export function canEditUsers(role: UserRole) {
-  return isMasterRole(role) || isExecutiveRole(role) || role === "DIRETOR" || role === "MARKETING";
+  return canDeleteUsers(role);
 }
 
 export function canCreateUnits(role: UserRole) {
@@ -235,6 +241,10 @@ export function canDeleteManagedUser(actorRole: UserRole, targetRole: UserRole) 
 
   if (actorRole === "DIRETOR") {
     return targetRole === "GERENTE" || targetRole === "CONSULTOR";
+  }
+
+  if (actorRole === "GERENTE") {
+    return targetRole === "CONSULTOR";
   }
 
   if (actorRole === "MARKETING") {
