@@ -111,6 +111,8 @@ type TransferLead = {
   id: string;
   fullName: string;
   phone: string;
+  turmaId: string | null;
+  turmaName: string | null;
   courseName: string | null;
   stage: LeadStage;
   createdAt: string;
@@ -1036,15 +1038,23 @@ function CRMPipeline() {
     });
   }
 
-  function toggleAllTransferableLeads(checked: boolean | "indeterminate") {
+  function toggleAllTransferableLeads(
+    leadIds: Array<string>,
+    checked: boolean | "indeterminate",
+  ) {
     if (!checked) {
-      setSelectedTransferLeadIds(new Set());
+      const visibleIds = new Set(leadIds);
+      setSelectedTransferLeadIds((current) =>
+        new Set(Array.from(current).filter((id) => !visibleIds.has(id))),
+      );
       return;
     }
 
-    setSelectedTransferLeadIds(
-      new Set(transferLeads.filter((lead) => lead.transferable).map((lead) => lead.id)),
-    );
+    setSelectedTransferLeadIds((current) => {
+      const next = new Set(current);
+      leadIds.forEach((id) => next.add(id));
+      return next;
+    });
   }
 
   async function handleTransferLeads() {
@@ -1065,6 +1075,11 @@ function CRMPipeline() {
 
     if (!transferTargetUserId) {
       toast.error("Escolha o consultor de destino.");
+      return;
+    }
+
+    const targetName = transferConsultants.find((item) => item.id === transferTargetUserId)?.name;
+    if (!window.confirm(`Confirmar a transferência de somente ${leadIds.length} lead(s) para ${targetName ?? "o usuário selecionado"}?`)) {
       return;
     }
 
@@ -1653,11 +1668,47 @@ function TransferLeadDialog({
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void;
   onToggleLead: (lead: TransferLead, checked: boolean | "indeterminate") => void;
-  onToggleAll: (checked: boolean | "indeterminate") => void;
+  onToggleAll: (leadIds: Array<string>, checked: boolean | "indeterminate") => void;
   onTargetChange: (value: string) => void;
   onSubmit: () => void;
 }) {
-  const transferableLeads = leads.filter((lead) => lead.transferable);
+  const [search, setSearch] = React.useState("");
+  const [ownerFilter, setOwnerFilter] = React.useState(FILTER_ALL);
+  const [turmaFilter, setTurmaFilter] = React.useState(FILTER_ALL);
+
+  React.useEffect(() => {
+    if (open) {
+      setSearch("");
+      setOwnerFilter(FILTER_ALL);
+      setTurmaFilter(FILTER_ALL);
+    }
+  }, [open]);
+
+  const ownerOptions = React.useMemo(() => {
+    const options = new Map<string, string>();
+    leads.forEach((lead) => {
+      if (lead.createdById && lead.createdByName) options.set(lead.createdById, lead.createdByName);
+    });
+    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [leads]);
+  const turmaOptions = React.useMemo(() => {
+    const options = new Map<string, string>();
+    leads.forEach((lead) => {
+      if (lead.turmaId && lead.turmaName) options.set(lead.turmaId, lead.turmaName);
+    });
+    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [leads]);
+  const filteredLeads = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return leads.filter((lead) =>
+      (ownerFilter === FILTER_ALL || lead.createdById === ownerFilter) &&
+      (turmaFilter === FILTER_ALL || lead.turmaId === turmaFilter) &&
+      (!query || [lead.fullName, lead.phone, lead.courseName, lead.turmaName, lead.createdByName]
+        .filter(Boolean).join(" ").toLowerCase().includes(query)),
+    );
+  }, [leads, ownerFilter, search, turmaFilter]);
+  const transferableLeads = filteredLeads.filter((lead) => lead.transferable);
+  const selectedLeads = leads.filter((lead) => selectedLeadIds.has(lead.id));
   const allTransferableSelected =
     transferableLeads.length > 0 && transferableLeads.every((lead) => selectedLeadIds.has(lead.id));
 
@@ -1692,14 +1743,28 @@ function TransferLeadDialog({
 
         <div className="grid max-h-[calc(92vh-176px)] gap-4 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="space-y-3">
+            <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar lead" className="bg-background pl-9" />
+              </div>
+              <Select value={turmaFilter} onValueChange={setTurmaFilter}>
+                <SelectTrigger className="bg-background"><SelectValue placeholder="Turma" /></SelectTrigger>
+                <SelectContent><SelectItem value={FILTER_ALL}>Todas as turmas</SelectItem>{turmaOptions.map((turma) => <SelectItem key={turma.id} value={turma.id}>{turma.name}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="bg-background"><SelectValue placeholder="Consultor atual" /></SelectTrigger>
+                <SelectContent><SelectItem value={FILTER_ALL}>Todos os consultores</SelectItem>{ownerOptions.map((owner) => <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="flex flex-col gap-3 rounded-lg border border-primary/15 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
               <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-primary">
                 <Checkbox
                   checked={allTransferableSelected}
-                  onCheckedChange={onToggleAll}
+                  onCheckedChange={(checked) => onToggleAll(transferableLeads.map((lead) => lead.id), checked)}
                   disabled={!transferableLeads.length || loading}
                 />
-                {immediateTransfer ? "Selecionar todos" : "Selecionar todos com mais de 48h"}
+                Selecionar leads filtrados
               </label>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary" className="bg-primary/10 text-primary">
@@ -1716,8 +1781,8 @@ function TransferLeadDialog({
                 <div className="flex h-56 items-center justify-center rounded-lg border bg-white/70">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : leads.length ? (
-                leads.map((lead) => {
+              ) : filteredLeads.length ? (
+                filteredLeads.map((lead) => {
                   const selected = selectedLeadIds.has(lead.id);
 
                   return (
@@ -1758,7 +1823,7 @@ function TransferLeadDialog({
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span>{lead.phone}</span>
-                          {lead.courseName ? <span>{lead.courseName}</span> : null}
+                          {lead.turmaName ? <span>{lead.turmaName}</span> : lead.courseName ? <span>{lead.courseName}</span> : null}
                           <span>{lead.stage}</span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
@@ -1786,7 +1851,7 @@ function TransferLeadDialog({
                 <EmptyState
                   icon={ArrowRightLeft}
                   title="Nenhum lead no pipeline"
-                  description="Leads da unidade aparecem aqui quando ainda não foram matriculados."
+                  description="Nenhum lead corresponde aos filtros selecionados."
                 />
               )}
             </div>
@@ -1827,6 +1892,17 @@ function TransferLeadDialog({
               <div className="text-xs text-muted-foreground">lead(s) selecionado(s)</div>
             </div>
 
+            {selectedLeads.length ? (
+              <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border bg-white/80 p-2">
+                {selectedLeads.map((lead) => (
+                  <div key={lead.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs">
+                    <span className="min-w-0 truncate font-medium">{lead.fullName}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onToggleLead(lead, false)} aria-label={`Remover ${lead.fullName}`}><X className="h-3.5 w-3.5" /></Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             <Button
               type="button"
               onClick={onSubmit}
@@ -1838,7 +1914,7 @@ function TransferLeadDialog({
               ) : (
                 <CheckSquare2 className="h-4 w-4" />
               )}
-              {transferring ? "Transferindo..." : "Transferir leads"}
+              {transferring ? "Transferindo..." : `Transferir ${selectedCount} lead(s)`}
             </Button>
           </div>
         </div>

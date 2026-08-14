@@ -59,6 +59,7 @@ type TransferLead = {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turmaId: string | null;
   turmaName: string | null;
   courseName: string | null;
   acquisitionChannelName: string | null;
@@ -176,6 +177,7 @@ function LeadTransferCenter() {
   const [selectedLeadIds, setSelectedLeadIds] = React.useState<Set<string>>(() => new Set());
   const [targetUserId, setTargetUserId] = React.useState("");
   const [ownerFilter, setOwnerFilter] = React.useState(FILTER_ALL);
+  const [turmaFilter, setTurmaFilter] = React.useState(FILTER_ALL);
   const [stageFilter, setStageFilter] = React.useState(FILTER_ALL);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
@@ -256,11 +258,22 @@ function LeadTransferCenter() {
       leads.filter(
         (lead) =>
           ownerFilterMatches(lead, ownerFilter) &&
+          (turmaFilter === FILTER_ALL || lead.turmaId === turmaFilter) &&
           (stageFilter === FILTER_ALL || lead.stage === stageFilter) &&
           leadMatchesSearch(lead, search),
       ),
-    [leads, ownerFilter, search, stageFilter],
+    [leads, ownerFilter, search, stageFilter, turmaFilter],
   );
+
+  const turmaOptions = React.useMemo(() => {
+    const options = new Map<string, string>();
+    leads.forEach((lead) => {
+      if (lead.turmaId && lead.turmaName) options.set(lead.turmaId, lead.turmaName);
+    });
+    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR"),
+    );
+  }, [leads]);
 
   const transferableFilteredLeads = React.useMemo(
     () => filteredLeads.filter((lead) => lead.transferable),
@@ -339,6 +352,11 @@ function LeadTransferCenter() {
       return;
     }
 
+    const destination = users.find((user) => user.id === targetUserId)?.name;
+    if (!window.confirm(`Confirmar a transferência de somente ${leadIds.length} lead(s) para ${destination ?? "o usuário selecionado"}?`)) {
+      return;
+    }
+
     setTransferring(true);
 
     try {
@@ -375,6 +393,7 @@ function LeadTransferCenter() {
 
   function clearFilters() {
     setOwnerFilter(FILTER_ALL);
+    setTurmaFilter(FILTER_ALL);
     setStageFilter(FILTER_ALL);
     setSearch("");
   }
@@ -403,9 +422,7 @@ function LeadTransferCenter() {
         description="Central de correção de responsáveis do CRM."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="bg-primary/10 text-primary">
-              {policy.immediateTransfer ? "Transferência imediata" : "Regra de 48h"}
-            </Badge>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">Transferência imediata</Badge>
             <Button type="button" variant="outline" onClick={() => void loadData()} disabled={loading}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               Atualizar
@@ -429,7 +446,7 @@ function LeadTransferCenter() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
           <Card className="border-primary/10 shadow-card">
-            <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(260px,1fr)_220px_220px_auto]">
+            <CardContent className="grid gap-3 p-4 lg:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_210px_240px_190px_auto]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -451,6 +468,13 @@ function LeadTransferCenter() {
                       {owner.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={turmaFilter} onValueChange={setTurmaFilter}>
+                <SelectTrigger><SelectValue placeholder="Turma" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>Todas as turmas</SelectItem>
+                  {turmaOptions.map((turma) => <SelectItem key={turma.id} value={turma.id}>{turma.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={stageFilter} onValueChange={setStageFilter}>
@@ -626,6 +650,18 @@ function LeadTransferCenter() {
                 </div>
               </div>
 
+              {selectedLeads.length ? (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border bg-white/80 p-2">
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground">Leads que serão transferidos</div>
+                  {selectedLeads.map((lead) => (
+                    <div key={lead.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/60">
+                      <span className="min-w-0 truncate font-medium">{lead.fullName}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => toggleLead(lead, false)} aria-label={`Remover ${lead.fullName}`}><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               <Button
                 type="button"
                 onClick={() => void submitTransfer()}
@@ -637,7 +673,7 @@ function LeadTransferCenter() {
                 ) : (
                   <ArrowRightLeft className="h-4 w-4" />
                 )}
-                {transferring ? "Transferindo..." : "Transferir selecionados"}
+                {transferring ? "Transferindo..." : `Transferir ${selectedCount} selecionado(s)`}
               </Button>
             </CardContent>
           </Card>

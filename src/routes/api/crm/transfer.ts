@@ -28,6 +28,7 @@ type TransferLeadRow = QueryResultRow & {
   phone2: string | null;
   email: string | null;
   city: string | null;
+  turma_id: string | null;
   turma_name: string | null;
   course_name_snapshot: string | null;
   acquisition_channel_name_snapshot: string | null;
@@ -76,6 +77,7 @@ function mapTransferLead(row: TransferLeadRow) {
     phone2: row.phone2,
     email: row.email,
     city: row.city,
+    turmaId: row.turma_id,
     turmaName: row.turma_name,
     courseName: row.course_name_snapshot,
     acquisitionChannelName: row.acquisition_channel_name_snapshot,
@@ -102,10 +104,10 @@ async function listAssignableUsers(unitId: string) {
       from app_users u
       left join app_user_units uu on uu.user_id = u.id and uu.unit_id = $1
       where u.status = 'active'
+        and u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
         and (
           u.primary_unit_id = $1
           or uu.user_id is not null
-          or u.role in ('DEV', 'CEO', 'CVO', 'MARKETING')
         )
       order by u.name asc
     `,
@@ -139,6 +141,7 @@ async function listTransferLeads(unitId: string, immediateTransfer: boolean, inc
         l.phone2,
         l.email,
         l.city,
+        l.turma_id,
         case when turma.id is not null then
           coalesce(course.name, l.course_name_snapshot, 'Curso') || ' · ' ||
           turma.city || '/' || turma.state || ' · ' ||
@@ -275,10 +278,10 @@ export const Route = createFileRoute("/api/crm/transfer")({
             left join app_user_units uu on uu.user_id = u.id and uu.unit_id = $2
             where u.id = $1
               and u.status = 'active'
+              and u.role in ('CONSULTOR', 'GERENTE', 'DIRETOR')
               and (
                 u.primary_unit_id = $2
                 or uu.user_id is not null
-                or u.role in ('DEV', 'CEO', 'CVO', 'MARKETING')
               )
             limit 1
           `,
@@ -321,7 +324,7 @@ export const Route = createFileRoute("/api/crm/transfer")({
           appCrmTasksExists(),
           appMetaLeadEventsExists(),
         ]);
-        await withTransaction(async (client) => {
+        const transferredIds = await withTransaction(async (client) => {
           await client.query(
             `
               insert into app_lead_owner_transfers (
@@ -355,13 +358,14 @@ export const Route = createFileRoute("/api/crm/transfer")({
             ],
           );
 
-          await client.query(
+          const updated = await client.query<{ id: string }>(
             `
               update app_leads
               set created_by = $2,
                   updated_at = now()
               where id = any($1::uuid[])
                 and unit_id = $3
+              returning id
             `,
             [eligibleIds, targetUserId, unit.id],
           );
@@ -390,11 +394,13 @@ export const Route = createFileRoute("/api/crm/transfer")({
               [eligibleIds, targetUserId],
             );
           }
+
+          return updated.rows.map((row) => row.id);
         });
 
         return Response.json({
           ok: true,
-          transferredIds: eligibleIds,
+          transferredIds,
           targetUser: targetResult.rows[0],
         });
       },

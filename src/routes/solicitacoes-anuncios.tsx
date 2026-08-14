@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   AlertTriangle,
   Building2,
+  BookOpenCheck,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -13,13 +14,22 @@ import {
   RefreshCw,
   Send,
   Sparkles,
-  UserRound,
+  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,12 +57,12 @@ type ApiResponse = {
 type FormState = {
   courseId: string;
   city: string;
-  consultantId: string;
+  consultantIds: Array<string>;
   classDate: string;
   observation: string;
 };
 
-const emptyForm: FormState = { courseId: "", city: "", consultantId: "", classDate: "", observation: "" };
+const emptyForm: FormState = { courseId: "", city: "", consultantIds: [], classDate: "", observation: "" };
 
 const statusTone: Record<AdRequestStatus, string> = {
   novo: "border-orange-200 bg-orange-50 text-orange-700",
@@ -114,6 +124,9 @@ function AdRequestsPage() {
   const [unitFilter, setUnitFilter] = React.useState("todas");
   const [drafts, setDrafts] = React.useState<Record<string, { status: AdRequestStatus; masterNote: string }>>({});
   const [now, setNow] = React.useState(Date.now());
+  const [attendanceRequest, setAttendanceRequest] = React.useState<AdRequest | null>(null);
+  const [attendanceState, setAttendanceState] = React.useState("");
+  const [creatingAttendance, setCreatingAttendance] = React.useState(false);
 
   const load = React.useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!canAccess) { setLoading(false); return; }
@@ -135,8 +148,8 @@ function AdRequestsPage() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.courseId || !form.city.trim() || !form.consultantId || !form.classDate) {
-      toast.error("Preencha curso, cidade, consultor e data da turma.");
+    if (!form.courseId || !form.city.trim() || !form.consultantIds.length || !form.classDate) {
+      toast.error("Preencha curso, cidade, ao menos um consultor e data da turma.");
       return;
     }
     setSubmitting(true);
@@ -151,6 +164,48 @@ function AdRequestsPage() {
       toast.success("Solicitação enviada ao Master. O prazo útil de 24 horas já começou.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao enviar solicitação."); }
     finally { setSubmitting(false); }
+  }
+
+  function toggleConsultant(consultantId: string) {
+    setForm((current) => ({
+      ...current,
+      consultantIds: current.consultantIds.includes(consultantId)
+        ? current.consultantIds.filter((id) => id !== consultantId)
+        : [...current.consultantIds, consultantId],
+    }));
+  }
+
+  function openAttendance(item: AdRequest) {
+    setAttendanceRequest(item);
+    setAttendanceState("");
+  }
+
+  async function createAttendance() {
+    if (!attendanceRequest || !/^[A-Za-z]{2}$/.test(attendanceState.trim())) {
+      toast.error("Informe a UF com duas letras.");
+      return;
+    }
+    setCreatingAttendance(true);
+    try {
+      const response = await readJson<{ request: AdRequest; attendanceId: string; alreadyExisted?: boolean }>(await fetch("/api/ad-requests", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: attendanceRequest.id, action: "create_attendance", state: attendanceState }),
+      }));
+      setData((current) => ({
+        ...current,
+        requests: current.requests.map((item) => item.id === response.request.id ? response.request : item),
+      }));
+      setAttendanceRequest(null);
+      toast.success(response.alreadyExisted
+        ? "A turma já existia e foi vinculada à solicitação, sem duplicar."
+        : "Turma aberta e vinculada à solicitação.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao abrir turma.");
+    } finally {
+      setCreatingAttendance(false);
+    }
   }
 
   async function update(item: AdRequest) {
@@ -205,7 +260,7 @@ function AdRequestsPage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="space-y-2"><Label>Curso *</Label><Select value={form.courseId} onValueChange={(courseId) => setForm((v) => ({ ...v, courseId }))}><SelectTrigger><SelectValue placeholder="Selecione o curso" /></SelectTrigger><SelectContent>{data.courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label htmlFor="ad-city">Cidade *</Label><Input id="ad-city" list="ad-cities" value={form.city} onChange={(event) => setForm((v) => ({ ...v, city: event.target.value }))} placeholder="Selecione ou digite" maxLength={100} /><datalist id="ad-cities">{data.cities.map((city) => <option value={city} key={city} />)}</datalist></div>
-              <div className="space-y-2"><Label>Consultor *</Label><Select value={form.consultantId} onValueChange={(consultantId) => setForm((v) => ({ ...v, consultantId }))}><SelectTrigger><SelectValue placeholder="Selecione o consultor" /></SelectTrigger><SelectContent>{data.consultants.map((consultant) => <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Consultores *</Label><div className="max-h-36 space-y-1 overflow-y-auto rounded-md border bg-background p-2">{data.consultants.length ? data.consultants.map((consultant) => <label key={consultant.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"><Checkbox checked={form.consultantIds.includes(consultant.id)} onCheckedChange={() => toggleConsultant(consultant.id)} /><span className="truncate">{consultant.name}</span></label>) : <p className="px-2 py-3 text-xs text-muted-foreground">Nenhum consultor ativo nesta unidade.</p>}</div><p className="text-xs text-muted-foreground">{form.consultantIds.length ? `${form.consultantIds.length} selecionado(s)` : "Selecione um ou mais"}</p></div>
               <div className="space-y-2"><Label htmlFor="class-date">Data da turma *</Label><Input id="class-date" type="date" value={form.classDate} onChange={(event) => setForm((v) => ({ ...v, classDate: event.target.value }))} /></div>
             </div>
             <div className="space-y-2"><Label htmlFor="observation">Observação <span className="font-normal text-muted-foreground">(opcional)</span></Label><Textarea id="observation" value={form.observation} onChange={(event) => setForm((v) => ({ ...v, observation: event.target.value }))} placeholder="Inclua objetivo, oferta, público, diferenciais ou algum cuidado importante para a campanha." maxLength={1600} rows={3} /></div>
@@ -222,13 +277,21 @@ function AdRequestsPage() {
             const draft = drafts[item.id] ?? { status: item.status, masterNote: item.masterNote };
             return <Card key={item.id} className={cn("overflow-hidden border-l-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-card", item.status === "novo" ? "border-l-primary" : item.status === "concluido" ? "border-l-emerald-500" : "border-l-blue-500")}><CardContent className="p-5">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h4 className="font-extrabold">{item.courseName}</h4><Badge variant="outline" className={statusTone[item.status]}>{adRequestStatusLabels[item.status]}</Badge>{!item.isRead && data.canManage ? <Badge className="bg-primary">Nova para você</Badge> : null}</div><p className="mt-1 text-xs text-muted-foreground">Solicitado por {item.createdByName} em {formatDate(item.createdAt, true)}</p></div><div className="rounded-lg bg-muted/60 px-3 py-2 text-xs"><SlaClock request={item} now={now} /></div></div>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3"><div className="flex items-center gap-2 rounded-lg bg-muted/45 p-2.5"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{item.city}</span></div><div className="flex items-center gap-2 rounded-lg bg-muted/45 p-2.5"><UserRound className="h-4 w-4 text-primary" /><span className="truncate">{item.consultantName}</span></div><div className="col-span-2 flex items-center gap-2 rounded-lg bg-muted/45 p-2.5 sm:col-span-1"><CalendarDays className="h-4 w-4 text-primary" /><span>{formatDate(item.classDate)}</span></div></div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3"><div className="flex items-center gap-2 rounded-lg bg-muted/45 p-2.5"><MapPin className="h-4 w-4 text-primary" /><span className="truncate">{item.city}</span></div><div className="flex items-center gap-2 rounded-lg bg-muted/45 p-2.5"><UsersRound className="h-4 w-4 shrink-0 text-primary" /><span className="truncate" title={item.consultantNames.join(", ")}>{item.consultantNames.join(", ")}</span></div><div className="col-span-2 flex items-center gap-2 rounded-lg bg-muted/45 p-2.5 sm:col-span-1"><CalendarDays className="h-4 w-4 text-primary" /><span>{formatDate(item.classDate)}</span></div></div>
               {item.observation ? <div className="mt-3 rounded-lg border bg-background p-3 text-sm"><span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Observação do Diretor</span><p className="mt-1 whitespace-pre-wrap text-foreground/80">{item.observation}</p></div> : null}
-              {data.canManage ? <div className="mt-4 space-y-3 rounded-xl border border-primary/10 bg-primary/[.025] p-3"><div className="grid gap-3 sm:grid-cols-[210px_1fr]"><div className="space-y-1.5"><Label className="text-xs">Etapa da solicitação</Label><Select value={draft.status} onValueChange={(status: AdRequestStatus) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, status } }))}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent>{AD_REQUEST_STATUSES.map((status) => <SelectItem value={status} key={status}>{adRequestStatusLabels[status]}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label className="text-xs">Retorno do Master</Label><Input className="bg-background" value={draft.masterNote} onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, masterNote: event.target.value } }))} placeholder="Ex.: criativo em produção, aguardando material..." maxLength={1600} /></div></div><div className="flex justify-end"><Button size="sm" className="gap-2" disabled={updatingId === item.id} onClick={() => void update(item)}>{updatingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Salvar andamento</Button></div></div> : item.masterNote ? <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900"><strong>Retorno do Master:</strong> {item.masterNote}</div> : null}
+              {data.canManage ? <div className="mt-4 space-y-3 rounded-xl border border-primary/10 bg-primary/[.025] p-3"><div className="grid gap-3 sm:grid-cols-[210px_1fr]"><div className="space-y-1.5"><Label className="text-xs">Etapa da solicitação</Label><Select value={draft.status} onValueChange={(status: AdRequestStatus) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, status } }))}><SelectTrigger className="bg-background"><SelectValue /></SelectTrigger><SelectContent>{AD_REQUEST_STATUSES.map((status) => <SelectItem value={status} key={status}>{adRequestStatusLabels[status]}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label className="text-xs">Retorno do Master</Label><Input className="bg-background" value={draft.masterNote} onChange={(event) => setDrafts((current) => ({ ...current, [item.id]: { ...draft, masterNote: event.target.value } }))} placeholder="Ex.: criativo em produção, aguardando material..." maxLength={1600} /></div></div><div className="flex flex-wrap justify-end gap-2">{item.attendanceId ? <Badge className="gap-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-100"><CheckCircle2 className="h-3.5 w-3.5" />Turma já aberta</Badge> : <Button size="sm" variant="outline" className="gap-2" onClick={() => openAttendance(item)}><BookOpenCheck className="h-3.5 w-3.5" />Abrir turma</Button>}<Button size="sm" className="gap-2" disabled={updatingId === item.id} onClick={() => void update(item)}>{updatingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Salvar andamento</Button></div></div> : item.masterNote ? <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900"><strong>Retorno do Master:</strong> {item.masterNote}</div> : null}
             </CardContent></Card>;
           })}</div></div>
         )) : <Card><CardContent className="flex min-h-52 flex-col items-center justify-center text-center"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted"><Inbox className="h-6 w-6 text-muted-foreground" /></span><h3 className="mt-3 font-bold">Nenhuma solicitação neste filtro</h3><p className="mt-1 text-sm text-muted-foreground">Os novos pedidos aparecerão aqui, organizados por unidade.</p></CardContent></Card>}
       </section>
+
+      <Dialog open={Boolean(attendanceRequest)} onOpenChange={(open) => !open && setAttendanceRequest(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Abrir turma pela solicitação</DialogTitle><DialogDescription>Confira os dados preenchidos pelo Diretor. O sistema verificará novamente se a turma já existe antes de criar.</DialogDescription></DialogHeader>
+          {attendanceRequest ? <div className="space-y-4"><div className="grid gap-2 rounded-xl border bg-muted/35 p-4 text-sm sm:grid-cols-2"><div><span className="text-xs text-muted-foreground">Unidade</span><p className="font-semibold">{attendanceRequest.unitName}</p></div><div><span className="text-xs text-muted-foreground">Curso</span><p className="font-semibold">{attendanceRequest.courseName}</p></div><div><span className="text-xs text-muted-foreground">Cidade</span><p className="font-semibold">{attendanceRequest.city}</p></div><div><span className="text-xs text-muted-foreground">Data</span><p className="font-semibold">{formatDate(attendanceRequest.classDate)}</p></div><div className="sm:col-span-2"><span className="text-xs text-muted-foreground">Consultores</span><p className="font-semibold">{attendanceRequest.consultantNames.join(", ")}</p></div></div><div className="space-y-2"><Label htmlFor="attendance-state">UF *</Label><Input id="attendance-state" value={attendanceState} onChange={(event) => setAttendanceState(event.target.value.toUpperCase().slice(0, 2))} placeholder="Ex.: SP" maxLength={2} className="uppercase" /></div></div> : null}
+          <DialogFooter><Button variant="outline" onClick={() => setAttendanceRequest(null)} disabled={creatingAttendance}>Cancelar</Button><Button onClick={() => void createAttendance()} disabled={creatingAttendance} className="gap-2 bg-gradient-primary">{creatingAttendance ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}Conferir e abrir turma</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

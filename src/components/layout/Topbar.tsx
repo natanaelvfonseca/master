@@ -258,7 +258,7 @@ export function Topbar() {
                         <div className="min-w-0">
                           <Badge className="mb-2 bg-primary text-primary-foreground">Novo anúncio</Badge>
                           <div className="break-words text-sm font-bold">{item.courseName} · {item.city}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">{item.unitName} · {item.createdByName}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{item.unitName} · {item.consultantNames.join(", ")}</div>
                           <div className="mt-2 flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 className="h-3.5 w-3.5" />Prazo: {formatNotificationDate(item.dueAt)}</div>
                         </div>
                         <Button asChild size="sm" className="shrink-0 bg-gradient-primary" onClick={() => void markAdRequestRead(item.id)}>

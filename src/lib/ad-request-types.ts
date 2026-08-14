@@ -23,8 +23,8 @@ export type AdRequest = {
   courseId: string | null;
   courseName: string;
   city: string;
-  consultantId: string | null;
-  consultantName: string;
+  consultantIds: Array<string>;
+  consultantNames: Array<string>;
   classDate: string;
   observation: string;
   status: AdRequestStatus;
@@ -36,4 +36,5 @@ export type AdRequest = {
   updatedAt: string;
   completedAt: string | null;
   isRead: boolean;
+  attendanceId: string | null;
 };

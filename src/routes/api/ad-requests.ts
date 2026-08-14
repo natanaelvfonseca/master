@@ -14,7 +14,12 @@ import {
 } from "@/lib/ad-request-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { ensureCommercialSchema, getUnitFromBody, isUuid } from "@/lib/server/commercial-schema";
-import { queryDb } from "@/lib/server/db";
+import {
+  ensureCourseAttendanceSchema,
+  normalizeRoutingText,
+  saveCourseAttendance,
+} from "@/lib/server/course-attendances";
+import { queryDb, withTransaction } from "@/lib/server/db";
 
 type AdRequestRow = QueryResultRow & {
   id: string;
@@ -23,8 +28,8 @@ type AdRequestRow = QueryResultRow & {
   course_id: string | null;
   course_name: string;
   city: string;
-  consultant_id: string | null;
-  consultant_name: string;
+  consultant_ids: Array<string> | null;
+  consultant_names: Array<string> | null;
   class_date: string;
   observation: string;
   status: AdRequestStatus;
@@ -36,6 +41,7 @@ type AdRequestRow = QueryResultRow & {
   updated_at: string;
   completed_at: string | null;
   is_read: boolean;
+  attendance_id: string | null;
 };
 
 const MAX_CITY_LENGTH = 100;
@@ -71,6 +77,23 @@ function ensureAdRequestSchema() {
       primary key (request_id, user_id)
     );
 
+    create table if not exists app_ad_request_consultants (
+      request_id uuid not null references app_ad_requests(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      consultant_name text not null,
+      created_at timestamptz not null default now(),
+      primary key (request_id, user_id)
+    );
+
+    alter table app_ad_requests
+      add column if not exists attendance_id uuid references app_course_attendances(id) on delete set null;
+
+    insert into app_ad_request_consultants (request_id, user_id, consultant_name)
+    select id, consultant_id, consultant_name
+    from app_ad_requests
+    where consultant_id is not null
+    on conflict (request_id, user_id) do nothing;
+
     create index if not exists app_ad_requests_unit_created_idx
       on app_ad_requests (unit_id, created_at desc);
     create index if not exists app_ad_requests_status_due_idx
@@ -103,8 +126,8 @@ function mapRequest(row: AdRequestRow): AdRequest {
     courseId: row.course_id,
     courseName: row.course_name,
     city: row.city,
-    consultantId: row.consultant_id,
-    consultantName: row.consultant_name,
+    consultantIds: row.consultant_ids ?? [],
+    consultantNames: row.consultant_names ?? [],
     classDate: row.class_date,
     observation: row.observation ?? "",
     status: row.status,
@@ -116,24 +139,40 @@ function mapRequest(row: AdRequestRow): AdRequest {
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
     isRead: Boolean(row.is_read),
+    attendanceId: row.attendance_id,
   };
 }
+
+const REQUEST_SELECT = `
+  r.id, r.unit_id, unit.name as unit_name, r.course_id, r.course_name,
+  r.city, r.class_date::text, r.observation, r.status, r.master_note, r.created_by,
+  coalesce(author.name, 'Usuário removido') as created_by_name,
+  r.created_at::text, r.due_at::text, r.updated_at::text,
+  r.completed_at::text, r.attendance_id,
+  coalesce(consultants.consultant_ids, '{}') as consultant_ids,
+  coalesce(consultants.consultant_names, '{}') as consultant_names
+`;
+
+const REQUEST_JOINS = `
+  inner join app_units unit on unit.id = r.unit_id
+  left join app_users author on author.id = r.created_by
+  left join lateral (
+    select
+      array_agg(c.user_id::text order by c.consultant_name) as consultant_ids,
+      array_agg(c.consultant_name order by c.consultant_name) as consultant_names
+    from app_ad_request_consultants c
+    where c.request_id = r.id
+  ) consultants on true
+`;
 
 async function listRequests(userId: string, role: UserRole, notificationsOnly: boolean) {
   const seesAll = canManageAdRequests(role) || isExecutiveRole(role);
   const result = await queryDb<AdRequestRow>(
     `
-      select
-        r.id, r.unit_id, unit.name as unit_name, r.course_id, r.course_name,
-        r.city, r.consultant_id, r.consultant_name, r.class_date::text,
-        r.observation, r.status, r.master_note, r.created_by,
-        coalesce(author.name, 'Usuário removido') as created_by_name,
-        r.created_at::text, r.due_at::text, r.updated_at::text,
-        r.completed_at::text,
+      select ${REQUEST_SELECT},
         (read.request_id is not null) as is_read
       from app_ad_requests r
-      inner join app_units unit on unit.id = r.unit_id
-      left join app_users author on author.id = r.created_by
+      ${REQUEST_JOINS}
       left join app_ad_request_reads read
         on read.request_id = r.id and read.user_id = $1
       where ($2::boolean or r.created_by = $1)
@@ -190,15 +229,10 @@ async function getMetadata(unitId: string) {
 async function getRequest(id: string, userId: string) {
   const result = await queryDb<AdRequestRow>(
     `
-      select r.id, r.unit_id, unit.name as unit_name, r.course_id, r.course_name,
-        r.city, r.consultant_id, r.consultant_name, r.class_date::text,
-        r.observation, r.status, r.master_note, r.created_by,
-        coalesce(author.name, 'Usuário removido') as created_by_name,
-        r.created_at::text, r.due_at::text, r.updated_at::text, r.completed_at::text,
+      select ${REQUEST_SELECT},
         (read.request_id is not null) as is_read
       from app_ad_requests r
-      inner join app_units unit on unit.id = r.unit_id
-      left join app_users author on author.id = r.created_by
+      ${REQUEST_JOINS}
       left join app_ad_request_reads read on read.request_id = r.id and read.user_id = $2
       where r.id = $1 limit 1
     `,
@@ -218,6 +252,7 @@ export const Route = createFileRoute("/api/ad-requests")({
         }
 
         await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
         await ensureAdRequestSchema();
         const notificationsOnly = new URL(request.url).searchParams.get("view") === "notifications";
         const requests = await listRequests(session.user.id, session.user.role, notificationsOnly);
@@ -243,48 +278,54 @@ export const Route = createFileRoute("/api/ad-requests")({
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const unit = getUnitFromBody(session, body?.unitId);
         const courseId = text(body?.courseId, 80);
-        const consultantId = text(body?.consultantId, 80);
+        const consultantIds = Array.isArray(body?.consultantIds)
+          ? Array.from(new Set(body.consultantIds.filter((value): value is string => typeof value === "string" && isUuid(value))))
+          : [];
         const city = text(body?.city, MAX_CITY_LENGTH);
         const classDate = text(body?.classDate, 10);
         const observation = text(body?.observation, MAX_OBSERVATION_LENGTH);
 
         if (!unit) return Response.json({ error: "Unidade indisponível." }, { status: 403 });
-        if (!isUuid(courseId) || !isUuid(consultantId) || !city || !/^\d{4}-\d{2}-\d{2}$/.test(classDate)) {
-          return Response.json({ error: "Preencha curso, cidade, consultor e data da turma." }, { status: 400 });
+        if (!isUuid(courseId) || !consultantIds.length || !city || !/^\d{4}-\d{2}-\d{2}$/.test(classDate)) {
+          return Response.json({ error: "Preencha curso, cidade, ao menos um consultor e data da turma." }, { status: 400 });
         }
 
         await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
         await ensureAdRequestSchema();
-        const [course, consultant] = await Promise.all([
+        const [course, consultants] = await Promise.all([
           queryDb<{ name: string }>(`select name from app_courses where id = $1 and unit_id = $2 and status = 'active'`, [courseId, unit.id]),
-          queryDb<{ name: string }>(
-            `select u.name from app_users u where u.id = $1 and u.role = 'CONSULTOR' and u.status = 'active'
+          queryDb<{ id: string; name: string }>(
+            `select u.id, u.name from app_users u where u.id = any($1::uuid[]) and u.role = 'CONSULTOR' and u.status = 'active'
              and (u.primary_unit_id = $2 or exists (select 1 from app_user_units uu where uu.user_id = u.id and uu.unit_id = $2))`,
-            [consultantId, unit.id],
+            [consultantIds, unit.id],
           ),
         ]);
-        if (!course.rows[0] || !consultant.rows[0]) {
-          return Response.json({ error: "Curso ou consultor não pertence à unidade selecionada." }, { status: 400 });
+        if (!course.rows[0] || consultants.rows.length !== consultantIds.length) {
+          return Response.json({ error: "Curso ou algum consultor não pertence à unidade selecionada." }, { status: 400 });
         }
 
-        const inserted = await queryDb<{ id: string }>(
-          `
-            insert into app_ad_requests (
+        const requestId = await withTransaction(async (client) => {
+          const inserted = await client.query<{ id: string }>(
+            `insert into app_ad_requests (
               unit_id, course_id, course_name, city, consultant_id, consultant_name,
               class_date, observation, created_by, due_at
-            ) values (
-              $1, $2, $3, $4, $5, $6, $7::date, $8, $9,
-              case extract(isodow from now())
-                when 5 then now() + interval '3 days'
-                when 6 then now() + interval '3 days'
-                when 7 then now() + interval '2 days'
-                else now() + interval '1 day'
-              end
-            ) returning id
-          `,
-          [unit.id, courseId, course.rows[0].name, city, consultantId, consultant.rows[0].name, classDate, observation, session.user.id],
-        );
-        const created = await getRequest(inserted.rows[0].id, session.user.id);
+            ) values ($1, $2, $3, $4, $5, $6, $7::date, $8, $9,
+              case extract(isodow from now()) when 5 then now() + interval '3 days'
+                when 6 then now() + interval '3 days' when 7 then now() + interval '2 days'
+                else now() + interval '1 day' end
+            ) returning id`,
+            [unit.id, courseId, course.rows[0].name, city, consultants.rows[0].id, consultants.rows[0].name, classDate, observation, session.user.id],
+          );
+          for (const consultant of consultants.rows) {
+            await client.query(
+              `insert into app_ad_request_consultants (request_id, user_id, consultant_name) values ($1, $2, $3)`,
+              [inserted.rows[0].id, consultant.id, consultant.name],
+            );
+          }
+          return inserted.rows[0].id;
+        });
+        const created = await getRequest(requestId, session.user.id);
         return Response.json({ request: created }, { status: 201 });
       },
       PATCH: async ({ request }) => {
@@ -296,7 +337,79 @@ export const Route = createFileRoute("/api/ad-requests")({
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const requestId = text(body?.requestId, 80);
         if (!isUuid(requestId)) return Response.json({ error: "Solicitação inválida." }, { status: 400 });
+        await ensureCommercialSchema();
+        await ensureCourseAttendanceSchema();
         await ensureAdRequestSchema();
+
+        if (body?.action === "create_attendance") {
+          const state = text(body.state, 2).toUpperCase();
+          if (!/^[A-Z]{2}$/.test(state)) {
+            return Response.json({ error: "Informe uma UF válida para abrir a turma." }, { status: 400 });
+          }
+          const adRequest = await getRequest(requestId, session.user.id);
+          if (!adRequest || !adRequest.courseId) {
+            return Response.json({ error: "Solicitação ou curso indisponível." }, { status: 404 });
+          }
+          if (adRequest.attendanceId) {
+            return Response.json({ error: "Esta solicitação já possui uma turma vinculada." }, { status: 409 });
+          }
+          await ensureCourseAttendanceSchema();
+          const duplicate = await queryDb<{ id: string }>(
+            `select id from app_course_attendances
+             where unit_id = $1 and course_id = $2 and city_normalized = $3
+               and state = $4 and class_date = $5::date limit 1`,
+            [adRequest.unitId, adRequest.courseId, normalizeRoutingText(adRequest.city), state, adRequest.classDate],
+          );
+          if (duplicate.rows[0]) {
+            await queryDb(
+              `update app_ad_requests set attendance_id = $2, updated_at = now() where id = $1 and attendance_id is null`,
+              [requestId, duplicate.rows[0].id],
+            );
+            return Response.json({
+              attendanceId: duplicate.rows[0].id,
+              alreadyExisted: true,
+              request: await getRequest(requestId, session.user.id),
+            });
+          }
+          try {
+            const attendance = await saveCourseAttendance({
+              unitId: adRequest.unitId,
+              courseId: adRequest.courseId,
+              city: adRequest.city,
+              state,
+              classDate: adRequest.classDate,
+              consultantIds: adRequest.consultantIds,
+              status: "active",
+            });
+            await queryDb(
+              `update app_ad_requests set attendance_id = $2, updated_at = now() where id = $1 and attendance_id is null`,
+              [requestId, attendance.id],
+            );
+            return Response.json({ attendanceId: attendance.id, request: await getRequest(requestId, session.user.id) });
+          } catch (error) {
+            if (typeof error === "object" && error && "code" in error && error.code === "23505") {
+              const existing = await queryDb<{ id: string }>(
+                `select id from app_course_attendances
+                 where unit_id = $1 and course_id = $2 and city_normalized = $3
+                   and state = $4 and class_date = $5::date limit 1`,
+                [adRequest.unitId, adRequest.courseId, normalizeRoutingText(adRequest.city), state, adRequest.classDate],
+              );
+              if (existing.rows[0]) {
+                await queryDb(
+                  `update app_ad_requests set attendance_id = $2, updated_at = now() where id = $1 and attendance_id is null`,
+                  [requestId, existing.rows[0].id],
+                );
+                return Response.json({
+                  attendanceId: existing.rows[0].id,
+                  alreadyExisted: true,
+                  request: await getRequest(requestId, session.user.id),
+                });
+              }
+              return Response.json({ error: "Essa turma já existe. Nenhuma turma duplicada foi criada." }, { status: 409 });
+            }
+            throw error;
+          }
+        }
 
         if (body?.action === "mark_read") {
           await queryDb(
