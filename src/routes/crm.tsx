@@ -1987,7 +1987,7 @@ function CreateLeadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto border-primary/20 bg-card p-0 shadow-[0_28px_90px_-38px_rgba(194,65,12,0.85),0_0_34px_rgba(255,138,31,0.22)] sm:max-w-3xl">
         <form onSubmit={onSubmit}>
-          <div className="relative overflow-hidden bg-gradient-hero p-6 text-primary-foreground">
+          <div className="relative overflow-hidden bg-gradient-hero p-6 pr-16 text-primary-foreground sm:pr-20">
             <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12 text-gold ring-1 ring-white/20">
