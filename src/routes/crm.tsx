@@ -399,6 +399,7 @@ function CRMPipeline() {
   const formUnitId = form.unitId || activeUnitId;
   const selectedCourse = courses.find((course) => course.id === form.courseId) ?? null;
   const broadcastChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const pipelineScrollRef = React.useRef<HTMLDivElement | null>(null);
   const canTransferUnitLeads = session ? canTransferLeads(session.user.role) : false;
   const canAccessTransfers = session ? canAccessLeadTransferCenter(session.user.role) : false;
   const canOperatePipeline = session ? canOperateCrm(session.user.role) : false;
@@ -998,6 +999,23 @@ function CRMPipeline() {
     setDropTargetStage(null);
   }
 
+  function handlePipelineAutoScroll(event: React.DragEvent<HTMLDivElement>) {
+    const container = pipelineScrollRef.current;
+
+    if (!container || !draggingLeadId) {
+      return;
+    }
+
+    const bounds = container.getBoundingClientRect();
+    const edgeSize = Math.min(96, bounds.width * 0.16);
+
+    if (event.clientX - bounds.left < edgeSize) {
+      container.scrollBy({ left: -22, behavior: "auto" });
+    } else if (bounds.right - event.clientX < edgeSize) {
+      container.scrollBy({ left: 22, behavior: "auto" });
+    }
+  }
+
   function handleStageDrop(event: React.DragEvent<HTMLDivElement>, stage: LeadStage) {
     event.preventDefault();
     const leadId = event.dataTransfer.getData("text/plain");
@@ -1132,6 +1150,10 @@ function CRMPipeline() {
       ),
     }));
   }
+
+  const draggingLead = draggingLeadId
+    ? leads.find((lead) => lead.id === draggingLeadId) ?? null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -1314,8 +1336,12 @@ function CRMPipeline() {
         </div>
       ) : null}
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex min-w-max gap-4">
+      <div
+        ref={pipelineScrollRef}
+        className="overflow-x-auto scroll-smooth pb-4"
+        onDragOver={handlePipelineAutoScroll}
+      >
+        <div className="flex min-w-max items-stretch gap-4">
           {stages.map((stage) => {
             const stageLeads = filteredLeads.filter((lead) => pipelineStage(lead.stage) === stage);
             const visibleCount = stageVisibleCounts[stage] ?? PIPELINE_STAGE_PAGE_SIZE;
@@ -1326,9 +1352,29 @@ function CRMPipeline() {
               0,
             );
             const isDropTarget = dropTargetStage === stage;
+            const acceptsDraggedLead = Boolean(
+              draggingLead && pipelineStage(draggingLead.stage) !== stage,
+            );
 
             return (
-              <div key={stage} className="w-[280px] flex-shrink-0">
+              <div
+                key={stage}
+                className="flex w-[280px] flex-shrink-0 flex-col"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (acceptsDraggedLead) setDropTargetStage(stage);
+                }}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  if (acceptsDraggedLead) setDropTargetStage(stage);
+                }}
+                onDragLeave={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+                  setDropTargetStage((current) => (current === stage ? null : current));
+                }}
+                onDrop={(event) => handleStageDrop(event, stage)}
+              >
                 <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 shadow-card">
                   <div>
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -1346,22 +1392,25 @@ function CRMPipeline() {
                   </div>
                 </div>
                 <div
-                  className={`space-y-3 rounded-xl border bg-card/60 p-3 shadow-card transition-colors duration-200 ${
-                    isDropTarget ? "border-primary/50 bg-primary/5" : "border-border"
+                  className={`relative flex min-h-[280px] flex-1 flex-col gap-3 rounded-xl border bg-card/60 p-3 shadow-card transition-all duration-200 ${
+                    isDropTarget
+                      ? "border-primary bg-primary/10 shadow-[0_20px_55px_-32px_rgba(249,115,22,.95)] ring-2 ring-primary/20"
+                      : draggingLead && acceptsDraggedLead
+                        ? "border-dashed border-primary/35 bg-primary/[.025]"
+                        : "border-border"
                   }`}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setDropTargetStage(stage);
-                  }}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setDropTargetStage(stage);
-                  }}
-                  onDragLeave={() =>
-                    setDropTargetStage((current) => (current === stage ? null : current))
-                  }
-                  onDrop={(event) => handleStageDrop(event, stage)}
                 >
+                  {draggingLead && acceptsDraggedLead ? (
+                    <div
+                      className={`pointer-events-none sticky top-2 z-10 flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                        isDropTarget
+                          ? "border-primary/30 bg-primary text-primary-foreground shadow-lg"
+                          : "border-primary/15 bg-white/90 text-primary opacity-70"
+                      }`}
+                    >
+                      {isDropTarget ? `Solte para mover para ${stage}` : `Mover para ${stage}`}
+                    </div>
+                  ) : null}
                   {loadingLeads ? (
                     <EmptyState
                       icon={KanbanSquare}
