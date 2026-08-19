@@ -9,7 +9,7 @@ import {
   normalizeRoutingText,
   parseCampaignRoute,
 } from "@/lib/server/course-attendances";
-import { queryDb, withTransaction } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb, withTransaction } from "@/lib/server/db";
 
 export type MetaDistributionRule =
   | "fixed"
@@ -202,7 +202,9 @@ export async function ensureMetaLeadSchema() {
   await ensureCommercialSchema();
   await ensureCourseAttendanceSchema();
 
-  metaSchemaPromise ??= queryDb(`
+  metaSchemaPromise ??= ensureRuntimeSchema(
+    "meta-leads",
+    `
     create table if not exists app_meta_integrations (
       id uuid primary key default gen_random_uuid(),
       app_id text,
@@ -341,7 +343,8 @@ export async function ensureMetaLeadSchema() {
       add column if not exists routing_source text;
     alter table app_meta_lead_events
       add column if not exists routing_error text;
-  `).then(() => undefined);
+  `,
+  ).then(() => undefined);
 
   await metaSchemaPromise;
 }
@@ -629,7 +632,9 @@ function phoneFieldValue(fields: Record<string, string>) {
     return phoneLikeEntry[1];
   }
 
-  const relevantCandidate = phoneCandidatesFromFields(fields).find((candidate) => candidate.relevant);
+  const relevantCandidate = phoneCandidatesFromFields(fields).find(
+    (candidate) => candidate.relevant,
+  );
 
   if (relevantCandidate) {
     return relevantCandidate.value;
@@ -694,7 +699,8 @@ function phone2FieldValue(fields: Record<string, string>, primaryPhone: string) 
     phoneCandidatesFromFields(fields).find(
       (candidate) => candidate.relevant && isDifferentPhone(candidate.value),
     )?.value ??
-    phoneCandidatesFromFields(fields).find((candidate) => isDifferentPhone(candidate.value))?.value ??
+    phoneCandidatesFromFields(fields).find((candidate) => isDifferentPhone(candidate.value))
+      ?.value ??
     ""
   );
 }
@@ -1445,8 +1451,7 @@ export async function upsertMetaForm(input: Record<string, unknown>) {
     throw new Error("Selecione a turma que receberá os leads deste formulário.");
   }
 
-  let savedChannelId =
-    requestedChannelId && isUuid(requestedChannelId) ? requestedChannelId : null;
+  let savedChannelId = requestedChannelId && isUuid(requestedChannelId) ? requestedChannelId : null;
 
   if (savedChannelId && savedUnitId) {
     const channelResult = await queryDb<{ id: string }>(
@@ -2570,9 +2575,7 @@ export async function recoverRecentMetaFormLeads(sinceRaw: unknown) {
         let reachedOlderLead = false;
 
         for (const leadPayload of data.data ?? []) {
-          const createdAt = leadPayload.created_time
-            ? new Date(leadPayload.created_time)
-            : null;
+          const createdAt = leadPayload.created_time ? new Date(leadPayload.created_time) : null;
 
           if (createdAt && createdAt < since) {
             reachedOlderLead = true;
@@ -2746,7 +2749,11 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
       `,
       [integration.id],
     );
-    return { ok: false, status: 401, error: "Assinatura inválida e lead não confirmado pela Meta." };
+    return {
+      ok: false,
+      status: 401,
+      error: "Assinatura inválida e lead não confirmado pela Meta.",
+    };
   }
 
   await queryDb(

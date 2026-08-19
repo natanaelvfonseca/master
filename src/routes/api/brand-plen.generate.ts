@@ -12,7 +12,7 @@ import { getUnitFromBody, getUnitFromRequest } from "@/lib/server/commercial-sch
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { canViewBrandPlenHistory } from "@/lib/auth-types";
 import { getBrandPlenSettings } from "@/lib/server/brand-plen-settings";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 
 type OpenAiImage = {
   b64_json?: string;
@@ -76,7 +76,9 @@ let brandPlenGenerationSchemaPromise: Promise<void> | null = null;
 let brandLibrarySchemaPromise: Promise<void> | null = null;
 
 function ensureBrandPlenGenerationSchema() {
-  brandPlenGenerationSchemaPromise ??= queryDb(`
+  brandPlenGenerationSchemaPromise ??= ensureRuntimeSchema(
+    "brand-plen-generations",
+    `
     create table if not exists app_brand_plen_generations (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -111,7 +113,8 @@ function ensureBrandPlenGenerationSchema() {
 
     create index if not exists app_brand_plen_generations_status_idx
       on app_brand_plen_generations (status, updated_at desc);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       brandPlenGenerationSchemaPromise = null;
@@ -122,7 +125,9 @@ function ensureBrandPlenGenerationSchema() {
 }
 
 function ensureBrandLibrarySchema() {
-  brandLibrarySchemaPromise ??= queryDb(`
+  brandLibrarySchemaPromise ??= ensureRuntimeSchema(
+    "brand-library",
+    `
     create table if not exists app_brand_library_materials (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -142,7 +147,8 @@ function ensureBrandLibrarySchema() {
 
     create index if not exists app_brand_library_unit_created_idx
       on app_brand_library_materials (unit_id, created_at desc);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       brandLibrarySchemaPromise = null;

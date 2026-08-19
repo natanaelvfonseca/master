@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { QueryResultRow } from "pg";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 
 type InstanceRow = QueryResultRow & {
   id: string;
@@ -18,7 +18,9 @@ let schemaPromise: Promise<void> | null = null;
 
 export async function ensureEvolutionSchema() {
   if (!schemaPromise) {
-    schemaPromise = queryDb(`
+    schemaPromise = ensureRuntimeSchema(
+      "evolution-whatsapp",
+      `
       create table if not exists app_whatsapp_instances (
         id uuid primary key default gen_random_uuid(),
         unit_id uuid not null references app_units(id) on delete cascade,
@@ -89,7 +91,8 @@ export async function ensureEvolutionSchema() {
       where message.instance_id = instance.id and message.user_id is null;
       create index if not exists app_whatsapp_messages_user_sent_idx
         on app_whatsapp_messages (user_id, sent_at desc);
-    `)
+    `,
+    )
       .then(() => undefined)
       .catch((error) => {
         schemaPromise = null;
@@ -307,7 +310,10 @@ export async function connectEvolution(
   await ensureEvolutionSchema();
   let instance = await getInstance(user.id, unit.id);
   const unitName = instancePart(unit.name, "Unidade");
-  const userName = userInstancePart(user.name, createHash("sha256").update(user.id).digest("hex").slice(0, 10));
+  const userName = userInstancePart(
+    user.name,
+    createHash("sha256").update(user.id).digest("hex").slice(0, 10),
+  );
   const desiredInstanceName = `${unitName}_${userName}`.slice(0, 100);
 
   if (!instance) {

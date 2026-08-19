@@ -4,7 +4,7 @@ import type { BrandLibraryMaterial, BrandLibraryMediaType } from "@/lib/brand-li
 import { isMasterRole } from "@/lib/auth-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { getUnitFromBody, getUnitFromRequest } from "@/lib/server/commercial-schema";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 
 type BrandLibraryRow = QueryResultRow & {
   id: string;
@@ -34,7 +34,9 @@ const MAX_DATA_URL_LENGTH = 12 * 1024 * 1024;
 let brandLibrarySchemaPromise: Promise<void> | null = null;
 
 function ensureBrandLibrarySchema() {
-  brandLibrarySchemaPromise ??= queryDb(`
+  brandLibrarySchemaPromise ??= ensureRuntimeSchema(
+    "brand-library",
+    `
     create table if not exists app_brand_library_materials (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -54,7 +56,8 @@ function ensureBrandLibrarySchema() {
 
     create index if not exists app_brand_library_unit_created_idx
       on app_brand_library_materials (unit_id, created_at desc);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       brandLibrarySchemaPromise = null;

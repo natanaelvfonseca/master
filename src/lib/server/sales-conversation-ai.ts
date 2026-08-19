@@ -9,7 +9,7 @@ import type {
   SalesScriptRecord,
 } from "@/lib/sales-ai-types";
 import { ensureCommercialSchema, isUuid } from "@/lib/server/commercial-schema";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 import {
   getAttendanceUnitScope,
   listAttendanceConversations,
@@ -121,7 +121,9 @@ export function canAccessSalesAi(session: AuthSession | null) {
 }
 
 export function ensureSalesAiSchema() {
-  salesAiSchemaPromise ??= queryDb(`
+  salesAiSchemaPromise ??= ensureRuntimeSchema(
+    "sales-ai",
+    `
     create table if not exists app_sales_scripts (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -171,7 +173,8 @@ export function ensureSalesAiSchema() {
 
     create index if not exists app_sales_conversation_analyses_course_idx
       on app_sales_conversation_analyses (unit_id, course_id, created_at desc);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       salesAiSchemaPromise = null;
@@ -398,7 +401,9 @@ async function listLatestAnalyses(unitIds: Array<string>) {
     [unitIds],
   );
 
-  return new Map(result.rows.map((row) => [`${row.unit_id}:${row.consultant_id}`, mapAnalysis(row)]));
+  return new Map(
+    result.rows.map((row) => [`${row.unit_id}:${row.consultant_id}`, mapAnalysis(row)]),
+  );
 }
 
 async function listConsultants(unitIds: Array<string>) {
@@ -741,7 +746,10 @@ async function buildConversationTranscript(
     return { transcript: "", messagesAnalyzed: 0, conversationsAnalyzed: 0 };
   }
 
-  const selectedConversations = conversationsData.conversations.slice(0, MAX_CONVERSATIONS_FOR_ANALYSIS);
+  const selectedConversations = conversationsData.conversations.slice(
+    0,
+    MAX_CONVERSATIONS_FOR_ANALYSIS,
+  );
   const messageResults = await Promise.all(
     selectedConversations.map(async (conversation, index) => {
       const data = await listAttendanceMessages(session, {
@@ -813,11 +821,17 @@ export async function runSalesConversationAnalysis(
   ]);
 
   if (!consultant) {
-    return { error: "Consultor não encontrado ou sem WhatsApp conectado nesta unidade.", status: 404 } as const;
+    return {
+      error: "Consultor não encontrado ou sem WhatsApp conectado nesta unidade.",
+      status: 404,
+    } as const;
   }
 
   if (!script) {
-    return { error: "Cadastre e ative o script deste curso antes de analisar.", status: 400 } as const;
+    return {
+      error: "Cadastre e ative o script deste curso antes de analisar.",
+      status: 400,
+    } as const;
   }
 
   const transcript = await buildConversationTranscript(session, { consultantId, unitId });

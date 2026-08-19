@@ -7,7 +7,7 @@ import {
   type BrandPlenSettings,
 } from "@/lib/brand-plen-settings";
 import type { BrandImageQuality } from "@/lib/generateBrandImage";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 
 type BrandPlenSettingsRow = QueryResultRow & {
   unit_id: string;
@@ -40,7 +40,9 @@ const MAX_REFERENCE_DATA_URL_LENGTH = 8 * 1024 * 1024;
 let brandPlenSettingsSchemaPromise: Promise<void> | null = null;
 
 export function ensureBrandPlenSettingsSchema() {
-  brandPlenSettingsSchemaPromise ??= queryDb(`
+  brandPlenSettingsSchemaPromise ??= ensureRuntimeSchema(
+    "brand-plen-settings",
+    `
     create table if not exists app_brand_plen_settings (
       unit_id uuid primary key references app_units(id) on delete cascade,
       style_prompt text not null,
@@ -65,7 +67,8 @@ export function ensureBrandPlenSettingsSchema() {
     alter table app_brand_plen_settings add column if not exists updated_by uuid references app_users(id) on delete set null;
     alter table app_brand_plen_settings add column if not exists created_at timestamptz not null default now();
     alter table app_brand_plen_settings add column if not exists updated_at timestamptz not null default now();
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       brandPlenSettingsSchemaPromise = null;

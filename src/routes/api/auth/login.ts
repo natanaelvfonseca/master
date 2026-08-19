@@ -10,7 +10,7 @@ import {
   sanitizeEmail,
   verifyPassword,
 } from "@/lib/server/auth";
-import { queryDb } from "@/lib/server/db";
+import { isTransientDatabaseError, queryDb } from "@/lib/server/db";
 
 type LoginUserRow = QueryResultRow & {
   id: string;
@@ -28,68 +28,86 @@ export const Route = createFileRoute("/api/auth/login")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = await request.json().catch(() => null);
-        const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
-        const password = typeof body?.password === "string" ? body.password : "";
+        try {
+          const body = await request.json().catch(() => null);
+          const email = typeof body?.email === "string" ? sanitizeEmail(body.email) : "";
+          const password = typeof body?.password === "string" ? body.password : "";
 
-        if (!email || !password) {
-          return Response.json({ ok: false, error: "Informe email e senha." }, { status: 400 });
-        }
+          if (!email || !password) {
+            return Response.json({ ok: false, error: "Informe email e senha." }, { status: 400 });
+          }
 
-        const rateLimit = await checkLoginRateLimit(email, request);
+          const rateLimit = await checkLoginRateLimit(email, request);
 
-        if (!rateLimit.allowed) {
-          return Response.json(
-            {
-              ok: false,
-              error: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
-            },
-            {
-              status: 429,
-              headers: {
-                "Retry-After": String(rateLimit.retryAfterSeconds),
+          if (!rateLimit.allowed) {
+            return Response.json(
+              {
+                ok: false,
+                error: "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.",
               },
-            },
-          );
-        }
+              {
+                status: 429,
+                headers: {
+                  "Retry-After": String(rateLimit.retryAfterSeconds),
+                },
+              },
+            );
+          }
 
-        await ensureUserProfileSchema();
+          await ensureUserProfileSchema();
 
-        const result = await queryDb<LoginUserRow>(
-          `
+          const result = await queryDb<LoginUserRow>(
+            `
             select id, email, name, role, primary_unit_id, password_hash
             from app_users
             where lower(email) = lower($1) and status = 'active'
             limit 1
           `,
-          [email],
-        );
-        const user = result.rows[0];
-        const passwordHash = user?.password_hash ?? DUMMY_PASSWORD_HASH;
-        const validPassword = await verifyPassword(password, passwordHash);
+            [email],
+          );
+          const user = result.rows[0];
+          const passwordHash = user?.password_hash ?? DUMMY_PASSWORD_HASH;
+          const validPassword = await verifyPassword(password, passwordHash);
 
-        if (!user || !validPassword) {
-          await recordLoginAttempt(rateLimit, false);
+          if (!user || !validPassword) {
+            await recordLoginAttempt(rateLimit, false);
 
-          return Response.json({ ok: false, error: "Credenciais invalidas." }, { status: 401 });
-        }
+            return Response.json({ ok: false, error: "Credenciais invalidas." }, { status: 401 });
+          }
 
-        await recordLoginAttempt(rateLimit, true);
+          await recordLoginAttempt(rateLimit, true);
 
-        const { token, expiresAt } = await createSessionForUser(
-          user.id,
-          user.role,
-          user.primary_unit_id,
-        );
+          const { token, expiresAt } = await createSessionForUser(
+            user.id,
+            user.role,
+            user.primary_unit_id,
+          );
 
-        return Response.json(
-          { ok: true },
-          {
-            headers: {
-              "Set-Cookie": createSessionCookie(token, expiresAt),
+          return Response.json(
+            { ok: true },
+            {
+              headers: {
+                "Set-Cookie": createSessionCookie(token, expiresAt),
+              },
             },
-          },
-        );
+          );
+        } catch (error) {
+          if (!isTransientDatabaseError(error)) {
+            throw error;
+          }
+
+          console.error("Database unavailable during login", error);
+          return Response.json(
+            {
+              ok: false,
+              error: "O CRM está temporariamente indisponível. Tente novamente em instantes.",
+            },
+            {
+              status: 503,
+              headers: { "Retry-After": "3" },
+            },
+          );
+        }
       },
     },
   },

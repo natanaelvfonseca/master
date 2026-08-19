@@ -11,7 +11,7 @@ import {
   type UnitSummary,
   type UserRole,
 } from "@/lib/auth-types";
-import { queryDb } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb } from "@/lib/server/db";
 
 const scrypt = promisify(scryptCallback);
 
@@ -56,7 +56,8 @@ let userProfileSchemaPromise: Promise<void> | null = null;
 
 export async function ensureUserProfileSchema() {
   if (!userProfileSchemaPromise) {
-    userProfileSchemaPromise = queryDb(
+    userProfileSchemaPromise = ensureRuntimeSchema(
+      "user-profile",
       `
         alter table app_users
         add column if not exists avatar_url text;
@@ -66,7 +67,6 @@ export async function ensureUserProfileSchema() {
 
         do $$
         begin
-          perform pg_advisory_xact_lock(hashtext('app_users_role_check_dev'));
           alter table app_users drop constraint if exists app_users_role_check;
 
           update app_users

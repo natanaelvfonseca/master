@@ -155,15 +155,15 @@ function RootComponent() {
 }
 
 function AuthenticatedShell() {
-  const { loading, session } = useAuth();
+  const { loading, refreshSession, session, unavailable } = useAuth();
   const path = useRouterState({ select: (state) => state.location.pathname });
   const [systemLocked, setSystemLocked] = React.useState(false);
 
   React.useEffect(() => {
-    if (!loading && !session) {
+    if (!loading && !session && !unavailable) {
       window.location.replace("/login");
     }
-  }, [loading, session]);
+  }, [loading, session, unavailable]);
 
   React.useEffect(() => {
     if (!loading && session?.user.role === "MARKETING" && !isMarketingPathAllowed(path)) {
@@ -199,6 +199,26 @@ function AuthenticatedShell() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+      </div>
+    );
+  }
+
+  if (unavailable && !session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md rounded-2xl border bg-card p-6 text-center shadow-sm" role="alert">
+          <h1 className="text-xl font-bold">Não foi possível carregar o CRM</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            A conexão está instável. Sua sessão foi preservada e você pode tentar novamente.
+          </p>
+          <button
+            type="button"
+            className="mt-5 inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => void refreshSession()}
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }

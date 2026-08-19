@@ -1,7 +1,7 @@
 import type { PoolClient, QueryResultRow } from "pg";
 import { buildTurmaLabel } from "@/lib/commercial-types";
 import { isUuid } from "@/lib/server/commercial-schema";
-import { queryDb, withTransaction } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb, withTransaction } from "@/lib/server/db";
 
 export type CourseAttendanceStatus = "active" | "inactive";
 
@@ -64,7 +64,9 @@ export function normalizeRoutingText(value: string) {
 }
 
 export async function ensureCourseAttendanceSchema() {
-  schemaPromise ??= queryDb(`
+  schemaPromise ??= ensureRuntimeSchema(
+    "course-attendances",
+    `
     create table if not exists app_course_attendances (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -132,7 +134,8 @@ export async function ensureCourseAttendanceSchema() {
       add column if not exists turma_id uuid references app_course_attendances(id) on delete set null;
     create index if not exists app_leads_turma_idx
       on app_leads (unit_id, turma_id);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       schemaPromise = null;
@@ -418,10 +421,7 @@ export async function deleteCourseAttendance(id: string, unitId: string) {
     throw new Error("Atendimento inválido.");
   }
 
-  await queryDb(`delete from app_course_attendances where id = $1 and unit_id = $2`, [
-    id,
-    unitId,
-  ]);
+  await queryDb(`delete from app_course_attendances where id = $1 and unit_id = $2`, [id, unitId]);
 }
 
 export function parseCampaignRoute(campaignName: string) {
@@ -437,7 +437,10 @@ export function parseCampaignRoute(campaignName: string) {
   const location = groups[locationIndex];
   const separator = location.lastIndexOf("-");
   const city = location.slice(0, separator).trim();
-  const state = location.slice(separator + 1).trim().toUpperCase();
+  const state = location
+    .slice(separator + 1)
+    .trim()
+    .toUpperCase();
   const courseName = groups[locationIndex - 1]?.trim() ?? "";
 
   if (!courseName || city.length < 2 || !/^[A-Z]{2}$/.test(state)) {

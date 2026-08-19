@@ -7,11 +7,7 @@ import {
   isExecutiveRole,
   type UserRole,
 } from "@/lib/auth-types";
-import {
-  AD_REQUEST_STATUSES,
-  type AdRequest,
-  type AdRequestStatus,
-} from "@/lib/ad-request-types";
+import { AD_REQUEST_STATUSES, type AdRequest, type AdRequestStatus } from "@/lib/ad-request-types";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { ensureCommercialSchema, getUnitFromBody, isUuid } from "@/lib/server/commercial-schema";
 import {
@@ -19,7 +15,7 @@ import {
   normalizeRoutingText,
   saveCourseAttendance,
 } from "@/lib/server/course-attendances";
-import { queryDb, withTransaction } from "@/lib/server/db";
+import { ensureRuntimeSchema, queryDb, withTransaction } from "@/lib/server/db";
 
 type AdRequestRow = QueryResultRow & {
   id: string;
@@ -50,7 +46,9 @@ const MAX_MASTER_NOTE_LENGTH = 1600;
 let schemaPromise: Promise<void> | null = null;
 
 function ensureAdRequestSchema() {
-  schemaPromise ??= queryDb(`
+  schemaPromise ??= ensureRuntimeSchema(
+    "ad-requests",
+    `
     create table if not exists app_ad_requests (
       id uuid primary key default gen_random_uuid(),
       unit_id uuid not null references app_units(id) on delete cascade,
@@ -100,7 +98,8 @@ function ensureAdRequestSchema() {
       on app_ad_requests (status, due_at);
     create index if not exists app_ad_requests_creator_idx
       on app_ad_requests (created_by, created_at desc);
-  `)
+  `,
+  )
     .then(() => undefined)
     .catch((error) => {
       schemaPromise = null;
@@ -223,7 +222,11 @@ async function getMetadata(unitId: string) {
     ).catch(() => ({ rows: [] as Array<{ city: string }> })),
   ]);
 
-  return { courses: courses.rows, consultants: consultants.rows, cities: cities.rows.map((row) => row.city) };
+  return {
+    courses: courses.rows,
+    consultants: consultants.rows,
+    cities: cities.rows.map((row) => row.city),
+  };
 }
 
 async function getRequest(id: string, userId: string) {
@@ -256,7 +259,9 @@ export const Route = createFileRoute("/api/ad-requests")({
         await ensureAdRequestSchema();
         const notificationsOnly = new URL(request.url).searchParams.get("view") === "notifications";
         const requests = await listRequests(session.user.id, session.user.role, notificationsOnly);
-        const metadata = session.activeUnit ? await getMetadata(session.activeUnit.id) : { courses: [], consultants: [], cities: [] };
+        const metadata = session.activeUnit
+          ? await getMetadata(session.activeUnit.id)
+          : { courses: [], consultants: [], cities: [] };
 
         return Response.json(
           {
@@ -272,29 +277,49 @@ export const Route = createFileRoute("/api/ad-requests")({
         const session = await getSessionFromRequest(request);
         if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 });
         if (!canCreateAdRequests(session.user.role)) {
-          return Response.json({ error: "Apenas Diretores podem criar solicitações." }, { status: 403 });
+          return Response.json(
+            { error: "Apenas Diretores podem criar solicitações." },
+            { status: 403 },
+          );
         }
 
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const unit = getUnitFromBody(session, body?.unitId);
         const courseId = text(body?.courseId, 80);
         const consultantIds = Array.isArray(body?.consultantIds)
-          ? Array.from(new Set(body.consultantIds.filter((value): value is string => typeof value === "string" && isUuid(value))))
+          ? Array.from(
+              new Set(
+                body.consultantIds.filter(
+                  (value): value is string => typeof value === "string" && isUuid(value),
+                ),
+              ),
+            )
           : [];
         const city = text(body?.city, MAX_CITY_LENGTH);
         const classDate = text(body?.classDate, 10);
         const observation = text(body?.observation, MAX_OBSERVATION_LENGTH);
 
         if (!unit) return Response.json({ error: "Unidade indisponível." }, { status: 403 });
-        if (!isUuid(courseId) || !consultantIds.length || !city || !/^\d{4}-\d{2}-\d{2}$/.test(classDate)) {
-          return Response.json({ error: "Preencha curso, cidade, ao menos um consultor e data da turma." }, { status: 400 });
+        if (
+          !isUuid(courseId) ||
+          !consultantIds.length ||
+          !city ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(classDate)
+        ) {
+          return Response.json(
+            { error: "Preencha curso, cidade, ao menos um consultor e data da turma." },
+            { status: 400 },
+          );
         }
 
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
         await ensureAdRequestSchema();
         const [course, consultants] = await Promise.all([
-          queryDb<{ name: string }>(`select name from app_courses where id = $1 and unit_id = $2 and status = 'active'`, [courseId, unit.id]),
+          queryDb<{ name: string }>(
+            `select name from app_courses where id = $1 and unit_id = $2 and status = 'active'`,
+            [courseId, unit.id],
+          ),
           queryDb<{ id: string; name: string }>(
             `select u.id, u.name from app_users u where u.id = any($1::uuid[]) and u.role = 'CONSULTOR' and u.status = 'active'
              and (u.primary_unit_id = $2 or exists (select 1 from app_user_units uu where uu.user_id = u.id and uu.unit_id = $2))`,
@@ -302,7 +327,10 @@ export const Route = createFileRoute("/api/ad-requests")({
           ),
         ]);
         if (!course.rows[0] || consultants.rows.length !== consultantIds.length) {
-          return Response.json({ error: "Curso ou algum consultor não pertence à unidade selecionada." }, { status: 400 });
+          return Response.json(
+            { error: "Curso ou algum consultor não pertence à unidade selecionada." },
+            { status: 400 },
+          );
         }
 
         const requestId = await withTransaction(async (client) => {
@@ -315,7 +343,17 @@ export const Route = createFileRoute("/api/ad-requests")({
                 when 6 then now() + interval '3 days' when 7 then now() + interval '2 days'
                 else now() + interval '1 day' end
             ) returning id`,
-            [unit.id, courseId, course.rows[0].name, city, consultants.rows[0].id, consultants.rows[0].name, classDate, observation, session.user.id],
+            [
+              unit.id,
+              courseId,
+              course.rows[0].name,
+              city,
+              consultants.rows[0].id,
+              consultants.rows[0].name,
+              classDate,
+              observation,
+              session.user.id,
+            ],
           );
           for (const consultant of consultants.rows) {
             await client.query(
@@ -336,7 +374,8 @@ export const Route = createFileRoute("/api/ad-requests")({
         }
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const requestId = text(body?.requestId, 80);
-        if (!isUuid(requestId)) return Response.json({ error: "Solicitação inválida." }, { status: 400 });
+        if (!isUuid(requestId))
+          return Response.json({ error: "Solicitação inválida." }, { status: 400 });
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
         await ensureAdRequestSchema();
@@ -344,21 +383,33 @@ export const Route = createFileRoute("/api/ad-requests")({
         if (body?.action === "create_attendance") {
           const state = text(body.state, 2).toUpperCase();
           if (!/^[A-Z]{2}$/.test(state)) {
-            return Response.json({ error: "Informe uma UF válida para abrir a turma." }, { status: 400 });
+            return Response.json(
+              { error: "Informe uma UF válida para abrir a turma." },
+              { status: 400 },
+            );
           }
           const adRequest = await getRequest(requestId, session.user.id);
           if (!adRequest || !adRequest.courseId) {
             return Response.json({ error: "Solicitação ou curso indisponível." }, { status: 404 });
           }
           if (adRequest.attendanceId) {
-            return Response.json({ error: "Esta solicitação já possui uma turma vinculada." }, { status: 409 });
+            return Response.json(
+              { error: "Esta solicitação já possui uma turma vinculada." },
+              { status: 409 },
+            );
           }
           await ensureCourseAttendanceSchema();
           const duplicate = await queryDb<{ id: string }>(
             `select id from app_course_attendances
              where unit_id = $1 and course_id = $2 and city_normalized = $3
                and state = $4 and class_date = $5::date limit 1`,
-            [adRequest.unitId, adRequest.courseId, normalizeRoutingText(adRequest.city), state, adRequest.classDate],
+            [
+              adRequest.unitId,
+              adRequest.courseId,
+              normalizeRoutingText(adRequest.city),
+              state,
+              adRequest.classDate,
+            ],
           );
           if (duplicate.rows[0]) {
             await queryDb(
@@ -385,14 +436,23 @@ export const Route = createFileRoute("/api/ad-requests")({
               `update app_ad_requests set attendance_id = $2, updated_at = now() where id = $1 and attendance_id is null`,
               [requestId, attendance.id],
             );
-            return Response.json({ attendanceId: attendance.id, request: await getRequest(requestId, session.user.id) });
+            return Response.json({
+              attendanceId: attendance.id,
+              request: await getRequest(requestId, session.user.id),
+            });
           } catch (error) {
             if (typeof error === "object" && error && "code" in error && error.code === "23505") {
               const existing = await queryDb<{ id: string }>(
                 `select id from app_course_attendances
                  where unit_id = $1 and course_id = $2 and city_normalized = $3
                    and state = $4 and class_date = $5::date limit 1`,
-                [adRequest.unitId, adRequest.courseId, normalizeRoutingText(adRequest.city), state, adRequest.classDate],
+                [
+                  adRequest.unitId,
+                  adRequest.courseId,
+                  normalizeRoutingText(adRequest.city),
+                  state,
+                  adRequest.classDate,
+                ],
               );
               if (existing.rows[0]) {
                 await queryDb(
@@ -405,7 +465,10 @@ export const Route = createFileRoute("/api/ad-requests")({
                   request: await getRequest(requestId, session.user.id),
                 });
               }
-              return Response.json({ error: "Essa turma já existe. Nenhuma turma duplicada foi criada." }, { status: 409 });
+              return Response.json(
+                { error: "Essa turma já existe. Nenhuma turma duplicada foi criada." },
+                { status: 409 },
+              );
             }
             throw error;
           }
@@ -421,8 +484,12 @@ export const Route = createFileRoute("/api/ad-requests")({
         }
 
         const status = isStatus(body?.status) ? body.status : null;
-        const masterNote = typeof body?.masterNote === "string" ? text(body.masterNote, MAX_MASTER_NOTE_LENGTH) : null;
-        if (!status && masterNote === null) return Response.json({ error: "Nenhuma alteração enviada." }, { status: 400 });
+        const masterNote =
+          typeof body?.masterNote === "string"
+            ? text(body.masterNote, MAX_MASTER_NOTE_LENGTH)
+            : null;
+        if (!status && masterNote === null)
+          return Response.json({ error: "Nenhuma alteração enviada." }, { status: 400 });
         await queryDb(
           `update app_ad_requests set
              status = coalesce($2, status), master_note = coalesce($3, master_note),
