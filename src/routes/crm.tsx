@@ -304,7 +304,7 @@ function formatLeadCreatedTime(value: string) {
     return "Data e horário não informados";
   }
 
-  return `Criado em ${new Intl.DateTimeFormat("pt-BR", {
+  return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -312,7 +312,7 @@ function formatLeadCreatedTime(value: string) {
     minute: "2-digit",
     hour12: false,
     timeZone: "America/Sao_Paulo",
-  }).format(createdAt)}`;
+  }).format(createdAt);
 }
 
 function formatTransferLeadAge(lead: TransferLead) {
