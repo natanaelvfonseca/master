@@ -301,10 +301,13 @@ function formatLeadCreatedTime(value: string) {
   const createdAt = new Date(value);
 
   if (Number.isNaN(createdAt.getTime())) {
-    return "Horário não informado";
+    return "Data e horário não informados";
   }
 
-  return `Criado às ${new Intl.DateTimeFormat("pt-BR", {
+  return `Criado em ${new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
