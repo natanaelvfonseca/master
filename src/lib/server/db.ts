@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createServerOnlyFn } from "@tanstack/react-start";
-import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
 declare global {
   var __masterDbPool: Pool | undefined;
@@ -20,29 +20,27 @@ const getDatabaseUrl = createServerOnlyFn(() => {
   return databaseUrl;
 });
 
-const getDbPool = createServerOnlyFn(async () => {
-  if (globalThis.__masterDbPool) {
-    return globalThis.__masterDbPool;
-  }
-
-  const { Pool } = await import("pg");
-
+function createDbPool() {
   const pool = new Pool({
+    application_name: "master-easypanel",
     connectionString: getDatabaseUrl(),
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 20_000,
     idleTimeoutMillis: 30_000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
-    max: 5,
+    max: 10,
   });
 
   pool.on("error", (error) => {
     console.error("Unexpected idle PostgreSQL client error", error);
   });
 
-  globalThis.__masterDbPool = pool;
   return pool;
-});
+}
+
+const getDbPool = createServerOnlyFn(
+  () => (globalThis.__masterDbPool ??= createDbPool()),
+);
 
 export async function queryDb<TRow extends QueryResultRow = QueryResultRow>(
   text: string,
