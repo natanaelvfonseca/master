@@ -4,13 +4,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
-  );
-});
+    (async () => {
+      // Cache Storage is isolated by origin, and this origin is dedicated to Master.
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+      await self.clients.claim();
 
-self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+      // Refresh pages that may still be running an application shell served by an older worker.
+      const windowClients = await self.clients.matchAll({ type: "window" });
+      await Promise.all(windowClients.map((client) => client.navigate(client.url)));
+    })(),
+  );
 });

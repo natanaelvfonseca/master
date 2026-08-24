@@ -118,7 +118,7 @@ function RootComponent() {
   React.useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js")
+        .register("/sw.js?v=easypanel-cache-reset-1", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => undefined);
     }

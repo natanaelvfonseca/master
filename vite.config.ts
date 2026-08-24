@@ -12,6 +12,26 @@ export default defineConfig({
   plugins: [
     nitroPlugin({
       preset: "node-server",
+      handlers: [
+        {
+          route: "/**",
+          handler: "./server/middleware/cache-control.ts",
+          middleware: true,
+        },
+      ],
+      routeRules: {
+        "/assets/**": {
+          headers: { "cache-control": "public, max-age=31536000, immutable" },
+        },
+        "/sw.js": {
+          headers: {
+            "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+            expires: "0",
+            pragma: "no-cache",
+            "service-worker-allowed": "/",
+          },
+        },
+      },
     }),
   ],
 });
