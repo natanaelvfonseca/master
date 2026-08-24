@@ -50,7 +50,6 @@ import { Route as ApiWebhooksPlenaLeadsRouteImport } from './routes/api/webhooks
 import { Route as ApiWebhooksMetaLeadsRouteImport } from './routes/api/webhooks/meta-leads'
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
 import { Route as ApiTrainingVideoRouteImport } from './routes/api/training.video'
-import { Route as ApiTrainingUploadRouteImport } from './routes/api/training.upload'
 import { Route as ApiIntegrationsMetaAdsRouteImport } from './routes/api/integrations/meta-ads'
 import { Route as ApiIntegrationsEvolutionRouteImport } from './routes/api/integrations/evolution'
 import { Route as ApiIaComercialScriptsRouteImport } from './routes/api/ia-comercial.scripts'
@@ -284,11 +283,6 @@ const ApiTrainingVideoRoute = ApiTrainingVideoRouteImport.update({
   path: '/video',
   getParentRoute: () => ApiTrainingRoute,
 } as any)
-const ApiTrainingUploadRoute = ApiTrainingUploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
-  getParentRoute: () => ApiTrainingRoute,
-} as any)
 const ApiIntegrationsMetaAdsRoute = ApiIntegrationsMetaAdsRouteImport.update({
   id: '/api/integrations/meta-ads',
   path: '/api/integrations/meta-ads',
@@ -491,7 +485,6 @@ export interface FileRoutesByFullPath {
   '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
-  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
@@ -562,7 +555,6 @@ export interface FileRoutesByTo {
   '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
-  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
@@ -634,7 +626,6 @@ export interface FileRoutesById {
   '/api/ia-comercial/scripts': typeof ApiIaComercialScriptsRoute
   '/api/integrations/evolution': typeof ApiIntegrationsEvolutionRoute
   '/api/integrations/meta-ads': typeof ApiIntegrationsMetaAdsRoute
-  '/api/training/upload': typeof ApiTrainingUploadRoute
   '/api/training/video': typeof ApiTrainingVideoRoute
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
@@ -707,7 +698,6 @@ export interface FileRouteTypes {
     | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
-    | '/api/training/upload'
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
@@ -778,7 +768,6 @@ export interface FileRouteTypes {
     | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
-    | '/api/training/upload'
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
@@ -849,7 +838,6 @@ export interface FileRouteTypes {
     | '/api/ia-comercial/scripts'
     | '/api/integrations/evolution'
     | '/api/integrations/meta-ads'
-    | '/api/training/upload'
     | '/api/training/video'
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
@@ -1211,13 +1199,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTrainingVideoRouteImport
       parentRoute: typeof ApiTrainingRoute
     }
-    '/api/training/upload': {
-      id: '/api/training/upload'
-      path: '/upload'
-      fullPath: '/api/training/upload'
-      preLoaderRoute: typeof ApiTrainingUploadRouteImport
-      parentRoute: typeof ApiTrainingRoute
-    }
     '/api/integrations/meta-ads': {
       id: '/api/integrations/meta-ads'
       path: '/api/integrations/meta-ads'
@@ -1437,12 +1418,10 @@ const ApiIaComercialRouteWithChildren = ApiIaComercialRoute._addFileChildren(
 )
 
 interface ApiTrainingRouteChildren {
-  ApiTrainingUploadRoute: typeof ApiTrainingUploadRoute
   ApiTrainingVideoRoute: typeof ApiTrainingVideoRoute
 }
 
 const ApiTrainingRouteChildren: ApiTrainingRouteChildren = {
-  ApiTrainingUploadRoute: ApiTrainingUploadRoute,
   ApiTrainingVideoRoute: ApiTrainingVideoRoute,
 }
 
