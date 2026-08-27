@@ -71,6 +71,11 @@ type DeleteTarget = {
   role: UserRole;
 };
 
+type BlockedDelete = {
+  name: string;
+  leadCount: number;
+};
+
 type EditForm = {
   userId: string;
   name: string;
@@ -93,6 +98,7 @@ function UsersPage() {
   const [savingEdit, setSavingEdit] = React.useState(false);
   const [deletingUser, setDeletingUser] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget | null>(null);
+  const [blockedDelete, setBlockedDelete] = React.useState<BlockedDelete | null>(null);
   const [editForm, setEditForm] = React.useState<EditForm | null>(null);
   const [importUsersOpen, setImportUsersOpen] = React.useState(false);
   const [importingUsers, setImportingUsers] = React.useState(false);
@@ -249,9 +255,22 @@ function UsersPage() {
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ userId: deleteTarget.id }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        leadCount?: number;
+      };
 
       if (!response.ok) {
+        if (response.status === 409 && data.code === "USER_HAS_LEADS") {
+          setBlockedDelete({
+            name: deleteTarget.name,
+            leadCount: Number(data.leadCount) || 0,
+          });
+          setDeleteTarget(null);
+          return;
+        }
+
         throw new Error(data.error ?? "Não foi possível excluir usuário.");
       }
 
@@ -873,6 +892,30 @@ function UsersPage() {
               }}
             >
               {deletingUser ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(blockedDelete)}
+        onOpenChange={(open) => !open && setBlockedDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Transfira os leads antes de excluir</AlertDialogTitle>
+            <AlertDialogDescription>
+              {blockedDelete
+                ? `O usuário "${blockedDelete.name}" ainda possui ${blockedDelete.leadCount} lead(s). Ele só pode ser removido depois que todos os leads forem transferidos para outro responsável.`
+                : "Este usuário ainda possui leads vinculados."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => window.location.assign("/crm/transferencia")}
+            >
+              Ir para transferência de leads
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

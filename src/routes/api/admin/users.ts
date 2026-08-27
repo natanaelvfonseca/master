@@ -499,7 +499,45 @@ export const Route = createFileRoute("/api/admin/users")({
           );
         }
 
-        await queryDb("delete from app_users where id = $1", [target.id]);
+        const deletion = await withTransaction(async (client) => {
+          const lockedUser = await client.query<{ id: string }>(
+            `select id from app_users where id = $1 for update`,
+            [target.id],
+          );
+
+          if (!lockedUser.rows[0]) {
+            return { deleted: false, missing: true, leadCount: 0 };
+          }
+
+          const leadCountResult = await client.query<{ lead_count: string }>(
+            `select count(*)::text as lead_count from app_leads where created_by = $1`,
+            [target.id],
+          );
+          const leadCount = Number(leadCountResult.rows[0]?.lead_count ?? 0);
+
+          if (leadCount > 0) {
+            return { deleted: false, missing: false, leadCount };
+          }
+
+          await client.query("delete from app_users where id = $1", [target.id]);
+          return { deleted: true, missing: false, leadCount: 0 };
+        });
+
+        if (deletion.missing) {
+          return Response.json({ ok: false, error: "Usuário não encontrado." }, { status: 404 });
+        }
+
+        if (!deletion.deleted) {
+          return Response.json(
+            {
+              ok: false,
+              code: "USER_HAS_LEADS",
+              error: "Transfira os leads deste usuário antes de excluí-lo.",
+              leadCount: deletion.leadCount,
+            },
+            { status: 409 },
+          );
+        }
 
         return Response.json({ ok: true });
       },
