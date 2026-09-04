@@ -310,6 +310,7 @@ function MetaAdsPage() {
 
   const canAccess = session ? canViewMetaAds(session.user.role) : false;
   const canManage = session ? canManageMetaAds(session.user.role) : false;
+  const isMarketing = session?.user.role === "MARKETING";
   const pendingEvents =
     state?.events.filter((event) => event.status === "pending_configuration") ?? [];
   const configuredForms =
@@ -527,15 +528,19 @@ function MetaAdsPage() {
         />
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs
+        key={isMarketing ? "marketing" : "management"}
+        defaultValue={isMarketing ? "forms" : "overview"}
+        className="space-y-4"
+      >
         <TabsList
           className={`grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 ${
             canManage ? "md:grid-cols-5" : "md:grid-cols-2"
           }`}
         >
-          <TabsTrigger value="overview">Visão geral</TabsTrigger>
+          {!isMarketing ? <TabsTrigger value="overview">Visão geral</TabsTrigger> : null}
           {canManage ? <TabsTrigger value="pages">Páginas</TabsTrigger> : null}
-          {canManage ? <TabsTrigger value="forms">Formulários</TabsTrigger> : null}
+          {canManage || isMarketing ? <TabsTrigger value="forms">Formulários</TabsTrigger> : null}
           <TabsTrigger value="events">Eventos</TabsTrigger>
           {canManage ? <TabsTrigger value="settings">Configurações</TabsTrigger> : null}
         </TabsList>
@@ -697,8 +702,8 @@ function MetaAdsPage() {
             <CardHeader>
               <CardTitle className="text-base">Formulários por unidade</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Selecione uma unidade para visualizar e cadastrar os formulários que enviam leads
-                para ela.
+                Selecione uma unidade para visualizar
+                {canManage ? " e cadastrar" : ""} os formulários que enviam leads para ela.
               </p>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -747,23 +752,26 @@ function MetaAdsPage() {
                       </div>
                       <div className="text-lg font-bold text-primary">{selectedFormsUnit.name}</div>
                     </div>
-                    {selectedFormsUnit.id !== UNASSIGNED_FORMS_UNIT ? (
-                      <Button
-                        onClick={() => openFormDialog(undefined, undefined, selectedFormsUnit.id)}
-                        className="bg-gradient-primary"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Cadastrar formulário
-                      </Button>
-                    ) : (
-                      <Badge className="w-fit bg-gold/15 text-gold-foreground">
-                        Selecione Configurar para vincular
-                      </Badge>
-                    )}
+                    {canManage ? (
+                      selectedFormsUnit.id !== UNASSIGNED_FORMS_UNIT ? (
+                        <Button
+                          onClick={() => openFormDialog(undefined, undefined, selectedFormsUnit.id)}
+                          className="bg-gradient-primary"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Cadastrar formulário
+                        </Button>
+                      ) : (
+                        <Badge className="w-fit bg-gold/15 text-gold-foreground">
+                          Selecione Configurar para vincular
+                        </Badge>
+                      )
+                    ) : null}
                   </div>
                   {selectedUnitForms.length ? (
                     <FormsTable
                       forms={selectedUnitForms}
+                      readOnly={!canManage}
                       onEdit={openFormDialog}
                       onDuplicate={(form) => {
                         setDuplicateSource(form);
@@ -792,7 +800,9 @@ function MetaAdsPage() {
                       <FormInput className="mx-auto h-8 w-8 text-muted-foreground" />
                       <div className="mt-3 font-semibold">Nenhum formulário nesta unidade</div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Use o botão acima para cadastrar o primeiro formulário de {selectedFormsUnit.name}.
+                        {canManage
+                          ? `Use o botão acima para cadastrar o primeiro formulário de ${selectedFormsUnit.name}.`
+                          : `Não há formulários cadastrados para ${selectedFormsUnit.name}.`}
                       </p>
                     </div>
                   )}
@@ -1151,11 +1161,13 @@ function IconAction({
 
 function FormsTable({
   forms,
+  readOnly = false,
   onEdit,
   onDuplicate,
   onReprocess,
 }: {
   forms: Array<MetaForm>;
+  readOnly?: boolean;
   onEdit: (form: MetaForm) => void;
   onDuplicate: (form: MetaForm) => void;
   onReprocess: () => void;
@@ -1172,7 +1184,7 @@ function FormsTable({
           <TableHead>Etapa</TableHead>
           <TableHead>Leads</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="text-right">Ações</TableHead>
+          {!readOnly ? <TableHead className="text-right">Ações</TableHead> : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1205,15 +1217,17 @@ function FormsTable({
                 {form.status === "active" ? "Ativo" : "Inativo"}
               </Badge>
             </TableCell>
-            <TableCell>
-              <div className="flex justify-end gap-1.5">
-                <Button type="button" size="sm" variant="outline" onClick={() => onEdit(form)}>
-                  Configurar
-                </Button>
-                <IconAction label="Duplicar" icon={Copy} onClick={() => onDuplicate(form)} />
-                <IconAction label="Reprocessar pendências" icon={RefreshCw} onClick={onReprocess} />
-              </div>
-            </TableCell>
+            {!readOnly ? (
+              <TableCell>
+                <div className="flex justify-end gap-1.5">
+                  <Button type="button" size="sm" variant="outline" onClick={() => onEdit(form)}>
+                    Configurar
+                  </Button>
+                  <IconAction label="Duplicar" icon={Copy} onClick={() => onDuplicate(form)} />
+                  <IconAction label="Reprocessar pendências" icon={RefreshCw} onClick={onReprocess} />
+                </div>
+              </TableCell>
+            ) : null}
           </TableRow>
         ))}
       </TableBody>

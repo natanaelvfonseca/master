@@ -124,7 +124,10 @@ export function AppSidebar() {
   const canSeeSalesAi = user ? canViewSalesAi(user.role) : false;
   const canSeeAdRequests = user ? canViewAdRequests(user.role) : false;
   const canSwitchUnit =
-    Boolean(user && (isDevRole(user.role) || isExecutiveRole(user.role))) &&
+    Boolean(
+      user &&
+        (isDevRole(user.role) || isExecutiveRole(user.role) || user.role === "MARKETING"),
+    ) &&
     (session?.units.length ?? 0) > 1;
   const handleUnitChange = async (unitId: string) => {
     if (!unitId || unitId === activeUnit?.id) {
