@@ -535,7 +535,7 @@ function MetaAdsPage() {
       >
         <TabsList
           className={`grid h-auto grid-cols-2 gap-1 bg-primary/5 p-1 ${
-            canManage ? "md:grid-cols-5" : "md:grid-cols-2"
+            canManage ? (isMarketing ? "md:grid-cols-4" : "md:grid-cols-5") : "md:grid-cols-2"
           }`}
         >
           {!isMarketing ? <TabsTrigger value="overview">Visão geral</TabsTrigger> : null}

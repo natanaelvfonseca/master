@@ -149,7 +149,7 @@ export function canManageBrandPlen(role: UserRole) {
 }
 
 export function canManageMetaAds(role: UserRole) {
-  return isMasterRole(role);
+  return isMasterRole(role) || role === "MARKETING";
 }
 
 export function canViewAdRequests(role: UserRole) {
@@ -169,7 +169,7 @@ export function canViewMetaAds(role: UserRole) {
 }
 
 export function canOperateCrm(role: UserRole) {
-  return role !== "MARKETING";
+  return USER_ROLES.includes(role);
 }
 
 export function canViewAllUnitLeads(role: UserRole) {
