@@ -40,6 +40,11 @@ jobs:
             fi
 
             if [ "$(jq -r '.result.processed // false' <<< "$response")" != "true" ]; then
+              if [ "$(jq -r '.result.busy // false' <<< "$response")" = "true" ]; then
+                echo "Sincronização em andamento; aguardando liberação do lote."
+                sleep 30
+                continue
+              fi
               echo "Nenhuma sincronização pendente."
               break
             fi
