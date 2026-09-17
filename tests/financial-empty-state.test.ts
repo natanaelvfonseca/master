@@ -4,6 +4,7 @@ import { formatFinancialDate } from "../src/lib/financial-date.ts";
 import { normalizeFinancialFilterOptions } from "../src/lib/financial-filters.ts";
 import {
   assertFinancialSyncReady,
+  financialSyncBlockReason,
   financialIntegrationResponse,
   FinancialIntegrationStateError,
   isCurrentFinancialResponse,
@@ -83,4 +84,11 @@ test("sync exige validação do escopo e da paginação por unidade", () => {
   assert.doesNotThrow(() =>
     assertFinancialSyncReady({ active: true, scope_verified: true, pagination_verified: true }),
   );
+});
+
+test("indica exatamente por que o botão de sincronização ainda não pode iniciar", () => {
+  assert.match(financialSyncBlockReason({ configured: false, active: true, scopeVerified: false, paginationVerified: false }) ?? "", /salve o token/);
+  assert.match(financialSyncBlockReason({ configured: true, active: false, scopeVerified: true, paginationVerified: true }) ?? "", /Ative/);
+  assert.match(financialSyncBlockReason({ configured: true, active: true, scopeVerified: false, paginationVerified: true }) ?? "", /Confirme o escopo/);
+  assert.equal(financialSyncBlockReason({ configured: true, active: true, scopeVerified: true, paginationVerified: true }), null);
 });

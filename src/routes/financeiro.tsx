@@ -38,6 +38,7 @@ import { canManageFinancialIntegration, canViewFinancial } from "@/lib/auth-type
 import { useAuth } from "@/lib/auth";
 import { formatFinancialDate } from "@/lib/financial-date";
 import {
+  financialSyncBlockReason,
   isCurrentFinancialResponse,
   normalizeFinancialRows,
   scopedFinancialValue,
@@ -1027,6 +1028,7 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
   const [scopeVerified, setScopeVerified] = React.useState(false);
   const [paginationVerified, setPaginationVerified] = React.useState(false);
   const [busy, setBusy] = React.useState("");
+  const syncBlockReason = financialSyncBlockReason(state);
   const load = React.useCallback(async () => {
     if (!unitId) return;
     setState(EMPTY_INTEGRATION_STATE);
@@ -1067,6 +1069,10 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
     return () => window.clearInterval(timer);
   }, [hasActiveRun, load, onSync]);
   async function action(kind: "save" | "test" | "sync") {
+    if (kind === "sync" && syncBlockReason) {
+      toast.error(syncBlockReason);
+      return;
+    }
     setBusy(kind);
     try {
       if (kind === "save") {
@@ -1098,7 +1104,25 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             body: JSON.stringify({ unit_id: unitId, token: token || undefined }),
           }),
         );
-        toast.success(`Conexão válida: ${result.result.classesCount} turmas retornadas.`);
+        const saved = await readJson<{ integration: IntegrationState }>(
+          await fetch("/api/financeiro/integration", {
+            method: "PUT",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              unit_id: unitId,
+              token,
+              syncPastDays: past,
+              syncFutureDays: future,
+              active,
+              scopeVerified,
+              paginationVerified,
+            }),
+          }),
+        );
+        setState(saved.integration);
+        setToken("");
+        toast.success(`Token validado e salvo: ${result.result.classesCount} turmas retornadas.`);
       } else {
         const result = await readJson<{ run?: SyncRun }>(
           await fetch("/api/financeiro/sync", {
@@ -1149,13 +1173,19 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
               type="password"
               autoComplete="new-password"
               value={token}
-              onChange={(e) => setToken(e.target.value)}
+              onChange={(e) => {
+                setToken(e.target.value);
+                if (e.target.value) {
+                  setScopeVerified(false);
+                  setPaginationVerified(false);
+                }
+              }}
               placeholder={
                 state.configured ? "Deixe vazio para manter o token salvo" : "Cole o token do CAEZ"
               }
             />
             <p className="text-xs text-muted-foreground">
-              O token salvo nunca retorna ao navegador.
+              Use “Testar e salvar token” para verificar a conexão e armazená-lo. O token salvo nunca retorna ao navegador.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1185,18 +1215,17 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             <label className="flex items-center gap-2"><input type="checkbox" checked={scopeVerified} onChange={(event) => setScopeVerified(event.target.checked)} /> Escopo exclusivo desta unidade confirmado</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={paginationVerified} onChange={(event) => setPaginationVerified(event.target.checked)} /> Cobertura e paginação das consultas confirmadas</label>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Button onClick={() => void action("save")} disabled={!!busy}>
-              {busy === "save" ? <Loader2 className="animate-spin" /> : null}Salvar
+              {busy === "save" ? <Loader2 className="animate-spin" /> : null}Salvar configuração
             </Button>
             <Button variant="outline" onClick={() => void action("test")} disabled={!!busy}>
-              Testar conexão
+              Testar e salvar token
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => void action("sync")}
-              disabled={!!busy || !state.configured || !state.scopeVerified || !state.paginationVerified}
-            >
+          </div>
+          <div className="space-y-2 border-t pt-4">
+            {syncBlockReason ? <p className="text-sm text-amber-800" role="status">{syncBlockReason}</p> : null}
+            <Button className="w-full" onClick={() => void action("sync")} disabled={!!busy}>
               Sincronizar agora
             </Button>
           </div>

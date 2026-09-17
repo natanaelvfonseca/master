@@ -22,6 +22,19 @@ export function normalizeFinancialRows<T>(value: Array<T> | null | undefined) {
   return Array.isArray(value) ? value : [];
 }
 
+export function financialSyncBlockReason(state: {
+  configured: boolean;
+  active: boolean;
+  scopeVerified: boolean;
+  paginationVerified: boolean;
+}) {
+  if (!state.configured) return "Teste e salve o token CAEZ antes de sincronizar.";
+  if (!state.active) return "Ative e salve a integração antes de sincronizar.";
+  if (!state.scopeVerified || !state.paginationVerified)
+    return "Confirme o escopo da unidade e a cobertura das consultas, depois salve a configuração.";
+  return null;
+}
+
 export class FinancialIntegrationStateError extends Error {
   readonly status: number;
 
