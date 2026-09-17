@@ -390,7 +390,13 @@ async function mapLimited<T, R>(items: Array<T>, limit: number, mapper: (item: T
 export async function processNextFinancialSyncBatch() {
   await ensureFinancialSchema();
   const run = await acquireSyncRun();
-  if (!run) return { processed: false };
+  if (!run) {
+    const active = await queryDb<{ exists: boolean }>(
+      `select exists(select 1 from app_financial_sync_runs where provider=$1 and status in ('queued','running')) as exists`,
+      [PROVIDER],
+    );
+    return { processed: false, busy: active.rows[0]?.exists ?? false };
+  }
   const integration = await integrationForUnit(run.unit_id);
   if (!integration?.active) {
     await queryDb(
