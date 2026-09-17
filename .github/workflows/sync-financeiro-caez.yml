@@ -23,7 +23,7 @@ jobs:
             exit 1
           fi
 
-          for batch in $(seq 1 20); do
+          for batch in $(seq 1 200); do
             if [ "$SECONDS" -ge 1080 ]; then
               echo "Limite de tempo atingido; a próxima execução continuará."
               break
