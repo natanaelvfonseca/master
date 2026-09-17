@@ -19,6 +19,7 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as MetaAdsRouteImport } from './routes/meta-ads'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IaComercialRouteImport } from './routes/ia-comercial'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as EstrategiaRouteImport } from './routes/estrategia'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -46,6 +47,7 @@ import { Route as ApiGrowthRouteImport } from './routes/api/growth'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
 import { Route as ApiBrandLibraryRouteImport } from './routes/api/brand-library'
 import { Route as ApiAdRequestsRouteImport } from './routes/api/ad-requests'
+import { Route as FinanceiroAlunoStudentIdRouteImport } from './routes/financeiro.aluno.$studentId'
 import { Route as ApiWebhooksPlenaLeadsRouteImport } from './routes/api/webhooks/plena-leads'
 import { Route as ApiWebhooksMetaLeadsRouteImport } from './routes/api/webhooks/meta-leads'
 import { Route as ApiWebhooksEvolutionRouteImport } from './routes/api/webhooks/evolution'
@@ -58,7 +60,14 @@ import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
 import { Route as ApiGestaoAttendancesRouteImport } from './routes/api/gestao/attendances'
+import { Route as ApiFinanceiroSyncRouteImport } from './routes/api/financeiro/sync'
+import { Route as ApiFinanceiroStudentsRouteImport } from './routes/api/financeiro/students'
+import { Route as ApiFinanceiroPromisesRouteImport } from './routes/api/financeiro/promises'
+import { Route as ApiFinanceiroIntegrationRouteImport } from './routes/api/financeiro/integration'
+import { Route as ApiFinanceiroDashboardRouteImport } from './routes/api/financeiro/dashboard'
+import { Route as ApiFinanceiroCollectionActionsRouteImport } from './routes/api/financeiro/collection-actions'
 import { Route as ApiCronMetaLeadsRouteImport } from './routes/api/cron/meta-leads'
+import { Route as ApiCronFinanceiroCaezSyncRouteImport } from './routes/api/cron.financeiro-caez-sync'
 import { Route as ApiCrmTransferRouteImport } from './routes/api/crm/transfer'
 import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
@@ -76,6 +85,8 @@ import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminUnitsRouteImport } from './routes/api/admin/units'
 import { Route as ApiGestaoCoursesIdRouteImport } from './routes/api/gestao/courses.$id'
 import { Route as ApiGestaoChannelsIdRouteImport } from './routes/api/gestao/channels.$id'
+import { Route as ApiFinanceiroStudentsStudentIdRouteImport } from './routes/api/financeiro/students.$studentId'
+import { Route as ApiFinanceiroCollectionsTodayRouteImport } from './routes/api/financeiro/collections/today'
 import { Route as ApiCrmLeadsIdRouteImport } from './routes/api/crm/leads.$id'
 
 const UsuariosRoute = UsuariosRouteImport.update({
@@ -126,6 +137,11 @@ const LoginRoute = LoginRouteImport.update({
 const IaComercialRoute = IaComercialRouteImport.update({
   id: '/ia-comercial',
   path: '/ia-comercial',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -263,6 +279,12 @@ const ApiAdRequestsRoute = ApiAdRequestsRouteImport.update({
   path: '/api/ad-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinanceiroAlunoStudentIdRoute =
+  FinanceiroAlunoStudentIdRouteImport.update({
+    id: '/aluno/$studentId',
+    path: '/aluno/$studentId',
+    getParentRoute: () => FinanceiroRoute,
+  } as any)
 const ApiWebhooksPlenaLeadsRoute = ApiWebhooksPlenaLeadsRouteImport.update({
   id: '/api/webhooks/plena-leads',
   path: '/api/webhooks/plena-leads',
@@ -324,11 +346,49 @@ const ApiGestaoAttendancesRoute = ApiGestaoAttendancesRouteImport.update({
   path: '/api/gestao/attendances',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFinanceiroSyncRoute = ApiFinanceiroSyncRouteImport.update({
+  id: '/api/financeiro/sync',
+  path: '/api/financeiro/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFinanceiroStudentsRoute = ApiFinanceiroStudentsRouteImport.update({
+  id: '/api/financeiro/students',
+  path: '/api/financeiro/students',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFinanceiroPromisesRoute = ApiFinanceiroPromisesRouteImport.update({
+  id: '/api/financeiro/promises',
+  path: '/api/financeiro/promises',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFinanceiroIntegrationRoute =
+  ApiFinanceiroIntegrationRouteImport.update({
+    id: '/api/financeiro/integration',
+    path: '/api/financeiro/integration',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiFinanceiroDashboardRoute = ApiFinanceiroDashboardRouteImport.update({
+  id: '/api/financeiro/dashboard',
+  path: '/api/financeiro/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFinanceiroCollectionActionsRoute =
+  ApiFinanceiroCollectionActionsRouteImport.update({
+    id: '/api/financeiro/collection-actions',
+    path: '/api/financeiro/collection-actions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCronMetaLeadsRoute = ApiCronMetaLeadsRouteImport.update({
   id: '/api/cron/meta-leads',
   path: '/api/cron/meta-leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronFinanceiroCaezSyncRoute =
+  ApiCronFinanceiroCaezSyncRouteImport.update({
+    id: '/api/cron/financeiro-caez-sync',
+    path: '/api/cron/financeiro-caez-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCrmTransferRoute = ApiCrmTransferRouteImport.update({
   id: '/api/crm/transfer',
   path: '/api/crm/transfer',
@@ -417,6 +477,18 @@ const ApiGestaoChannelsIdRoute = ApiGestaoChannelsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiGestaoChannelsRoute,
 } as any)
+const ApiFinanceiroStudentsStudentIdRoute =
+  ApiFinanceiroStudentsStudentIdRouteImport.update({
+    id: '/$studentId',
+    path: '/$studentId',
+    getParentRoute: () => ApiFinanceiroStudentsRoute,
+  } as any)
+const ApiFinanceiroCollectionsTodayRoute =
+  ApiFinanceiroCollectionsTodayRouteImport.update({
+    id: '/api/financeiro/collections/today',
+    path: '/api/financeiro/collections/today',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCrmLeadsIdRoute = ApiCrmLeadsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -432,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/financeiro': typeof FinanceiroRouteWithChildren
   '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
@@ -476,7 +549,14 @@ export interface FileRoutesByFullPath {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/financeiro-caez-sync': typeof ApiCronFinanceiroCaezSyncRoute
   '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
+  '/api/financeiro/collection-actions': typeof ApiFinanceiroCollectionActionsRoute
+  '/api/financeiro/dashboard': typeof ApiFinanceiroDashboardRoute
+  '/api/financeiro/integration': typeof ApiFinanceiroIntegrationRoute
+  '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
+  '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
+  '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -489,7 +569,10 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
+  '/financeiro/aluno/$studentId': typeof FinanceiroAlunoStudentIdRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/financeiro/collections/today': typeof ApiFinanceiroCollectionsTodayRoute
+  '/api/financeiro/students/$studentId': typeof ApiFinanceiroStudentsStudentIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
@@ -502,6 +585,7 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/financeiro': typeof FinanceiroRouteWithChildren
   '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
@@ -546,7 +630,14 @@ export interface FileRoutesByTo {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/financeiro-caez-sync': typeof ApiCronFinanceiroCaezSyncRoute
   '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
+  '/api/financeiro/collection-actions': typeof ApiFinanceiroCollectionActionsRoute
+  '/api/financeiro/dashboard': typeof ApiFinanceiroDashboardRoute
+  '/api/financeiro/integration': typeof ApiFinanceiroIntegrationRoute
+  '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
+  '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
+  '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -559,7 +650,10 @@ export interface FileRoutesByTo {
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
+  '/financeiro/aluno/$studentId': typeof FinanceiroAlunoStudentIdRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/financeiro/collections/today': typeof ApiFinanceiroCollectionsTodayRoute
+  '/api/financeiro/students/$studentId': typeof ApiFinanceiroStudentsStudentIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
@@ -573,6 +667,7 @@ export interface FileRoutesById {
   '/crm': typeof CrmRouteWithChildren
   '/estrategia': typeof EstrategiaRoute
   '/feedback': typeof FeedbackRoute
+  '/financeiro': typeof FinanceiroRouteWithChildren
   '/ia-comercial': typeof IaComercialRoute
   '/login': typeof LoginRoute
   '/meta-ads': typeof MetaAdsRoute
@@ -617,7 +712,14 @@ export interface FileRoutesById {
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
   '/api/crm/transfer': typeof ApiCrmTransferRoute
+  '/api/cron/financeiro-caez-sync': typeof ApiCronFinanceiroCaezSyncRoute
   '/api/cron/meta-leads': typeof ApiCronMetaLeadsRoute
+  '/api/financeiro/collection-actions': typeof ApiFinanceiroCollectionActionsRoute
+  '/api/financeiro/dashboard': typeof ApiFinanceiroDashboardRoute
+  '/api/financeiro/integration': typeof ApiFinanceiroIntegrationRoute
+  '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
+  '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
+  '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -630,7 +732,10 @@ export interface FileRoutesById {
   '/api/webhooks/evolution': typeof ApiWebhooksEvolutionRoute
   '/api/webhooks/meta-leads': typeof ApiWebhooksMetaLeadsRoute
   '/api/webhooks/plena-leads': typeof ApiWebhooksPlenaLeadsRoute
+  '/financeiro/aluno/$studentId': typeof FinanceiroAlunoStudentIdRoute
   '/api/crm/leads/$id': typeof ApiCrmLeadsIdRoute
+  '/api/financeiro/collections/today': typeof ApiFinanceiroCollectionsTodayRoute
+  '/api/financeiro/students/$studentId': typeof ApiFinanceiroStudentsStudentIdRoute
   '/api/gestao/channels/$id': typeof ApiGestaoChannelsIdRoute
   '/api/gestao/courses/$id': typeof ApiGestaoCoursesIdRoute
 }
@@ -645,6 +750,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/financeiro'
     | '/ia-comercial'
     | '/login'
     | '/meta-ads'
@@ -689,7 +795,14 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/financeiro-caez-sync'
     | '/api/cron/meta-leads'
+    | '/api/financeiro/collection-actions'
+    | '/api/financeiro/dashboard'
+    | '/api/financeiro/integration'
+    | '/api/financeiro/promises'
+    | '/api/financeiro/students'
+    | '/api/financeiro/sync'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -702,7 +815,10 @@ export interface FileRouteTypes {
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/webhooks/plena-leads'
+    | '/financeiro/aluno/$studentId'
     | '/api/crm/leads/$id'
+    | '/api/financeiro/collections/today'
+    | '/api/financeiro/students/$studentId'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -715,6 +831,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/financeiro'
     | '/ia-comercial'
     | '/login'
     | '/meta-ads'
@@ -759,7 +876,14 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/financeiro-caez-sync'
     | '/api/cron/meta-leads'
+    | '/api/financeiro/collection-actions'
+    | '/api/financeiro/dashboard'
+    | '/api/financeiro/integration'
+    | '/api/financeiro/promises'
+    | '/api/financeiro/students'
+    | '/api/financeiro/sync'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -772,7 +896,10 @@ export interface FileRouteTypes {
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/webhooks/plena-leads'
+    | '/financeiro/aluno/$studentId'
     | '/api/crm/leads/$id'
+    | '/api/financeiro/collections/today'
+    | '/api/financeiro/students/$studentId'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
   id:
@@ -785,6 +912,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/estrategia'
     | '/feedback'
+    | '/financeiro'
     | '/ia-comercial'
     | '/login'
     | '/meta-ads'
@@ -829,7 +957,14 @@ export interface FileRouteTypes {
     | '/api/crm/leads'
     | '/api/crm/tasks'
     | '/api/crm/transfer'
+    | '/api/cron/financeiro-caez-sync'
     | '/api/cron/meta-leads'
+    | '/api/financeiro/collection-actions'
+    | '/api/financeiro/dashboard'
+    | '/api/financeiro/integration'
+    | '/api/financeiro/promises'
+    | '/api/financeiro/students'
+    | '/api/financeiro/sync'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -842,7 +977,10 @@ export interface FileRouteTypes {
     | '/api/webhooks/evolution'
     | '/api/webhooks/meta-leads'
     | '/api/webhooks/plena-leads'
+    | '/financeiro/aluno/$studentId'
     | '/api/crm/leads/$id'
+    | '/api/financeiro/collections/today'
+    | '/api/financeiro/students/$studentId'
     | '/api/gestao/channels/$id'
     | '/api/gestao/courses/$id'
   fileRoutesById: FileRoutesById
@@ -856,6 +994,7 @@ export interface RootRouteChildren {
   CrmRoute: typeof CrmRouteWithChildren
   EstrategiaRoute: typeof EstrategiaRoute
   FeedbackRoute: typeof FeedbackRoute
+  FinanceiroRoute: typeof FinanceiroRouteWithChildren
   IaComercialRoute: typeof IaComercialRoute
   LoginRoute: typeof LoginRoute
   MetaAdsRoute: typeof MetaAdsRoute
@@ -898,7 +1037,14 @@ export interface RootRouteChildren {
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiCrmTasksRoute: typeof ApiCrmTasksRoute
   ApiCrmTransferRoute: typeof ApiCrmTransferRoute
+  ApiCronFinanceiroCaezSyncRoute: typeof ApiCronFinanceiroCaezSyncRoute
   ApiCronMetaLeadsRoute: typeof ApiCronMetaLeadsRoute
+  ApiFinanceiroCollectionActionsRoute: typeof ApiFinanceiroCollectionActionsRoute
+  ApiFinanceiroDashboardRoute: typeof ApiFinanceiroDashboardRoute
+  ApiFinanceiroIntegrationRoute: typeof ApiFinanceiroIntegrationRoute
+  ApiFinanceiroPromisesRoute: typeof ApiFinanceiroPromisesRoute
+  ApiFinanceiroStudentsRoute: typeof ApiFinanceiroStudentsRouteWithChildren
+  ApiFinanceiroSyncRoute: typeof ApiFinanceiroSyncRoute
   ApiGestaoAttendancesRoute: typeof ApiGestaoAttendancesRoute
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
@@ -908,6 +1054,7 @@ export interface RootRouteChildren {
   ApiWebhooksEvolutionRoute: typeof ApiWebhooksEvolutionRoute
   ApiWebhooksMetaLeadsRoute: typeof ApiWebhooksMetaLeadsRoute
   ApiWebhooksPlenaLeadsRoute: typeof ApiWebhooksPlenaLeadsRoute
+  ApiFinanceiroCollectionsTodayRoute: typeof ApiFinanceiroCollectionsTodayRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -980,6 +1127,13 @@ declare module '@tanstack/react-router' {
       path: '/ia-comercial'
       fullPath: '/ia-comercial'
       preLoaderRoute: typeof IaComercialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -1171,6 +1325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financeiro/aluno/$studentId': {
+      id: '/financeiro/aluno/$studentId'
+      path: '/aluno/$studentId'
+      fullPath: '/financeiro/aluno/$studentId'
+      preLoaderRoute: typeof FinanceiroAlunoStudentIdRouteImport
+      parentRoute: typeof FinanceiroRoute
+    }
     '/api/webhooks/plena-leads': {
       id: '/api/webhooks/plena-leads'
       path: '/api/webhooks/plena-leads'
@@ -1255,11 +1416,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGestaoAttendancesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/financeiro/sync': {
+      id: '/api/financeiro/sync'
+      path: '/api/financeiro/sync'
+      fullPath: '/api/financeiro/sync'
+      preLoaderRoute: typeof ApiFinanceiroSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/students': {
+      id: '/api/financeiro/students'
+      path: '/api/financeiro/students'
+      fullPath: '/api/financeiro/students'
+      preLoaderRoute: typeof ApiFinanceiroStudentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/promises': {
+      id: '/api/financeiro/promises'
+      path: '/api/financeiro/promises'
+      fullPath: '/api/financeiro/promises'
+      preLoaderRoute: typeof ApiFinanceiroPromisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/integration': {
+      id: '/api/financeiro/integration'
+      path: '/api/financeiro/integration'
+      fullPath: '/api/financeiro/integration'
+      preLoaderRoute: typeof ApiFinanceiroIntegrationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/dashboard': {
+      id: '/api/financeiro/dashboard'
+      path: '/api/financeiro/dashboard'
+      fullPath: '/api/financeiro/dashboard'
+      preLoaderRoute: typeof ApiFinanceiroDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/collection-actions': {
+      id: '/api/financeiro/collection-actions'
+      path: '/api/financeiro/collection-actions'
+      fullPath: '/api/financeiro/collection-actions'
+      preLoaderRoute: typeof ApiFinanceiroCollectionActionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/meta-leads': {
       id: '/api/cron/meta-leads'
       path: '/api/cron/meta-leads'
       fullPath: '/api/cron/meta-leads'
       preLoaderRoute: typeof ApiCronMetaLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/financeiro-caez-sync': {
+      id: '/api/cron/financeiro-caez-sync'
+      path: '/api/cron/financeiro-caez-sync'
+      fullPath: '/api/cron/financeiro-caez-sync'
+      preLoaderRoute: typeof ApiCronFinanceiroCaezSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/crm/transfer': {
@@ -1381,6 +1591,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGestaoChannelsIdRouteImport
       parentRoute: typeof ApiGestaoChannelsRoute
     }
+    '/api/financeiro/students/$studentId': {
+      id: '/api/financeiro/students/$studentId'
+      path: '/$studentId'
+      fullPath: '/api/financeiro/students/$studentId'
+      preLoaderRoute: typeof ApiFinanceiroStudentsStudentIdRouteImport
+      parentRoute: typeof ApiFinanceiroStudentsRoute
+    }
+    '/api/financeiro/collections/today': {
+      id: '/api/financeiro/collections/today'
+      path: '/api/financeiro/collections/today'
+      fullPath: '/api/financeiro/collections/today'
+      preLoaderRoute: typeof ApiFinanceiroCollectionsTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crm/leads/$id': {
       id: '/api/crm/leads/$id'
       path: '/$id'
@@ -1402,6 +1626,18 @@ const CrmRouteChildren: CrmRouteChildren = {
 }
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
+
+interface FinanceiroRouteChildren {
+  FinanceiroAlunoStudentIdRoute: typeof FinanceiroAlunoStudentIdRoute
+}
+
+const FinanceiroRouteChildren: FinanceiroRouteChildren = {
+  FinanceiroAlunoStudentIdRoute: FinanceiroAlunoStudentIdRoute,
+}
+
+const FinanceiroRouteWithChildren = FinanceiroRoute._addFileChildren(
+  FinanceiroRouteChildren,
+)
 
 interface ApiIaComercialRouteChildren {
   ApiIaComercialAnalisesRoute: typeof ApiIaComercialAnalisesRoute
@@ -1441,6 +1677,19 @@ const ApiCrmLeadsRouteWithChildren = ApiCrmLeadsRoute._addFileChildren(
   ApiCrmLeadsRouteChildren,
 )
 
+interface ApiFinanceiroStudentsRouteChildren {
+  ApiFinanceiroStudentsStudentIdRoute: typeof ApiFinanceiroStudentsStudentIdRoute
+}
+
+const ApiFinanceiroStudentsRouteChildren: ApiFinanceiroStudentsRouteChildren = {
+  ApiFinanceiroStudentsStudentIdRoute: ApiFinanceiroStudentsStudentIdRoute,
+}
+
+const ApiFinanceiroStudentsRouteWithChildren =
+  ApiFinanceiroStudentsRoute._addFileChildren(
+    ApiFinanceiroStudentsRouteChildren,
+  )
+
 interface ApiGestaoChannelsRouteChildren {
   ApiGestaoChannelsIdRoute: typeof ApiGestaoChannelsIdRoute
 }
@@ -1472,6 +1721,7 @@ const rootRouteChildren: RootRouteChildren = {
   CrmRoute: CrmRouteWithChildren,
   EstrategiaRoute: EstrategiaRoute,
   FeedbackRoute: FeedbackRoute,
+  FinanceiroRoute: FinanceiroRouteWithChildren,
   IaComercialRoute: IaComercialRoute,
   LoginRoute: LoginRoute,
   MetaAdsRoute: MetaAdsRoute,
@@ -1514,7 +1764,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiCrmTasksRoute: ApiCrmTasksRoute,
   ApiCrmTransferRoute: ApiCrmTransferRoute,
+  ApiCronFinanceiroCaezSyncRoute: ApiCronFinanceiroCaezSyncRoute,
   ApiCronMetaLeadsRoute: ApiCronMetaLeadsRoute,
+  ApiFinanceiroCollectionActionsRoute: ApiFinanceiroCollectionActionsRoute,
+  ApiFinanceiroDashboardRoute: ApiFinanceiroDashboardRoute,
+  ApiFinanceiroIntegrationRoute: ApiFinanceiroIntegrationRoute,
+  ApiFinanceiroPromisesRoute: ApiFinanceiroPromisesRoute,
+  ApiFinanceiroStudentsRoute: ApiFinanceiroStudentsRouteWithChildren,
+  ApiFinanceiroSyncRoute: ApiFinanceiroSyncRoute,
   ApiGestaoAttendancesRoute: ApiGestaoAttendancesRoute,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,
@@ -1524,6 +1781,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksEvolutionRoute: ApiWebhooksEvolutionRoute,
   ApiWebhooksMetaLeadsRoute: ApiWebhooksMetaLeadsRoute,
   ApiWebhooksPlenaLeadsRoute: ApiWebhooksPlenaLeadsRoute,
+  ApiFinanceiroCollectionsTodayRoute: ApiFinanceiroCollectionsTodayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

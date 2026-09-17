@@ -100,6 +100,14 @@ export function canViewReports(role: UserRole) {
   return role !== "CONSULTOR";
 }
 
+export function canViewFinancial(role: UserRole) {
+  return role === "DEV" || role === "CEO";
+}
+
+export function canManageFinancialIntegration(role: UserRole) {
+  return canViewFinancial(role);
+}
+
 export function canViewNetworkGrowth(role: UserRole) {
   return isMasterRole(role) || isExecutiveRole(role);
 }

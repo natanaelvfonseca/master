@@ -6,6 +6,7 @@ import {
   ClipboardPenLine,
   ContactRound,
   FileUp,
+  HandCoins,
   Gauge,
   LibraryBig,
   LogOut,
@@ -43,6 +44,7 @@ import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
   canViewManagement,
+  canViewFinancial,
   canViewReports,
   canViewSalesAi,
   canViewStudents,
@@ -82,6 +84,7 @@ const groups: Array<NavigationGroup> = [
     items: [
       { title: "Leads", url: "/crm", icon: ContactRound },
       { title: "Alunos", url: "/leads", icon: UserRoundCheck, studentViewOnly: true },
+      { title: "Financeiro", url: "/financeiro", icon: HandCoins },
       { title: "IA Comercial", url: "/ia-comercial", icon: WandSparkles, attendancesOnly: true },
     ],
   },
@@ -165,6 +168,7 @@ export function AppSidebar() {
       items: group.items.filter(
         (item) =>
           (!item.managementOnly || canViewManagementArea) &&
+          (item.url !== "/financeiro" || (user ? canViewFinancial(user.role) : false)) &&
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.attendancesOnly || canSeeSalesAi) &&
