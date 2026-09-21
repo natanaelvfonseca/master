@@ -17,7 +17,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { isDevRole } from "@/lib/auth-types";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
-const ACCESS_SUSPENDED = true;
+const ACCESS_SUSPENDED = false;
 
 const MARKETING_ALLOWED_PATHS = [
   "/crm",
