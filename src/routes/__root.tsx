@@ -17,6 +17,8 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { isDevRole } from "@/lib/auth-types";
 import { setDeferredInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa-install";
 
+const ACCESS_SUSPENDED = true;
+
 const MARKETING_ALLOWED_PATHS = [
   "/crm",
   "/bi",
@@ -137,6 +139,10 @@ function RootComponent() {
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
+
+  if (ACCESS_SUSPENDED) {
+    return <PremiumBlockedPopup />;
+  }
 
   if (path === "/login") {
     return (
