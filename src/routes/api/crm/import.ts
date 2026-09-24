@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import { isDevRole } from "@/lib/auth-types";
+import { canManageLeadFiles } from "@/lib/auth-types";
 import {
   ensureCommercialSchema,
   getUnitFromBody,
@@ -162,8 +162,8 @@ export const Route = createFileRoute("/api/crm/import")({
       GET: async ({ request }) => {
         const session = await getSessionFromRequest(request);
         if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 });
-        if (!isDevRole(session.user.role))
-          return Response.json({ error: "Acesso exclusivo para DEV." }, { status: 403 });
+        if (!canManageLeadFiles(session.user.role))
+          return Response.json({ error: "Acesso negado." }, { status: 403 });
         const unit = getUnitFromRequest(session, request);
         if (!unit) return Response.json({ error: "Unidade indisponível." }, { status: 403 });
         await ensureCommercialSchema();
@@ -184,8 +184,8 @@ export const Route = createFileRoute("/api/crm/import")({
       POST: async ({ request }) => {
         const session = await getSessionFromRequest(request);
         if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 });
-        if (!isDevRole(session.user.role))
-          return Response.json({ error: "Acesso exclusivo para DEV." }, { status: 403 });
+        if (!canManageLeadFiles(session.user.role))
+          return Response.json({ error: "Acesso negado." }, { status: 403 });
 
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const unit = getUnitFromBody(session, body?.unitId);

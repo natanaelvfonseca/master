@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { QueryResultRow } from "pg";
-import { isDevRole } from "@/lib/auth-types";
+import { canManageLeadFiles } from "@/lib/auth-types";
 import { createSemicolonCsv, csvFileSlug } from "@/lib/lead-export";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { ensureCommercialSchema, getUnitFromRequest, isUuid } from "@/lib/server/commercial-schema";
@@ -49,8 +49,8 @@ export const Route = createFileRoute("/api/crm/export")({
       GET: async ({ request }) => {
         const session = await getSessionFromRequest(request);
         if (!session) return Response.json({ error: "Não autenticado." }, { status: 401 });
-        if (!isDevRole(session.user.role))
-          return Response.json({ error: "Acesso exclusivo para DEV." }, { status: 403 });
+        if (!canManageLeadFiles(session.user.role))
+          return Response.json({ error: "Acesso negado." }, { status: 403 });
 
         const unit = getUnitFromRequest(session, request);
         if (!unit) return Response.json({ error: "Unidade indisponível." }, { status: 403 });

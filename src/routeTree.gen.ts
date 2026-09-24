@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsuariosRouteImport } from './routes/usuarios'
 import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as TreinamentosRouteImport } from './routes/treinamentos'
-import { Route as SolicitacoesAnunciosRouteImport } from './routes/solicitacoes-anuncios'
 import { Route as RecuperacaoRouteImport } from './routes/recuperacao'
 import { Route as RankingRouteImport } from './routes/ranking'
 import { Route as PerfilRouteImport } from './routes/perfil'
@@ -103,11 +102,6 @@ const UnidadesRoute = UnidadesRouteImport.update({
 const TreinamentosRoute = TreinamentosRouteImport.update({
   id: '/treinamentos',
   path: '/treinamentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SolicitacoesAnunciosRoute = SolicitacoesAnunciosRouteImport.update({
-  id: '/solicitacoes-anuncios',
-  path: '/solicitacoes-anuncios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperacaoRoute = RecuperacaoRouteImport.update({
@@ -517,7 +511,6 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
-  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
@@ -599,7 +592,6 @@ export interface FileRoutesByTo {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
-  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
@@ -682,7 +674,6 @@ export interface FileRoutesById {
   '/perfil': typeof PerfilRoute
   '/ranking': typeof RankingRoute
   '/recuperacao': typeof RecuperacaoRoute
-  '/solicitacoes-anuncios': typeof SolicitacoesAnunciosRoute
   '/treinamentos': typeof TreinamentosRoute
   '/unidades': typeof UnidadesRoute
   '/usuarios': typeof UsuariosRoute
@@ -766,7 +757,6 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
-    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
@@ -848,7 +838,6 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
-    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
@@ -930,7 +919,6 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/ranking'
     | '/recuperacao'
-    | '/solicitacoes-anuncios'
     | '/treinamentos'
     | '/unidades'
     | '/usuarios'
@@ -1013,7 +1001,6 @@ export interface RootRouteChildren {
   PerfilRoute: typeof PerfilRoute
   RankingRoute: typeof RankingRoute
   RecuperacaoRoute: typeof RecuperacaoRoute
-  SolicitacoesAnunciosRoute: typeof SolicitacoesAnunciosRoute
   TreinamentosRoute: typeof TreinamentosRoute
   UnidadesRoute: typeof UnidadesRoute
   UsuariosRoute: typeof UsuariosRoute
@@ -1091,13 +1078,6 @@ declare module '@tanstack/react-router' {
       path: '/treinamentos'
       fullPath: '/treinamentos'
       preLoaderRoute: typeof TreinamentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/solicitacoes-anuncios': {
-      id: '/solicitacoes-anuncios'
-      path: '/solicitacoes-anuncios'
-      fullPath: '/solicitacoes-anuncios'
-      preLoaderRoute: typeof SolicitacoesAnunciosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperacao': {
@@ -1748,7 +1728,6 @@ const rootRouteChildren: RootRouteChildren = {
   PerfilRoute: PerfilRoute,
   RankingRoute: RankingRoute,
   RecuperacaoRoute: RecuperacaoRoute,
-  SolicitacoesAnunciosRoute: SolicitacoesAnunciosRoute,
   TreinamentosRoute: TreinamentosRoute,
   UnidadesRoute: UnidadesRoute,
   UsuariosRoute: UsuariosRoute,

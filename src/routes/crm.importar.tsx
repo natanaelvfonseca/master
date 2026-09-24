@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { isDevRole } from "@/lib/auth-types";
+import { canManageLeadFiles } from "@/lib/auth-types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -207,7 +207,7 @@ function LeadImporter() {
       .finally(() => setLoading(false));
   }, [session?.user.role, unitId]);
 
-  if (session && !isDevRole(session.user.role)) return <Navigate to="/crm" />;
+  if (session && !canManageLeadFiles(session.user.role)) return <Navigate to="/crm" />;
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -325,7 +325,7 @@ function LeadImporter() {
     <div className="space-y-6">
       <PageHeader
         title="Importar e exportar leads"
-        description={`Gerencie arquivos de leads da unidade ${session?.activeUnit?.name ?? "ativa"}. Acesso exclusivo para DEV.`}
+        description={`Gerencie arquivos de leads da unidade ${session?.activeUnit?.name ?? "ativa"}.`}
       />
       <Tabs defaultValue="import" className="space-y-6">
         <TabsList className="grid w-full max-w-md grid-cols-2">

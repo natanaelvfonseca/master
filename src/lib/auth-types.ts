@@ -160,6 +160,16 @@ export function canManageMetaAds(role: UserRole) {
   return isMasterRole(role) || role === "MARKETING";
 }
 
+export function canManageLeadFiles(role: UserRole) {
+  return (
+    isDevRole(role) ||
+    isExecutiveRole(role) ||
+    role === "DIRETOR" ||
+    role === "GERENTE" ||
+    role === "MARKETING"
+  );
+}
+
 export function canViewAdRequests(role: UserRole) {
   return isMasterRole(role) || isExecutiveRole(role) || role === "DIRETOR";
 }

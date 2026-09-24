@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
-import { canManageAdRequests } from "@/lib/auth-types";
-import type { AdRequest } from "@/lib/ad-request-types";
 import type { CrmLeadTask } from "@/lib/crm-task-types";
 import { cn } from "@/lib/utils";
 
@@ -18,10 +16,6 @@ type NotificationsResponse = {
 
 type TaskResponse = {
   task: CrmLeadTask;
-};
-
-type AdNotificationsResponse = {
-  requests: Array<AdRequest>;
 };
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -46,7 +40,6 @@ function formatNotificationDate(value: string) {
 export function Topbar() {
   const { session } = useAuth();
   const [notifications, setNotifications] = React.useState<Array<CrmLeadTask>>([]);
-  const [adNotifications, setAdNotifications] = React.useState<Array<AdRequest>>([]);
   const [loadingNotifications, setLoadingNotifications] = React.useState(false);
   const [updatingTaskId, setUpdatingTaskId] = React.useState<string | null>(null);
   const [browserPermission, setBrowserPermission] = React.useState<
@@ -57,7 +50,6 @@ export function Topbar() {
       : "unsupported",
   );
   const notifiedTaskIdsRef = React.useRef<Set<string>>(new Set());
-  const notifiedAdIdsRef = React.useRef<Set<string>>(new Set());
 
   const notifyBrowser = React.useCallback(
     (tasks: Array<CrmLeadTask>) => {
@@ -96,32 +88,15 @@ export function Topbar() {
       }
 
       try {
-        const [data, adData] = await Promise.all([
-          readJson<NotificationsResponse>(await fetch("/api/crm/tasks?view=notifications", {
+        const data = await readJson<NotificationsResponse>(
+          await fetch("/api/crm/tasks?view=notifications", {
             credentials: "same-origin",
             headers: { Accept: "application/json" },
-          })),
-          session && canManageAdRequests(session.user.role)
-            ? readJson<AdNotificationsResponse>(await fetch("/api/ad-requests?view=notifications", {
-                credentials: "same-origin",
-                headers: { Accept: "application/json" },
-              }))
-            : Promise.resolve({ requests: [] }),
-        ]);
+          }),
+        );
 
         setNotifications(data.tasks);
-        setAdNotifications(adData.requests);
         notifyBrowser(data.tasks);
-        if (browserPermission === "granted" && typeof window !== "undefined" && "Notification" in window) {
-          adData.requests.forEach((item) => {
-            if (notifiedAdIdsRef.current.has(item.id)) return;
-            notifiedAdIdsRef.current.add(item.id);
-            new Notification("Nova solicitação de anúncio", {
-              body: `${item.unitName}: ${item.courseName} · ${item.city}`,
-              tag: `ad-request-${item.id}`,
-            });
-          });
-        }
       } catch (error) {
         if (!silent) {
           toast.error(error instanceof Error ? error.message : "Falha ao carregar notificações.");
@@ -132,18 +107,8 @@ export function Topbar() {
         }
       }
     },
-    [browserPermission, notifyBrowser, session],
+    [notifyBrowser, session],
   );
-
-  async function markAdRequestRead(requestId: string) {
-    setAdNotifications((current) => current.filter((item) => item.id !== requestId));
-    await fetch("/api/ad-requests", {
-      method: "PATCH",
-      credentials: "same-origin",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, action: "mark_read" }),
-    }).catch(() => undefined);
-  }
 
   React.useEffect(() => {
     void loadNotifications();
@@ -216,9 +181,9 @@ export function Topbar() {
               className="relative rounded-xl border-border/80 bg-white/90 shadow-card backdrop-blur hover:bg-accent hover:text-accent-foreground"
             >
               <Bell className="h-5 w-5" />
-              {notifications.length + adNotifications.length ? (
+              {notifications.length ? (
                 <Badge className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-gold p-0 px-1 text-[10px] text-gold-foreground">
-                  {notifications.length + adNotifications.length}
+                  {notifications.length}
                 </Badge>
               ) : null}
             </Button>
@@ -250,23 +215,8 @@ export function Topbar() {
             </div>
 
             <div className="max-h-[360px] overflow-y-auto p-3">
-              {notifications.length || adNotifications.length ? (
+              {notifications.length ? (
                 <div className="space-y-2">
-                  {adNotifications.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-primary/15 bg-primary/[.035] p-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <Badge className="mb-2 bg-primary text-primary-foreground">Novo anúncio</Badge>
-                          <div className="break-words text-sm font-bold">{item.courseName} · {item.city}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">{item.unitName} · {item.consultantNames.join(", ")}</div>
-                          <div className="mt-2 flex items-center gap-1 text-xs font-semibold text-primary"><Clock3 className="h-3.5 w-3.5" />Prazo: {formatNotificationDate(item.dueAt)}</div>
-                        </div>
-                        <Button asChild size="sm" className="shrink-0 bg-gradient-primary" onClick={() => void markAdRequestRead(item.id)}>
-                          <Link to="/solicitacoes-anuncios">Ver</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                   {notifications.map((task) => (
                     <div key={task.id} className="rounded-lg border bg-card p-3 shadow-sm">
                       <div className="flex items-start justify-between gap-3">

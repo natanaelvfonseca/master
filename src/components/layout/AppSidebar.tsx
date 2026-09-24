@@ -11,7 +11,6 @@ import {
   LibraryBig,
   LogOut,
   MapPinned,
-  Megaphone,
   Medal,
   RadioTower,
   UserRoundCheck,
@@ -44,12 +43,12 @@ import masterLogo from "@/assets/master-logo.png";
 import { useAuth } from "@/lib/auth";
 import {
   canViewManagement,
+  canManageLeadFiles,
   canViewFinancial,
   canViewReports,
   canViewSalesAi,
   canViewStudents,
   canViewMetaAds,
-  canViewAdRequests,
   getInitials,
   isDevRole,
   isExecutiveRole,
@@ -65,8 +64,7 @@ type NavigationItem = {
   metaAdsOnly?: boolean;
   studentViewOnly?: boolean;
   attendancesOnly?: boolean;
-  devOnly?: boolean;
-  adRequestsOnly?: boolean;
+  leadFilesOnly?: boolean;
 };
 
 type NavigationGroup = {
@@ -90,10 +88,7 @@ const groups: Array<NavigationGroup> = [
   },
   {
     label: "Crescimento",
-    items: [
-      { title: "Relatórios", url: "/bi", icon: ChartNoAxesCombined },
-      { title: "Solicitar anúncios", url: "/solicitacoes-anuncios", icon: Megaphone, adRequestsOnly: true },
-    ],
+    items: [{ title: "Relatórios", url: "/bi", icon: ChartNoAxesCombined }],
   },
   {
     label: "Área de Membros",
@@ -107,7 +102,7 @@ const groups: Array<NavigationGroup> = [
     items: [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardPenLine, managementOnly: true },
       { title: "Meta Ads", url: "/meta-ads", icon: RadioTower, metaAdsOnly: true },
-      { title: "Importar e exportar", url: "/crm/importar", icon: FileUp, devOnly: true },
+      { title: "Importar e exportar", url: "/crm/importar", icon: FileUp, leadFilesOnly: true },
     ],
   },
 ];
@@ -125,13 +120,11 @@ export function AppSidebar() {
   const canViewStudentList = user ? canViewStudents(user.role) : false;
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeSalesAi = user ? canViewSalesAi(user.role) : false;
-  const canSeeAdRequests = user ? canViewAdRequests(user.role) : false;
+  const canManageLeadFilesArea = user ? canManageLeadFiles(user.role) : false;
   const canSwitchUnit =
     Boolean(
-      user &&
-        (isDevRole(user.role) || isExecutiveRole(user.role) || user.role === "MARKETING"),
-    ) &&
-    (session?.units.length ?? 0) > 1;
+      user && (isDevRole(user.role) || isExecutiveRole(user.role) || user.role === "MARKETING"),
+    ) && (session?.units.length ?? 0) > 1;
   const handleUnitChange = async (unitId: string) => {
     if (!unitId || unitId === activeUnit?.id) {
       return;
@@ -159,9 +152,7 @@ export function AppSidebar() {
     .filter(
       (group) =>
         (group.label !== "Crescimento" || (user ? canViewReports(user.role) : false)) &&
-        (group.label !== "Gestão" ||
-          canViewManagementArea ||
-          canSeeMetaAds),
+        (group.label !== "Gestão" || canViewManagementArea || canSeeMetaAds),
     )
     .map((group) => ({
       ...group,
@@ -172,8 +163,7 @@ export function AppSidebar() {
           (!item.metaAdsOnly || canSeeMetaAds) &&
           (!item.studentViewOnly || canViewStudentList) &&
           (!item.attendancesOnly || canSeeSalesAi) &&
-          (!item.devOnly || user?.role === "DEV") &&
-          (!item.adRequestsOnly || canSeeAdRequests),
+          (!item.leadFilesOnly || canManageLeadFilesArea),
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -189,6 +179,7 @@ export function AppSidebar() {
                 item.url === "/bi" ||
                 item.url === "/gestao/cadastro" ||
                 item.url === "/meta-ads" ||
+                item.url === "/crm/importar" ||
                 item.url === "/treinamentos",
             ),
           }))
@@ -210,16 +201,20 @@ export function AppSidebar() {
     : roleVisibleGroups;
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 shadow-[12px_0_36px_-34px_rgba(15,23,42,0.45)]">
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-sidebar-border/80 shadow-[12px_0_36px_-34px_rgba(15,23,42,0.45)]"
+    >
       <SidebarHeader className="border-b border-sidebar-border/80 bg-transparent">
         <div className="px-3 py-4">
-          <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
+          <div
+            className={cn(
+              "flex items-center gap-2",
+              collapsed ? "justify-center" : "justify-between",
+            )}
+          >
             {!collapsed ? (
-              <img
-                src={masterLogo}
-                alt="Master"
-                className="h-16 min-w-0 flex-1 object-contain"
-              />
+              <img src={masterLogo} alt="Master" className="h-16 min-w-0 flex-1 object-contain" />
             ) : null}
             <SidebarTrigger className="shrink-0 rounded-lg border border-sidebar-border/80 bg-white/70 shadow-sm hover:bg-white" />
           </div>
