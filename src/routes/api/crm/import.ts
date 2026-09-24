@@ -13,7 +13,9 @@ import { ensureCourseAttendanceSchema } from "@/lib/server/course-attendances";
 import { ensureRuntimeSchema, queryDb, withTransaction } from "@/lib/server/db";
 
 type ConsultantRow = QueryResultRow & { id: string; name: string; email: string };
+type OwnerRow = QueryResultRow & { id: string; name: string };
 type CourseRow = QueryResultRow & { id: string; name: string; value: string };
+type ChannelRow = QueryResultRow & { id: string; name: string };
 type TurmaRow = QueryResultRow & {
   id: string;
   course_id: string;
@@ -89,6 +91,20 @@ async function listConsultants(unitId: string) {
   return result.rows;
 }
 
+async function listExportOwners(unitId: string) {
+  const result = await queryDb<OwnerRow>(
+    `
+      select distinct u.id, u.name
+      from app_leads lead
+      inner join app_users u on u.id = lead.created_by
+      where lead.unit_id = $1
+      order by u.name
+    `,
+    [unitId],
+  );
+  return result.rows;
+}
+
 async function listCourses(unitId: string) {
   const result = await queryDb<CourseRow>(
     `
@@ -100,6 +116,19 @@ async function listCourses(unitId: string) {
     where c.unit_id = $1 and c.status = 'active'
     order by c.name
   `,
+    [unitId],
+  );
+  return result.rows;
+}
+
+async function listChannels(unitId: string) {
+  const result = await queryDb<ChannelRow>(
+    `
+      select id, name
+      from app_acquisition_channels
+      where unit_id = $1 and status = 'active'
+      order by name
+    `,
     [unitId],
   );
   return result.rows;
@@ -140,13 +169,15 @@ export const Route = createFileRoute("/api/crm/import")({
         await ensureCommercialSchema();
         await ensureCourseAttendanceSchema();
         await ensureLeadImportSchema();
-        const [consultants, courses, turmas] = await Promise.all([
+        const [consultants, owners, courses, turmas, channels] = await Promise.all([
           listConsultants(unit.id),
+          listExportOwners(unit.id),
           listCourses(unit.id),
           listTurmas(unit.id),
+          listChannels(unit.id),
         ]);
         return Response.json(
-          { consultants, courses, turmas },
+          { consultants, owners, courses, turmas, channels },
           { headers: { "Cache-Control": "no-store" } },
         );
       },

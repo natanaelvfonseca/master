@@ -72,6 +72,7 @@ import { Route as ApiCrmTransferRouteImport } from './routes/api/crm/transfer'
 import { Route as ApiCrmTasksRouteImport } from './routes/api/crm/tasks'
 import { Route as ApiCrmLeadsRouteImport } from './routes/api/crm/leads'
 import { Route as ApiCrmImportRouteImport } from './routes/api/crm/import'
+import { Route as ApiCrmExportRouteImport } from './routes/api/crm/export'
 import { Route as ApiBrandPlenSettingsRouteImport } from './routes/api/brand-plen.settings'
 import { Route as ApiBrandPlenGenerateRouteImport } from './routes/api/brand-plen.generate'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
@@ -409,6 +410,11 @@ const ApiCrmImportRoute = ApiCrmImportRouteImport.update({
   path: '/api/crm/import',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCrmExportRoute = ApiCrmExportRouteImport.update({
+  id: '/api/crm/export',
+  path: '/api/crm/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBrandPlenSettingsRoute = ApiBrandPlenSettingsRouteImport.update({
   id: '/api/brand-plen/settings',
   path: '/api/brand-plen/settings',
@@ -545,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/export': typeof ApiCrmExportRoute
   '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
@@ -626,6 +633,7 @@ export interface FileRoutesByTo {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/export': typeof ApiCrmExportRoute
   '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
@@ -708,6 +716,7 @@ export interface FileRoutesById {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/brand-plen/generate': typeof ApiBrandPlenGenerateRoute
   '/api/brand-plen/settings': typeof ApiBrandPlenSettingsRoute
+  '/api/crm/export': typeof ApiCrmExportRoute
   '/api/crm/import': typeof ApiCrmImportRoute
   '/api/crm/leads': typeof ApiCrmLeadsRouteWithChildren
   '/api/crm/tasks': typeof ApiCrmTasksRoute
@@ -791,6 +800,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/export'
     | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
@@ -872,6 +882,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/export'
     | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
@@ -953,6 +964,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/brand-plen/generate'
     | '/api/brand-plen/settings'
+    | '/api/crm/export'
     | '/api/crm/import'
     | '/api/crm/leads'
     | '/api/crm/tasks'
@@ -1033,6 +1045,7 @@ export interface RootRouteChildren {
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiBrandPlenGenerateRoute: typeof ApiBrandPlenGenerateRoute
   ApiBrandPlenSettingsRoute: typeof ApiBrandPlenSettingsRoute
+  ApiCrmExportRoute: typeof ApiCrmExportRoute
   ApiCrmImportRoute: typeof ApiCrmImportRoute
   ApiCrmLeadsRoute: typeof ApiCrmLeadsRouteWithChildren
   ApiCrmTasksRoute: typeof ApiCrmTasksRoute
@@ -1500,6 +1513,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCrmImportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/crm/export': {
+      id: '/api/crm/export'
+      path: '/api/crm/export'
+      fullPath: '/api/crm/export'
+      preLoaderRoute: typeof ApiCrmExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/brand-plen/settings': {
       id: '/api/brand-plen/settings'
       path: '/api/brand-plen/settings'
@@ -1760,6 +1780,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiBrandPlenGenerateRoute: ApiBrandPlenGenerateRoute,
   ApiBrandPlenSettingsRoute: ApiBrandPlenSettingsRoute,
+  ApiCrmExportRoute: ApiCrmExportRoute,
   ApiCrmImportRoute: ApiCrmImportRoute,
   ApiCrmLeadsRoute: ApiCrmLeadsRouteWithChildren,
   ApiCrmTasksRoute: ApiCrmTasksRoute,

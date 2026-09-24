@@ -107,7 +107,7 @@ const groups: Array<NavigationGroup> = [
     items: [
       { title: "Cadastro", url: "/gestao/cadastro", icon: ClipboardPenLine, managementOnly: true },
       { title: "Meta Ads", url: "/meta-ads", icon: RadioTower, metaAdsOnly: true },
-      { title: "Importar leads", url: "/crm/importar", icon: FileUp, devOnly: true },
+      { title: "Importar e exportar", url: "/crm/importar", icon: FileUp, devOnly: true },
     ],
   },
 ];
