@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCaezClient, formatCaezDate, parseCaezDate } from "../src/lib/server/caez-client.ts";
+import {
+  createCaezClient,
+  formatCaezDate,
+  getCaezFinancialDocument,
+  parseCaezDate,
+} from "../src/lib/server/caez-client.ts";
 import { decryptCaezToken, encryptCaezToken } from "../src/lib/server/caez-token-crypto.ts";
 
 test("converte datas entre o formato CAEZ e ISO", () => {
@@ -32,6 +37,53 @@ test("consulta turmas via HTTPS e envia token_integracao somente no header", asy
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("usa os endpoints e parâmetros publicados para alunos e títulos", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Array<string> = [];
+  globalThis.fetch = (async (input) => {
+    requests.push(String(input));
+    return Response.json({ total_registros: 0, dados: [] });
+  }) as typeof fetch;
+
+  try {
+    const client = createCaezClient("https://app.caezescola.com.br/api/", "secret-test");
+    await client.getStudentsByClass("339");
+    await client.getFinancialTitles("12345678901", "01/01/2026", "31/12/2026");
+
+    assert.equal(
+      requests[0],
+      "https://app.caezescola.com.br/api/api00701.aspx?turma=339",
+    );
+    const financialUrl = new URL(requests[1]);
+    assert.equal(financialUrl.pathname, "/api/api00301.aspx");
+    assert.deepEqual(Object.fromEntries(financialUrl.searchParams), {
+      data_vencimento_inicio: "01/01/2026",
+      data_vencimento_termino: "31/12/2026",
+      documento_responsavel: "12345678901",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("prioriza o documento do responsável e aceita CPF do aluno como compatibilidade", () => {
+  assert.deepEqual(
+    getCaezFinancialDocument({
+      cpf_aluno: "111.222.333-44",
+      cpf_cnpj_responsavel: "12.345.678/0001-90",
+    }),
+    { document: "12345678000190", source: "cpf_cnpj_responsavel" },
+  );
+  assert.deepEqual(getCaezFinancialDocument({ cpf_aluno: "111.222.333-44" }), {
+    document: "11122233344",
+    source: "cpf_aluno",
+  });
+  assert.deepEqual(getCaezFinancialDocument({ cpf_aluno: "123" }), {
+    document: "",
+    source: "missing",
+  });
 });
 
 test("rejeita base URL sem HTTPS antes de realizar a chamada", async () => {

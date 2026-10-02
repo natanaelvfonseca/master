@@ -10,6 +10,7 @@ import { assertFinancialSyncReady } from "@/lib/financial-unit-state";
 import {
   createCaezClient,
   formatCaezDate,
+  getCaezFinancialDocument,
   parseCaezDate,
   type CaezClass,
   type CaezFinancialTitle,
@@ -272,7 +273,7 @@ async function upsertStudentAndEnrollment(
     studentId: studentResult.rows[0].id,
     enrollmentId: enrollmentResult.rows[0].id,
     externalEnrollmentId,
-    cpf: documentDigits(student.cpf_aluno),
+    financialDocument: getCaezFinancialDocument(student).document,
   };
 }
 
@@ -344,7 +345,7 @@ async function processStudent(
   const record = await withTransaction((client) =>
     upsertStudentAndEnrollment(client, unitId, student),
   );
-  if (!record.cpf) {
+  if (!record.financialDocument) {
     await queryDb(
       `update app_financial_enrollments set financial_lookup_status='NO_DOCUMENT',last_financial_lookup_at=now(),updated_at=now() where id=$1`,
       [record.enrollmentId],
@@ -355,7 +356,7 @@ async function processStudent(
     const titles = await createCaezClient(
       integration.base_url,
       decryptCaezToken(integration.token_encrypted),
-    ).getFinancialTitles(record.cpf, start, end);
+    ).getFinancialTitles(record.financialDocument, start, end);
     for (const title of titles.data)
       await upsertTitle(unitId, runId, record.studentId, record.enrollmentId, title);
     const status = titles.data.length ? "FOUND" : "NOT_FOUND";

@@ -23,10 +23,22 @@ export type CaezStudent = {
   codigo_aluno?: number | string;
   nome_aluno?: string;
   cpf_aluno?: string;
+  // O contrato publicado do api00701 não documenta o responsável, mas algumas
+  // bases CAEZ podem acrescentar um destes campos à resposta.
+  cpf_responsavel?: string;
+  cpf_cnpj_responsavel?: string;
+  documento_responsavel?: string;
   telefone_aluno?: Array<{ ddd?: string; numero?: string }>;
   email_aluno?: Array<{ email?: string }>;
   [key: string]: unknown;
 };
+
+export type CaezFinancialDocumentSource =
+  | "cpf_cnpj_responsavel"
+  | "documento_responsavel"
+  | "cpf_responsavel"
+  | "cpf_aluno"
+  | "missing";
 
 export type CaezFinancialTitle = {
   codigo?: number | string;
@@ -136,6 +148,26 @@ export function createCaezClient(baseUrl: string, token: string) {
         }),
       ),
   };
+}
+
+function validCpfOrCnpj(value: unknown) {
+  if (typeof value !== "string") return "";
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 11 || digits.length === 14 ? digits : "";
+}
+
+export function getCaezFinancialDocument(student: CaezStudent) {
+  const candidates: Array<[CaezFinancialDocumentSource, unknown]> = [
+    ["cpf_cnpj_responsavel", student.cpf_cnpj_responsavel],
+    ["documento_responsavel", student.documento_responsavel],
+    ["cpf_responsavel", student.cpf_responsavel],
+    ["cpf_aluno", student.cpf_aluno],
+  ];
+  for (const [source, value] of candidates) {
+    const document = validCpfOrCnpj(value);
+    if (document) return { document, source };
+  }
+  return { document: "", source: "missing" as const };
 }
 
 export function parseCaezDate(value: unknown) {
