@@ -13,6 +13,7 @@ import {
 } from "@/lib/financial-sync";
 import { assertFinancialSyncReady } from "@/lib/financial-unit-state";
 import {
+  caezTitlesForEnrollment,
   createCaezClient,
   formatCaezDate,
   getCaezFinancialDocument,
@@ -393,14 +394,22 @@ async function processStudent(
       return { installments: 0, notFound: 0, error: false };
     }
     const titles = await caez.getFinancialTitles(record.financialDocument, start, end);
-    for (const title of titles.data)
+    const enrollmentTitles = caezTitlesForEnrollment(
+      titles.data,
+      record.externalEnrollmentId,
+    );
+    for (const title of enrollmentTitles)
       await upsertTitle(unitId, runId, record.studentId, record.enrollmentId, title);
-    const status = titles.data.length ? "FOUND" : "NOT_FOUND";
+    const status = enrollmentTitles.length ? "FOUND" : "NOT_FOUND";
     await queryDb(
       `update app_financial_enrollments set financial_lookup_status=$2,last_financial_lookup_at=now(),updated_at=now() where id=$1`,
       [record.enrollmentId, status],
     );
-    return { installments: titles.data.length, notFound: titles.data.length ? 0 : 1, error: false };
+    return {
+      installments: enrollmentTitles.length,
+      notFound: enrollmentTitles.length ? 0 : 1,
+      error: false,
+    };
   } catch (error) {
     if (record)
       await queryDb(

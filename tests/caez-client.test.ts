@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  caezTitlesForEnrollment,
   createCaezClient,
   formatCaezDate,
   getCaezFinancialDocument,
@@ -84,6 +85,21 @@ test("prioriza o documento do responsável e aceita CPF do aluno como compatibil
     document: "",
     source: "missing",
   });
+});
+
+test("mantém somente títulos da matrícula que está sendo sincronizada", () => {
+  const titles = caezTitlesForEnrollment(
+    [
+      { codigo: 1, codigo_matricula: 100 },
+      { codigo: 2, codigo_matricula: 200 },
+      { codigo: 3 },
+    ],
+    "100",
+  );
+  assert.deepEqual(
+    titles.map((title) => title.codigo),
+    [1, 3],
+  );
 });
 
 test("rejeita base URL sem HTTPS antes de realizar a chamada", async () => {

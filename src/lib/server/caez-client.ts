@@ -170,6 +170,16 @@ export function getCaezFinancialDocument(student: CaezStudent) {
   return { document: "", source: "missing" as const };
 }
 
+export function caezTitlesForEnrollment(
+  titles: Array<CaezFinancialTitle>,
+  externalEnrollmentId: string,
+) {
+  return titles.filter((title) => {
+    const titleEnrollmentId = String(title.codigo_matricula ?? "").trim();
+    return !titleEnrollmentId || titleEnrollmentId === externalEnrollmentId;
+  });
+}
+
 export function parseCaezDate(value: unknown) {
   if (typeof value !== "string") return null;
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
