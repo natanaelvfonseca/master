@@ -125,6 +125,8 @@ type SyncRun = {
   students_processed: number;
   installments_found: number;
   errors_count: number;
+  mode?: "full" | "pilot";
+  issues_count?: number;
 };
 type FinanceSearch = {
   start_date?: string;
@@ -431,7 +433,7 @@ function FinancialFilterBar({
     overdue: "Em atraso",
     due_today: "Vence hoje",
     upcoming: "A vencer",
-    not_found: "Dados não localizados",
+    not_found: "Sem títulos no CPF do aluno",
     not_returned: "Não retornado",
   };
   const active = Object.values(value).some(Boolean);
@@ -670,10 +672,7 @@ function Dashboard({
             <Indicator label="Alunos inadimplentes" value={data.students_overdue} />
             <Indicator label="Promessas para hoje" value={data.promises_today} />
             <Indicator label="Promessas quebradas" value={data.broken_promises} danger />
-            <Indicator
-              label="Dados financeiros não localizados"
-              value={data.not_found_financial_count}
-            />
+            <Indicator label="Sem títulos no CPF do aluno" value={data.not_found_financial_count} />
             <Indicator label="Parcelas não retornadas" value={data.not_returned_count} />
           </CardContent>
         </Card>
@@ -879,7 +878,7 @@ function Filter({
 function LookupBadge({ status }: { status: string | null }) {
   const labels: Record<string, string> = {
     FOUND: "Encontrado",
-    NOT_FOUND: "Dados não localizados",
+    NOT_FOUND: "Sem títulos no CPF do aluno",
     NO_DOCUMENT: "Sem documento",
     ERROR: "Erro",
   };
@@ -1068,8 +1067,8 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
     }, 5_000);
     return () => window.clearInterval(timer);
   }, [hasActiveRun, load, onSync]);
-  async function action(kind: "save" | "test" | "sync") {
-    if (kind === "sync" && syncBlockReason) {
+  async function action(kind: "save" | "test" | "pilot" | "sync") {
+    if ((kind === "sync" || kind === "pilot") && syncBlockReason) {
       toast.error(syncBlockReason);
       return;
     }
@@ -1129,12 +1128,16 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ unit_id: unitId }),
+            body: JSON.stringify({ unit_id: unitId, pilot: kind === "pilot" }),
           }),
         );
         if (!result.run) throw new Error("Não foi possível identificar a sincronização iniciada.");
         setRuns((current) => [result.run!, ...current.filter((run) => run.id !== result.run!.id)]);
-        toast.success("Sincronização iniciada.");
+        toast.success(
+          kind === "pilot"
+            ? "Piloto iniciado para até 3 turmas."
+            : "Sincronização completa iniciada.",
+        );
         await onSync();
       }
       await load();
@@ -1185,7 +1188,8 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
               }
             />
             <p className="text-xs text-muted-foreground">
-              Use “Testar e salvar token” para verificar a conexão e armazená-lo. O token salvo nunca retorna ao navegador.
+              Use “Testar e salvar token” para verificar a conexão e armazená-lo. O token salvo
+              nunca retorna ao navegador.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1211,9 +1215,26 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             </div>
           </div>
           <div className="space-y-3 rounded-xl border p-4 text-sm">
-            <p>Antes de sincronizar, confirme com o CAEZ que este token retorna somente dados desta unidade e que as consultas retornam todos os registros, sem páginas omitidas.</p>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={scopeVerified} onChange={(event) => setScopeVerified(event.target.checked)} /> Escopo exclusivo desta unidade confirmado</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={paginationVerified} onChange={(event) => setPaginationVerified(event.target.checked)} /> Cobertura e paginação das consultas confirmadas</label>
+            <p>
+              Antes de sincronizar, confirme com o CAEZ que este token retorna somente dados desta
+              unidade e que as consultas retornam todos os registros, sem páginas omitidas.
+            </p>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={scopeVerified}
+                onChange={(event) => setScopeVerified(event.target.checked)}
+              />{" "}
+              Escopo exclusivo desta unidade confirmado
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={paginationVerified}
+                onChange={(event) => setPaginationVerified(event.target.checked)}
+              />{" "}
+              Cobertura e paginação das consultas confirmadas
+            </label>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <Button onClick={() => void action("save")} disabled={!!busy}>
@@ -1224,10 +1245,19 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             </Button>
           </div>
           <div className="space-y-2 border-t pt-4">
-            {syncBlockReason ? <p className="text-sm text-amber-800" role="status">{syncBlockReason}</p> : null}
-            <Button className="w-full" onClick={() => void action("sync")} disabled={!!busy}>
-              Sincronizar agora
-            </Button>
+            {syncBlockReason ? (
+              <p className="text-sm text-amber-800" role="status">
+                {syncBlockReason}
+              </p>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button variant="outline" onClick={() => void action("pilot")} disabled={!!busy}>
+                Testar 3 turmas
+              </Button>
+              <Button onClick={() => void action("sync")} disabled={!!busy}>
+                Sincronizar tudo
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1255,9 +1285,15 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
                   <div key={run.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                     <div>
                       <Badge variant="outline">{run.status}</Badge>
+                      {run.mode === "pilot" ? (
+                        <Badge className="ml-2" variant="secondary">
+                          Piloto
+                        </Badge>
+                      ) : null}
                       <p className="mt-1 text-xs text-muted-foreground">
                         {run.classes_processed} turmas · {run.students_processed} alunos ·{" "}
                         {run.installments_found} parcelas
+                        {run.errors_count ? ` · ${run.errors_count} erros registrados` : ""}
                       </p>
                     </div>
                     <span className="text-xs text-muted-foreground">

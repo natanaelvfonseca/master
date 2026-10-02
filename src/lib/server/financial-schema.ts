@@ -38,7 +38,26 @@ create table if not exists app_financial_sync_runs (
   lookup_not_found integer not null default 0, errors_count integer not null default 0,
   checkpoint jsonb not null default '{}'::jsonb, error_summary text, created_at timestamptz not null default now()
 );
+alter table app_financial_sync_runs add column if not exists mode text not null default 'full';
+alter table app_financial_sync_runs add column if not exists class_limit integer;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'app_financial_sync_runs_mode_check') then
+    alter table app_financial_sync_runs add constraint app_financial_sync_runs_mode_check check (mode in ('full','pilot'));
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'app_financial_sync_runs_class_limit_check') then
+    alter table app_financial_sync_runs add constraint app_financial_sync_runs_class_limit_check check (class_limit is null or class_limit between 1 and 10000);
+  end if;
+end $$;
 create unique index if not exists app_financial_sync_runs_active_unit_idx on app_financial_sync_runs (unit_id, provider) where status in ('queued','running');
+create table if not exists app_financial_sync_issues (
+  id uuid primary key default gen_random_uuid(), run_id uuid not null references app_financial_sync_runs(id) on delete cascade,
+  unit_id uuid not null references app_units(id) on delete restrict,
+  stage text not null check (stage in ('classes','class_students','student','financial_lookup')),
+  external_class_id text, external_student_id text, external_enrollment_id text,
+  error_message text not null, created_at timestamptz not null default now()
+);
 create table if not exists app_financial_installments (
   id uuid primary key default gen_random_uuid(), unit_id uuid not null references app_units(id) on delete restrict,
   student_id uuid not null references app_financial_students(id) on delete cascade,
@@ -89,6 +108,8 @@ create index if not exists app_financial_actions_student_idx on app_financial_co
 create index if not exists app_financial_promises_student_idx on app_financial_promises (unit_id, student_id, promised_date desc);
 create index if not exists app_financial_promises_open_idx on app_financial_promises (unit_id, promised_date) where status = 'open';
 create index if not exists app_financial_sync_runs_unit_idx on app_financial_sync_runs (unit_id, created_at desc);
+create index if not exists app_financial_sync_issues_run_idx on app_financial_sync_issues (run_id, created_at);
+create index if not exists app_financial_sync_issues_unit_idx on app_financial_sync_issues (unit_id, created_at desc);
 create unique index if not exists app_financial_students_unit_id_idx on app_financial_students (unit_id, id);
 create unique index if not exists app_financial_enrollments_unit_id_idx on app_financial_enrollments (unit_id, id);
 create unique index if not exists app_financial_installments_unit_id_idx on app_financial_installments (unit_id, id);
@@ -143,7 +164,7 @@ end $$;
 `;
 
 export function ensureFinancialSchema() {
-  financialSchemaPromise ??= ensureRuntimeSchema("financial-caez-v1", financialSchemaSql)
+  financialSchemaPromise ??= ensureRuntimeSchema("financial-caez-v2", financialSchemaSql)
     .then(() => undefined)
     .catch((error) => {
       financialSchemaPromise = null;

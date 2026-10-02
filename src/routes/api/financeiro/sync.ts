@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { canManageFinancialIntegration, canViewFinancial } from "@/lib/auth-types";
+import { financialSyncRequest } from "@/lib/financial-sync";
 import { FinancialIntegrationStateError } from "@/lib/financial-unit-state";
 import { getSessionFromRequest } from "@/lib/server/auth";
 import { enqueueFinancialSync, listFinancialSyncRuns } from "@/lib/server/financial";
@@ -33,7 +34,10 @@ export const Route = createFileRoute("/api/financeiro/sync")({
         const unit = financialUnitFromBody(session, body);
         if (!unit) return Response.json({ error: "Unidade inválida." }, { status: 403 });
         try {
-          return Response.json({ run: await enqueueFinancialSync(unit.id) }, { status: 202 });
+          return Response.json(
+            { run: await enqueueFinancialSync(unit.id, financialSyncRequest(body)) },
+            { status: 202 },
+          );
         } catch (error) {
           return Response.json(
             { error: financialError(error) },

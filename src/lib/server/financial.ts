@@ -6,6 +6,11 @@ import {
   normalizeFinancialFilterOptions,
   parseFinancialFilters,
 } from "@/lib/financial-filters";
+import {
+  financialSyncClassCount,
+  safeFinancialSyncError,
+  type FinancialSyncMode,
+} from "@/lib/financial-sync";
 import { assertFinancialSyncReady } from "@/lib/financial-unit-state";
 import {
   createCaezClient,
@@ -167,14 +172,19 @@ export async function testFinancialIntegration(unitId: string, suppliedToken?: s
   return { ok: true, classesCount: result.data.length, totalReported: result.total };
 }
 
-export async function enqueueFinancialSync(unitId: string) {
+export async function enqueueFinancialSync(
+  unitId: string,
+  options: { mode?: FinancialSyncMode; classLimit?: number | null } = {},
+) {
   const integration = await integrationForUnit(unitId);
   assertFinancialSyncReady(integration);
+  const mode = options.mode ?? "full";
+  const classLimit = mode === "pilot" ? Math.max(1, options.classLimit ?? 3) : null;
   const result = await queryDb<{ id: string; status: string; created_at: string }>(
-    `insert into app_financial_sync_runs(unit_id,provider,status) values($1,$2,'queued')
+    `insert into app_financial_sync_runs(unit_id,provider,status,mode,class_limit) values($1,$2,'queued',$3,$4)
      on conflict(unit_id,provider) where status in ('queued','running') do nothing
      returning id,status,created_at::text`,
-    [unitId, PROVIDER],
+    [unitId, PROVIDER, mode, classLimit],
   );
   if (result.rows[0]) return result.rows[0];
   const current = await queryDb<{ id: string; status: string; created_at: string }>(
@@ -187,9 +197,10 @@ export async function enqueueFinancialSync(unitId: string) {
 export async function listFinancialSyncRuns(unitId: string) {
   await ensureFinancialSchema();
   const result = await queryDb(
-    `select id,status,started_at::text,finished_at::text,classes_processed,students_processed,
-      installments_found,lookup_not_found,errors_count,error_summary,created_at::text
-     from app_financial_sync_runs where unit_id=$1 order by created_at desc limit 10`,
+    `select r.id,r.status,r.mode,r.class_limit,r.started_at::text,r.finished_at::text,r.classes_processed,r.students_processed,
+      r.installments_found,r.lookup_not_found,r.errors_count,r.error_summary,r.created_at::text,
+      (select count(*)::int from app_financial_sync_issues x where x.run_id=r.id) issues_count
+     from app_financial_sync_runs r where r.unit_id=$1 order by r.created_at desc limit 10`,
     [unitId],
   );
   return result.rows;
@@ -201,9 +212,11 @@ async function acquireSyncRun() {
       id: string;
       unit_id: string;
       status: string;
+      mode: FinancialSyncMode;
+      class_limit: number | null;
       checkpoint: SyncCheckpoint;
     }>(
-      `select id,unit_id,status,checkpoint from app_financial_sync_runs
+      `select id,unit_id,status,mode,class_limit,checkpoint from app_financial_sync_runs
        where provider=$1 and (status='queued' or (status='running' and coalesce((checkpoint->>'leaseUntil')::timestamptz,now()-interval '1 second') < now()))
        order by created_at asc for update skip locked limit 1`,
       [PROVIDER],
@@ -220,6 +233,33 @@ async function acquireSyncRun() {
     );
     return { ...run, checkpoint };
   });
+}
+
+async function recordSyncIssue(
+  runId: string,
+  unitId: string,
+  stage: "classes" | "class_students" | "student" | "financial_lookup",
+  error: unknown,
+  references: {
+    classId?: string;
+    studentId?: string;
+    enrollmentId?: string;
+  } = {},
+) {
+  await queryDb(
+    `insert into app_financial_sync_issues
+       (run_id,unit_id,stage,external_class_id,external_student_id,external_enrollment_id,error_message)
+     values($1,$2,$3,nullif($4,''),nullif($5,''),nullif($6,''),$7)`,
+    [
+      runId,
+      unitId,
+      stage,
+      references.classId ?? "",
+      references.studentId ?? "",
+      references.enrollmentId ?? "",
+      safeFinancialSyncError(error),
+    ],
+  );
 }
 
 async function upsertStudentAndEnrollment(
@@ -337,26 +377,22 @@ async function upsertTitle(
 async function processStudent(
   unitId: string,
   runId: string,
-  integration: IntegrationRow,
+  caez: ReturnType<typeof createCaezClient>,
   student: CaezStudent,
   start: string,
   end: string,
 ) {
-  const record = await withTransaction((client) =>
-    upsertStudentAndEnrollment(client, unitId, student),
-  );
-  if (!record.financialDocument) {
-    await queryDb(
-      `update app_financial_enrollments set financial_lookup_status='NO_DOCUMENT',last_financial_lookup_at=now(),updated_at=now() where id=$1`,
-      [record.enrollmentId],
-    );
-    return { installments: 0, notFound: 0, error: false };
-  }
+  let record: Awaited<ReturnType<typeof upsertStudentAndEnrollment>> | null = null;
   try {
-    const titles = await createCaezClient(
-      integration.base_url,
-      decryptCaezToken(integration.token_encrypted),
-    ).getFinancialTitles(record.financialDocument, start, end);
+    record = await withTransaction((client) => upsertStudentAndEnrollment(client, unitId, student));
+    if (!record.financialDocument) {
+      await queryDb(
+        `update app_financial_enrollments set financial_lookup_status='NO_DOCUMENT',last_financial_lookup_at=now(),updated_at=now() where id=$1`,
+        [record.enrollmentId],
+      );
+      return { installments: 0, notFound: 0, error: false };
+    }
+    const titles = await caez.getFinancialTitles(record.financialDocument, start, end);
     for (const title of titles.data)
       await upsertTitle(unitId, runId, record.studentId, record.enrollmentId, title);
     const status = titles.data.length ? "FOUND" : "NOT_FOUND";
@@ -365,11 +401,17 @@ async function processStudent(
       [record.enrollmentId, status],
     );
     return { installments: titles.data.length, notFound: titles.data.length ? 0 : 1, error: false };
-  } catch {
-    await queryDb(
-      `update app_financial_enrollments set financial_lookup_status='ERROR',last_financial_lookup_at=now(),updated_at=now() where id=$1`,
-      [record.enrollmentId],
-    );
+  } catch (error) {
+    if (record)
+      await queryDb(
+        `update app_financial_enrollments set financial_lookup_status='ERROR',last_financial_lookup_at=now(),updated_at=now() where id=$1`,
+        [record.enrollmentId],
+      );
+    await recordSyncIssue(runId, unitId, record ? "financial_lookup" : "student", error, {
+      classId: String(student.codigo_turma ?? ""),
+      studentId: String(student.codigo_aluno ?? ""),
+      enrollmentId: String(student.codigo_matricula ?? ""),
+    });
     return { installments: 0, notFound: 0, error: true };
   }
 }
@@ -386,6 +428,34 @@ async function mapLimited<T, R>(items: Array<T>, limit: number, mapper: (item: T
     }),
   );
   return output;
+}
+
+async function advanceFinancialSyncClass(
+  runId: string,
+  unitId: string,
+  checkpoint: SyncCheckpoint,
+  counts: { students: number; installments: number; notFound: number; errors: number },
+) {
+  const classIndex = checkpoint.classIndex ?? 0;
+  const nextCheckpoint = { ...checkpoint, classIndex: classIndex + 1, leaseUntil: null };
+  await queryDb(
+    `update app_financial_sync_runs set checkpoint=$2::jsonb,classes_processed=classes_processed+1,
+     students_processed=students_processed+$3,installments_found=installments_found+$4,
+     lookup_not_found=lookup_not_found+$5,errors_count=errors_count+$6 where id=$1`,
+    [
+      runId,
+      JSON.stringify(nextCheckpoint),
+      counts.students,
+      counts.installments,
+      counts.notFound,
+      counts.errors,
+    ],
+  );
+  await queryDb(
+    `update app_financial_integrations set last_sync_at=now(),updated_at=now() where unit_id=$1 and provider=$2`,
+    [unitId, PROVIDER],
+  );
+  return nextCheckpoint;
 }
 
 export async function processNextFinancialSyncBatch() {
@@ -419,11 +489,52 @@ export async function processNextFinancialSyncBatch() {
     }
     const classes = checkpoint.classes ?? [];
     const classIndex = checkpoint.classIndex ?? 0;
-    if (classIndex >= classes.length) return finishSyncRun(run.id, run.unit_id);
+    const targetClasses = financialSyncClassCount(classes.length, run.mode, run.class_limit);
+    if (classIndex >= targetClasses) return finishSyncRun(run.id, run.unit_id, run.mode);
     const currentClass = classes[classIndex];
     const classId = String(currentClass?.codigo_turma ?? "");
-    if (!classId) throw new Error("Turma CAEZ sem código.");
-    const students = await client.getStudentsByClass(classId);
+    if (!classId) {
+      await recordSyncIssue(
+        run.id,
+        run.unit_id,
+        "class_students",
+        new Error("Turma CAEZ sem código."),
+      );
+      await advanceFinancialSyncClass(run.id, run.unit_id, checkpoint, {
+        students: 0,
+        installments: 0,
+        notFound: 0,
+        errors: 1,
+      });
+      if (classIndex + 1 >= targetClasses) return finishSyncRun(run.id, run.unit_id, run.mode);
+      return {
+        processed: true,
+        completed: false,
+        runId: run.id,
+        classIndex: classIndex + 1,
+        classesCount: targetClasses,
+      };
+    }
+    let students: Awaited<ReturnType<typeof client.getStudentsByClass>>;
+    try {
+      students = await client.getStudentsByClass(classId);
+    } catch (error) {
+      await recordSyncIssue(run.id, run.unit_id, "class_students", error, { classId });
+      await advanceFinancialSyncClass(run.id, run.unit_id, checkpoint, {
+        students: 0,
+        installments: 0,
+        notFound: 0,
+        errors: 1,
+      });
+      if (classIndex + 1 >= targetClasses) return finishSyncRun(run.id, run.unit_id, run.mode);
+      return {
+        processed: true,
+        completed: false,
+        runId: run.id,
+        classIndex: classIndex + 1,
+        classesCount: targetClasses,
+      };
+    }
     const past = new Date();
     past.setDate(past.getDate() - integration.sync_past_days);
     const future = new Date();
@@ -432,7 +543,7 @@ export async function processNextFinancialSyncBatch() {
       processStudent(
         run.unit_id,
         run.id,
-        integration,
+        client,
         { ...currentClass, ...student },
         formatCaezDate(past),
         formatCaezDate(future),
@@ -446,34 +557,23 @@ export async function processNextFinancialSyncBatch() {
       }),
       { installments: 0, notFound: 0, errors: 0 },
     );
-    const nextCheckpoint = { ...checkpoint, classIndex: classIndex + 1, leaseUntil: null };
-    await queryDb(
-      `update app_financial_sync_runs set checkpoint=$2::jsonb,classes_processed=classes_processed+1,
-       students_processed=students_processed+$3,installments_found=installments_found+$4,
-       lookup_not_found=lookup_not_found+$5,errors_count=errors_count+$6 where id=$1`,
-      [
-        run.id,
-        JSON.stringify(nextCheckpoint),
-        students.data.length,
-        counters.installments,
-        counters.notFound,
-        counters.errors,
-      ],
-    );
-    await queryDb(
-      `update app_financial_integrations set last_sync_at=now(),updated_at=now() where unit_id=$1 and provider=$2`,
-      [run.unit_id, PROVIDER],
-    );
-    if (classIndex + 1 >= classes.length) return finishSyncRun(run.id, run.unit_id);
+    await advanceFinancialSyncClass(run.id, run.unit_id, checkpoint, {
+      students: students.data.length,
+      installments: counters.installments,
+      notFound: counters.notFound,
+      errors: counters.errors,
+    });
+    if (classIndex + 1 >= targetClasses) return finishSyncRun(run.id, run.unit_id, run.mode);
     return {
       processed: true,
       completed: false,
       runId: run.id,
       classIndex: classIndex + 1,
-      classesCount: classes.length,
+      classesCount: targetClasses,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha no lote financeiro.";
+    const message = safeFinancialSyncError(error);
+    await recordSyncIssue(run.id, run.unit_id, "classes", error).catch(() => undefined);
     await queryDb(
       `update app_financial_sync_runs set status='failed',finished_at=now(),error_summary=$2 where id=$1`,
       [run.id, message],
@@ -486,7 +586,7 @@ export async function processNextFinancialSyncBatch() {
   }
 }
 
-async function finishSyncRun(runId: string, unitId: string) {
+async function finishSyncRun(runId: string, unitId: string, mode: FinancialSyncMode) {
   await queryDb(
     `update app_financial_installments i set status='not_returned',not_returned_at=coalesce(not_returned_at,now()),updated_at=now()
      where i.unit_id=$1 and i.status<>'not_returned' and i.last_seen_sync_run_id is distinct from $2
@@ -506,10 +606,10 @@ async function finishSyncRun(runId: string, unitId: string) {
   );
   await queryDb(
     `update app_financial_integrations set last_sync_at=now(),
-       last_successful_sync_at=case when $2::boolean then last_successful_sync_at else now() end,
+       last_successful_sync_at=case when $2::boolean or $3<>'full' then last_successful_sync_at else now() end,
        last_error=case when $2::boolean then 'Sincronização parcial: alguns alunos não puderam ser consultados.' else null end,
-       updated_at=now() where unit_id=$1 and provider=$3`,
-    [unitId, partial, PROVIDER],
+       updated_at=now() where unit_id=$1 and provider=$4`,
+    [unitId, partial, mode, PROVIDER],
   );
   return { processed: true, completed: true, status: partial ? "partial" : "completed", runId };
 }
