@@ -127,6 +127,8 @@ type SyncRun = {
   errors_count: number;
   mode?: "full" | "pilot";
   issues_count?: number;
+  period_start?: string | null;
+  period_end?: string | null;
 };
 type FinanceSearch = {
   start_date?: string;
@@ -1023,6 +1025,8 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
   const [token, setToken] = React.useState("");
   const [past, setPast] = React.useState(730);
   const [future, setFuture] = React.useState(365);
+  const [syncStartDate, setSyncStartDate] = React.useState("");
+  const [syncEndDate, setSyncEndDate] = React.useState("");
   const [active, setActive] = React.useState(true);
   const [scopeVerified, setScopeVerified] = React.useState(false);
   const [paginationVerified, setPaginationVerified] = React.useState(false);
@@ -1128,7 +1132,12 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ unit_id: unitId, pilot: kind === "pilot" }),
+            body: JSON.stringify({
+              unit_id: unitId,
+              pilot: kind === "pilot",
+              startDate: syncStartDate || undefined,
+              endDate: syncEndDate || undefined,
+            }),
           }),
         );
         if (!result.run) throw new Error("Não foi possível identificar a sincronização iniciada.");
@@ -1245,6 +1254,32 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
             </Button>
           </div>
           <div className="space-y-2 border-t pt-4">
+            <div className="space-y-3 rounded-xl border p-4">
+              <div>
+                <strong className="text-sm">Período fechado opcional</strong>
+                <p className="text-xs text-muted-foreground">
+                  Quando informado, substitui os dias retroativos e futuros somente nesta execução.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Data inicial</Label>
+                  <Input
+                    type="date"
+                    value={syncStartDate}
+                    onChange={(event) => setSyncStartDate(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data final</Label>
+                  <Input
+                    type="date"
+                    value={syncEndDate}
+                    onChange={(event) => setSyncEndDate(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
             {syncBlockReason ? (
               <p className="text-sm text-amber-800" role="status">
                 {syncBlockReason}
@@ -1295,6 +1330,12 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
                         {run.installments_found} parcelas
                         {run.errors_count ? ` · ${run.errors_count} erros registrados` : ""}
                       </p>
+                      {run.period_start && run.period_end ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Período: {formatFinancialDate(run.period_start)} a{" "}
+                          {formatFinancialDate(run.period_end)}
+                        </p>
+                      ) : null}
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {formatFinancialDate(run.created_at)}

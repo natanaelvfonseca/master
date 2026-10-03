@@ -8,6 +8,7 @@ import {
 } from "@/lib/financial-filters";
 import {
   financialSyncClassCount,
+  isoDateToCaezDate,
   safeFinancialSyncError,
   type FinancialSyncMode,
 } from "@/lib/financial-sync";
@@ -49,6 +50,8 @@ type SyncCheckpoint = {
   classes?: Array<CaezClass>;
   classIndex?: number;
   leaseUntil?: string;
+  periodStart?: string;
+  periodEnd?: string;
 };
 
 function safeInteger(value: unknown, fallback: number) {
@@ -175,17 +178,26 @@ export async function testFinancialIntegration(unitId: string, suppliedToken?: s
 
 export async function enqueueFinancialSync(
   unitId: string,
-  options: { mode?: FinancialSyncMode; classLimit?: number | null } = {},
+  options: {
+    mode?: FinancialSyncMode;
+    classLimit?: number | null;
+    periodStart?: string | null;
+    periodEnd?: string | null;
+  } = {},
 ) {
   const integration = await integrationForUnit(unitId);
   assertFinancialSyncReady(integration);
   const mode = options.mode ?? "full";
   const classLimit = mode === "pilot" ? Math.max(1, options.classLimit ?? 3) : null;
+  const checkpoint =
+    options.periodStart && options.periodEnd
+      ? { periodStart: options.periodStart, periodEnd: options.periodEnd }
+      : {};
   const result = await queryDb<{ id: string; status: string; created_at: string }>(
-    `insert into app_financial_sync_runs(unit_id,provider,status,mode,class_limit) values($1,$2,'queued',$3,$4)
+    `insert into app_financial_sync_runs(unit_id,provider,status,mode,class_limit,checkpoint) values($1,$2,'queued',$3,$4,$5::jsonb)
      on conflict(unit_id,provider) where status in ('queued','running') do nothing
      returning id,status,created_at::text`,
-    [unitId, PROVIDER, mode, classLimit],
+    [unitId, PROVIDER, mode, classLimit, JSON.stringify(checkpoint)],
   );
   if (result.rows[0]) return result.rows[0];
   const current = await queryDb<{ id: string; status: string; created_at: string }>(
@@ -200,6 +212,7 @@ export async function listFinancialSyncRuns(unitId: string) {
   const result = await queryDb(
     `select r.id,r.status,r.mode,r.class_limit,r.started_at::text,r.finished_at::text,r.classes_processed,r.students_processed,
       r.installments_found,r.lookup_not_found,r.errors_count,r.error_summary,r.created_at::text,
+      r.checkpoint->>'periodStart' period_start,r.checkpoint->>'periodEnd' period_end,
       (select count(*)::int from app_financial_sync_issues x where x.run_id=r.id) issues_count
      from app_financial_sync_runs r where r.unit_id=$1 order by r.created_at desc limit 10`,
     [unitId],
@@ -394,10 +407,7 @@ async function processStudent(
       return { installments: 0, notFound: 0, error: false };
     }
     const titles = await caez.getFinancialTitles(record.financialDocument, start, end);
-    const enrollmentTitles = caezTitlesForEnrollment(
-      titles.data,
-      record.externalEnrollmentId,
-    );
+    const enrollmentTitles = caezTitlesForEnrollment(titles.data, record.externalEnrollmentId);
     for (const title of enrollmentTitles)
       await upsertTitle(unitId, runId, record.studentId, record.enrollmentId, title);
     const status = enrollmentTitles.length ? "FOUND" : "NOT_FOUND";
@@ -548,14 +558,20 @@ export async function processNextFinancialSyncBatch() {
     past.setDate(past.getDate() - integration.sync_past_days);
     const future = new Date();
     future.setDate(future.getDate() + integration.sync_future_days);
+    const periodStart = checkpoint.periodStart
+      ? isoDateToCaezDate(checkpoint.periodStart)
+      : formatCaezDate(past);
+    const periodEnd = checkpoint.periodEnd
+      ? isoDateToCaezDate(checkpoint.periodEnd)
+      : formatCaezDate(future);
     const results = await mapLimited(students.data, 3, (student) =>
       processStudent(
         run.unit_id,
         run.id,
         client,
         { ...currentClass, ...student },
-        formatCaezDate(past),
-        formatCaezDate(future),
+        periodStart,
+        periodEnd,
       ),
     );
     const counters = results.reduce(
