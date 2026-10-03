@@ -613,19 +613,27 @@ export async function processNextFinancialSyncBatch() {
 }
 
 async function finishSyncRun(runId: string, unitId: string, mode: FinancialSyncMode) {
+  const result = await queryDb<{
+    errors_count: number;
+    period_start: string | null;
+    period_end: string | null;
+  }>(
+    `select errors_count,checkpoint->>'periodStart' period_start,checkpoint->>'periodEnd' period_end
+     from app_financial_sync_runs where id=$1`,
+    [runId],
+  );
+  const run = result.rows[0];
   await queryDb(
     `update app_financial_installments i set status='not_returned',not_returned_at=coalesce(not_returned_at,now()),updated_at=now()
      where i.unit_id=$1 and i.status<>'not_returned' and i.last_seen_sync_run_id is distinct from $2
+       and ($3::date is null or i.due_date >= $3::date)
+       and ($4::date is null or i.due_date <= $4::date)
        and exists(select 1 from app_financial_enrollments e where e.student_id=i.student_id
          and e.last_financial_lookup_at >= (select started_at from app_financial_sync_runs where id=$2)
          and e.financial_lookup_status in ('FOUND','NOT_FOUND'))`,
-    [unitId, runId],
+    [unitId, runId, run?.period_start ?? null, run?.period_end ?? null],
   );
-  const result = await queryDb<{ errors_count: number }>(
-    `select errors_count from app_financial_sync_runs where id=$1`,
-    [runId],
-  );
-  const partial = Number(result.rows[0]?.errors_count ?? 0) > 0;
+  const partial = Number(run?.errors_count ?? 0) > 0;
   await queryDb(
     `update app_financial_sync_runs set status=$2,finished_at=now(),checkpoint=checkpoint-'leaseUntil' where id=$1`,
     [runId, partial ? "partial" : "completed"],
