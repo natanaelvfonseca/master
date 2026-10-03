@@ -4,6 +4,7 @@ import {
   FINANCIAL_PILOT_CLASS_LIMIT,
   financialSyncClassCount,
   financialSyncRequest,
+  initializeFinancialSyncCheckpoint,
   isoDateToCaezDate,
   safeFinancialSyncError,
 } from "../src/lib/financial-sync.ts";
@@ -38,6 +39,23 @@ test("aceita um período fechado e converte datas para o contrato CAEZ", () => {
   assert.throws(
     () => financialSyncRequest({ startDate: "2026-09-30", endDate: "2026-07-01" }),
     /posterior/,
+  );
+});
+
+test("mantém o período ao inicializar a lista de turmas no checkpoint", () => {
+  assert.deepEqual(
+    initializeFinancialSyncCheckpoint(
+      { periodStart: "2026-07-01", periodEnd: "2026-09-30", leaseUntil: "agora" },
+      [{ codigo_turma: 10 }],
+    ),
+    {
+      periodStart: "2026-07-01",
+      periodEnd: "2026-09-30",
+      leaseUntil: "agora",
+      phase: "classes",
+      classes: [{ codigo_turma: 10 }],
+      classIndex: 0,
+    },
   );
 });
 

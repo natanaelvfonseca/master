@@ -43,6 +43,13 @@ export function financialSyncClassCount(
   return Math.min(totalClasses, Math.max(1, classLimit));
 }
 
+export function initializeFinancialSyncCheckpoint<T extends Record<string, unknown>>(
+  checkpoint: T,
+  classes: Array<unknown>,
+) {
+  return { ...checkpoint, phase: "classes" as const, classes, classIndex: 0 };
+}
+
 export function safeFinancialSyncError(error: unknown) {
   const message = error instanceof Error ? error.message : "Falha não identificada.";
   return message

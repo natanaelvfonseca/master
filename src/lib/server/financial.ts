@@ -8,6 +8,7 @@ import {
 } from "@/lib/financial-filters";
 import {
   financialSyncClassCount,
+  initializeFinancialSyncCheckpoint,
   isoDateToCaezDate,
   safeFinancialSyncError,
   type FinancialSyncMode,
@@ -504,7 +505,7 @@ export async function processNextFinancialSyncBatch() {
     let checkpoint: SyncCheckpoint = run.checkpoint ?? {};
     if (!checkpoint.classes) {
       const classes = await client.getClasses();
-      checkpoint = { phase: "classes", classes: classes.data, classIndex: 0 };
+      checkpoint = initializeFinancialSyncCheckpoint(checkpoint, classes.data);
     }
     const classes = checkpoint.classes ?? [];
     const classIndex = checkpoint.classIndex ?? 0;
