@@ -6,9 +6,12 @@ import {
   CalendarClock,
   CircleDollarSign,
   Clock3,
+  Download,
   LayoutDashboard,
   ListChecks,
   Loader2,
+  MessageCircle,
+  Phone,
   RefreshCw,
   Search,
   Settings,
@@ -37,6 +40,14 @@ import { Switch } from "@/components/ui/switch";
 import { canManageFinancialIntegration, canViewFinancial } from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
 import { formatFinancialDate } from "@/lib/financial-date";
+import {
+  brazilianPhoneHref,
+  brazilianWhatsAppHref,
+  closedMonthsRange,
+  filterFinancialQueue,
+  financialContactPhone,
+  type FinancialQueueView,
+} from "@/lib/financial-operations";
 import {
   financialSyncBlockReason,
   isCurrentFinancialResponse,
@@ -83,6 +94,7 @@ type CollectionRow = {
   last_contact_at: string | null;
   promised_date: string | null;
   promised_amount: number | null;
+  promise_status?: string | null;
   score: number;
 };
 type StudentRow = {
@@ -295,20 +307,6 @@ function FinancialPageRoute() {
           </Button>
         }
       />
-      <FinancialFilterBar
-        value={search}
-        options={visibleOptions}
-        onApply={(next) => void navigate({ search: next })}
-        onSort={(sort) =>
-          void navigate({
-            search: {
-              ...search,
-              sort,
-              direction: search.sort === sort && search.direction !== "asc" ? "asc" : "desc",
-            },
-          })
-        }
-      />
       {visibleConfigured === false ? (
         <FinancialNotConfigured
           canConfigure={canConfigure}
@@ -336,6 +334,22 @@ function FinancialPageRoute() {
             })}
         </div>
       </div>
+      {page !== "settings" ? (
+        <FinancialFilterBar
+          value={search}
+          options={visibleOptions}
+          onApply={(next) => void navigate({ search: next })}
+          onSort={(sort) =>
+            void navigate({
+              search: {
+                ...search,
+                sort,
+                direction: search.sort === sort && search.direction !== "asc" ? "asc" : "desc",
+              },
+            })
+          }
+        />
+      ) : null}
       {page === "dashboard" ? (
         <Dashboard data={visibleDashboard} collections={visibleCollections} />
       ) : null}
@@ -684,24 +698,30 @@ function Dashboard({
           <CardTitle className="text-base">Maiores prioridades agora</CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
-          {collections.slice(0, 5).map((row) => (
-            <div key={row.installment_id} className="flex items-center justify-between gap-4 py-3">
-              <div>
-                <Link
-                  to="/financeiro/aluno/$studentId"
-                  params={{ studentId: row.student_id }}
-                  className="font-semibold hover:text-primary"
-                >
-                  {row.full_name}
-                </Link>
-                <p className="text-xs text-muted-foreground">
-                  {row.days_overdue > 0 ? `${row.days_overdue} dias de atraso` : "Vence hoje"} ·{" "}
-                  {money.format(row.total_amount)}
-                </p>
+          {collections.length ? (
+            collections.slice(0, 5).map((row) => (
+              <div key={row.installment_id} className="flex items-center justify-between gap-4 py-3">
+                <div>
+                  <Link
+                    to="/financeiro/aluno/$studentId"
+                    params={{ studentId: row.student_id }}
+                    className="font-semibold hover:text-primary"
+                  >
+                    {row.full_name}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    {row.days_overdue > 0 ? `${row.days_overdue} dias de atraso` : "Vence hoje"} ·{" "}
+                    {money.format(row.total_amount)}
+                  </p>
+                </div>
+                <Badge variant="outline">Score {row.score}</Badge>
               </div>
-              <Badge variant="outline">Score {row.score}</Badge>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma prioridade para os filtros selecionados.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -731,6 +751,35 @@ function DailyCollection({
   search: FinanceSearch;
   onSort: (sort: string) => void;
 }) {
+  const [queueView, setQueueView] = React.useState<FinancialQueueView>("all");
+  const today = localDate();
+  const visibleRows = React.useMemo(
+    () => filterFinancialQueue(rows, queueView, today),
+    [queueView, rows, today],
+  );
+  const queueOptions: Array<{ id: FinancialQueueView; label: string; count: number }> = [
+    { id: "all", label: "Toda a fila", count: rows.length },
+    {
+      id: "priority",
+      label: "Alta prioridade",
+      count: filterFinancialQueue(rows, "priority", today).length,
+    },
+    {
+      id: "no_contact",
+      label: "Sem contato",
+      count: filterFinancialQueue(rows, "no_contact", today).length,
+    },
+    {
+      id: "broken_promise",
+      label: "Promessa vencida",
+      count: filterFinancialQueue(rows, "broken_promise", today).length,
+    },
+    {
+      id: "no_phone",
+      label: "Sem telefone",
+      count: filterFinancialQueue(rows, "no_phone", today).length,
+    },
+  ];
   const sortHeader = (label: string, sort: string) => (
     <button
       className="inline-flex items-center gap-1 hover:text-foreground"
@@ -739,112 +788,210 @@ function DailyCollection({
       {label} <ArrowUpDown className="h-3.5 w-3.5" />
     </button>
   );
+  const exportQueue = () => {
+    const csvCell = (value: unknown) => {
+      let text = String(value ?? "");
+      if (/^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+    const header = [
+      "Aluno",
+      "Telefone",
+      "Curso",
+      "Turma",
+      "Vencimento",
+      "Dias em atraso",
+      "Valor atual",
+      "Último contato",
+      "Data prometida",
+      "Valor prometido",
+      "Prioridade",
+    ];
+    const lines = visibleRows.map((row) =>
+      [
+        row.full_name,
+        financialContactPhone(row),
+        row.course_name,
+        row.class_name,
+        row.due_date,
+        row.days_overdue,
+        row.total_amount.toFixed(2).replace(".", ","),
+        row.last_contact_at,
+        row.promised_date,
+        row.promised_amount?.toFixed(2).replace(".", ",") ?? "",
+        row.score,
+      ]
+        .map(csvCell)
+        .join(";"),
+    );
+    const blob = new Blob([`\uFEFF${[header.map(csvCell).join(";"), ...lines].join("\n")}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fila-financeira-${today}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${visibleRows.length} registros exportados.`);
+  };
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">
-          Central de Cobrança
-        </p>
-        <h2 className="mt-2 text-2xl font-bold">
-          {search.start_date || search.end_date ? "Recebíveis do período" : "Prioridades do dia"}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Score determinístico por promessa, atraso, valor e suspensão.
-        </p>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">
+            Mesa de trabalho
+          </p>
+          <h2 className="mt-2 text-2xl font-bold">
+            {search.start_date || search.end_date ? "Cobranças do período" : "Fila de cobrança"}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Priorize, consulte o aluno e registre cada atendimento. Nenhuma mensagem é enviada
+            automaticamente.
+          </p>
+        </div>
+        <Button variant="outline" onClick={exportQueue} disabled={!visibleRows.length}>
+          <Download /> Exportar fila
+        </Button>
       </div>
       <section className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Ações prioritárias" value={rows.length} icon={ListChecks} />
+        <StatCard label="Na fila selecionada" value={visibleRows.length} icon={ListChecks} />
         <StatCard
-          label="Promessas quebradas"
-          value={
-            rows.filter(
-              (r) => r.promised_date && r.promised_date < new Date().toISOString().slice(0, 10),
-            ).length
-          }
+          label="Promessas vencidas"
+          value={filterFinancialQueue(rows, "broken_promise", today).length}
           icon={AlertTriangle}
           accent="warning"
         />
         <StatCard
-          label="Valor na fila"
-          value={money.format(rows.reduce((sum, r) => sum + r.total_amount, 0))}
+          label="Valor selecionado"
+          value={money.format(visibleRows.reduce((sum, row) => sum + row.total_amount, 0))}
           icon={CircleDollarSign}
           accent="gold"
         />
       </section>
+      <Card>
+        <CardContent className="flex flex-wrap gap-2 p-3">
+          {queueOptions.map((option) => (
+            <Button
+              key={option.id}
+              size="sm"
+              variant={queueView === option.id ? "default" : "ghost"}
+              className={cn(queueView === option.id && "bg-gradient-primary")}
+              onClick={() => setQueueView(option.id)}
+            >
+              {option.label}
+              <Badge variant={queueView === option.id ? "secondary" : "outline"}>
+                {option.count}
+              </Badge>
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
       <Card className="overflow-hidden">
         <CardContent className="overflow-x-auto p-0">
-          {rows.length ? (
-            <table className="w-full min-w-[1650px] text-sm">
+          {visibleRows.length ? (
+            <table className="w-full min-w-[1220px] text-sm">
               <thead className="border-b bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Aluno</th>
-                  <th className="px-4 py-3">Responsável</th>
-                  <th className="px-4 py-3">Telefone</th>
-                  <th className="px-4 py-3">Curso</th>
-                  <th className="px-4 py-3">Turma</th>
+                  <th className="px-4 py-3">Aluno e matrícula</th>
+                  <th className="px-4 py-3">Contato</th>
                   <th className="px-4 py-3">{sortHeader("Vencimento", "due_date")}</th>
-                  <th className="px-4 py-3">{sortHeader("Dias de atraso", "days_overdue")}</th>
-                  <th className="px-4 py-3">Valor original</th>
-                  <th className="px-4 py-3">Juros/Multa</th>
                   <th className="px-4 py-3">{sortHeader("Valor atual", "amount")}</th>
-                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Último contato</th>
                   <th className="px-4 py-3">Promessa</th>
                   <th className="px-4 py-3">Prioridade</th>
-                  <th className="px-4 py-3">Ação</th>
+                  <th className="px-4 py-3 text-right">Executar</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {rows.map((row) => (
-                  <tr key={row.installment_id} className="hover:bg-muted/30">
-                    <td className="px-4 py-4">
-                      <div className="font-semibold">{row.full_name}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div>{row.responsible_name || "Próprio aluno"}</div>
-                    </td>
-                    <td className="px-4 py-4">{row.responsible_phone || row.phone || "—"}</td>
-                    <td className="px-4 py-4">{row.course_name || "—"}</td>
-                    <td className="px-4 py-4">{row.class_name || "—"}</td>
-                    <td className="px-4 py-4">{formatFinancialDate(row.due_date)}</td>
-                    <td className="px-4 py-4 font-semibold text-destructive">
-                      {row.days_overdue > 0 ? row.days_overdue : "—"}
-                    </td>
-                    <td className="px-4 py-4">{money.format(row.original_amount)}</td>
-                    <td className="px-4 py-4">
-                      {money.format(row.penalty_amount + row.interest_amount)}
-                    </td>
-                    <td className="px-4 py-4 font-bold">{money.format(row.total_amount)}</td>
-                    <td className="px-4 py-4">
-                      <Badge variant="outline">
-                        {installmentStatusLabel[row.status] ?? row.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-4">{formatFinancialDate(row.last_contact_at)}</td>
-                    <td className="px-4 py-4">
-                      {row.promised_date
-                        ? `${formatFinancialDate(row.promised_date)} · ${money.format(row.promised_amount ?? 0)}`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-4">
-                      <Badge variant="outline">{row.score}</Badge>
-                    </td>
-                    <td className="px-4 py-4">
-                      <Button asChild size="sm" variant="outline">
+                {visibleRows.map((row) => {
+                  const phone = financialContactPhone(row);
+                  const whatsapp = brazilianWhatsAppHref(phone);
+                  const call = brazilianPhoneHref(phone);
+                  return (
+                    <tr key={row.installment_id} className="align-top hover:bg-muted/30">
+                      <td className="px-4 py-4">
                         <Link
                           to="/financeiro/aluno/$studentId"
                           params={{ studentId: row.student_id }}
+                          className="font-semibold hover:text-primary"
                         >
-                          Abrir perfil
+                          {row.full_name}
                         </Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                        <p className="mt-1 max-w-72 text-xs text-muted-foreground">
+                          {[row.course_name, row.class_name].filter(Boolean).join(" · ") || "Sem turma"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div>{row.responsible_name || "Próprio aluno"}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{phone || "Sem telefone"}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div>{formatFinancialDate(row.due_date)}</div>
+                        <Badge
+                          variant="outline"
+                          className={cn("mt-2", row.days_overdue > 0 && "border-red-200 bg-red-50 text-red-800")}
+                        >
+                          {row.days_overdue > 0 ? `${row.days_overdue} dias` : installmentStatusLabel[row.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        <strong>{money.format(row.total_amount)}</strong>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Juros/multa: {money.format(row.penalty_amount + row.interest_amount)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        {row.last_contact_at ? formatFinancialDate(row.last_contact_at) : <Badge variant="outline">Pendente</Badge>}
+                      </td>
+                      <td className="px-4 py-4">
+                        {row.promised_date ? (
+                          <>
+                            <div>{formatFinancialDate(row.promised_date)}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {money.format(row.promised_amount ?? 0)}
+                            </div>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <Badge
+                          variant="outline"
+                          className={cn(row.score >= 80 && "border-amber-300 bg-amber-50 text-amber-900")}
+                        >
+                          {row.score} pontos
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end gap-1.5">
+                          {whatsapp ? (
+                            <Button asChild size="icon" variant="outline" title="Abrir WhatsApp sem mensagem pronta">
+                              <a href={whatsapp} target="_blank" rel="noreferrer">
+                                <MessageCircle className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          ) : null}
+                          {call ? (
+                            <Button asChild size="icon" variant="outline" title="Ligar">
+                              <a href={call}><Phone className="h-4 w-4" /></a>
+                            </Button>
+                          ) : null}
+                          <Button asChild size="sm" variant="outline">
+                            <Link to="/financeiro/aluno/$studentId" params={{ studentId: row.student_id }}>
+                              Atender
+                            </Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
-            <Empty>Nenhuma parcela encontrada para os filtros selecionados.</Empty>
+            <Empty>Nenhuma cobrança encontrada nesta fila.</Empty>
           )}
         </CardContent>
       </Card>
@@ -1031,6 +1178,7 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
   const [scopeVerified, setScopeVerified] = React.useState(false);
   const [paginationVerified, setPaginationVerified] = React.useState(false);
   const [busy, setBusy] = React.useState("");
+  const [closedStart, closedEnd] = closedMonthsRange(localDate(), 3);
   const syncBlockReason = financialSyncBlockReason(state);
   const load = React.useCallback(async () => {
     if (!unitId) return;
@@ -1072,6 +1220,19 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
     return () => window.clearInterval(timer);
   }, [hasActiveRun, load, onSync]);
   async function action(kind: "save" | "test" | "pilot" | "sync") {
+    if ((kind === "sync" || kind === "pilot") && Boolean(syncStartDate) !== Boolean(syncEndDate)) {
+      toast.error("Informe a data inicial e a data final da sincronização.");
+      return;
+    }
+    if (
+      (kind === "sync" || kind === "pilot") &&
+      syncStartDate &&
+      syncEndDate &&
+      syncStartDate > syncEndDate
+    ) {
+      toast.error("A data inicial não pode ser posterior à data final.");
+      return;
+    }
     if ((kind === "sync" || kind === "pilot") && syncBlockReason) {
       toast.error(syncBlockReason);
       return;
@@ -1279,6 +1440,30 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
                   />
                 </div>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSyncStartDate(closedStart);
+                    setSyncEndDate(closedEnd);
+                  }}
+                >
+                  Últimos 3 meses fechados
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSyncStartDate("");
+                    setSyncEndDate("");
+                  }}
+                >
+                  Usar janela padrão
+                </Button>
+              </div>
             </div>
             {syncBlockReason ? (
               <p className="text-sm text-amber-800" role="status">
@@ -1286,10 +1471,10 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
               </p>
             ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button variant="outline" onClick={() => void action("pilot")} disabled={!!busy}>
+              <Button variant="outline" onClick={() => void action("pilot")} disabled={!!busy || hasActiveRun}>
                 Testar 3 turmas
               </Button>
-              <Button onClick={() => void action("sync")} disabled={!!busy}>
+              <Button onClick={() => void action("sync")} disabled={!!busy || hasActiveRun}>
                 Sincronizar tudo
               </Button>
             </div>
@@ -1319,7 +1504,7 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
                 {runs.map((run) => (
                   <div key={run.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                     <div>
-                      <Badge variant="outline">{run.status}</Badge>
+                      <Badge variant="outline">{syncStatusLabel(run.status)}</Badge>
                       {run.mode === "pilot" ? (
                         <Badge className="ml-2" variant="secondary">
                           Piloto
@@ -1329,6 +1514,7 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
                         {run.classes_processed} turmas · {run.students_processed} alunos ·{" "}
                         {run.installments_found} parcelas
                         {run.errors_count ? ` · ${run.errors_count} erros registrados` : ""}
+                        {run.issues_count ? ` · ${run.issues_count} ocorrências` : ""}
                       </p>
                       {run.period_start && run.period_end ? (
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -1350,6 +1536,17 @@ function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () =>
         </CardContent>
       </Card>
     </div>
+  );
+}
+function syncStatusLabel(status: string) {
+  return (
+    {
+      queued: "Na fila",
+      running: "Em execução",
+      completed: "Concluída",
+      partial: "Concluída com alertas",
+      failed: "Falhou",
+    }[status] ?? status
   );
 }
 function Mini({ label, value }: { label: string; value: React.ReactNode }) {

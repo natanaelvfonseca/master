@@ -31,6 +31,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import { canViewFinancial } from "@/lib/auth-types";
 import { formatFinancialDate } from "@/lib/financial-date";
+import {
+  brazilianPhoneHref,
+  brazilianWhatsAppHref,
+} from "@/lib/financial-operations";
 
 type Profile = {
   student: {
@@ -162,6 +166,9 @@ function StudentFinancialProfile() {
       </div>
     );
   const s = profile.student;
+  const contactPhone = s.responsible_phone || s.phone;
+  const whatsappHref = brazilianWhatsAppHref(contactPhone);
+  const phoneHref = brazilianPhoneHref(contactPhone);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -295,16 +302,45 @@ function StudentFinancialProfile() {
           )}
         </CardContent>
       </Card>
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Button className="h-11 bg-gradient-primary" onClick={() => setMode("contact")}>
-          <UserRound />
-          Registrar contato
-        </Button>
-        <Button variant="outline" className="h-11" onClick={() => setMode("promise")}>
-          <ReceiptText />
-          Registrar promessa
-        </Button>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Atendimento financeiro</CardTitle>
+          <CardDescription>
+            Abra o canal de contato e registre o resultado. O Master não envia nenhuma mensagem
+            automaticamente nesta etapa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {whatsappHref ? (
+            <Button asChild className="h-11 bg-emerald-600 hover:bg-emerald-700">
+              <a href={whatsappHref} target="_blank" rel="noreferrer">
+                <MessageCircle /> Abrir WhatsApp
+              </a>
+            </Button>
+          ) : (
+            <Button className="h-11" variant="outline" disabled>
+              <MessageCircle /> Sem WhatsApp válido
+            </Button>
+          )}
+          {phoneHref ? (
+            <Button asChild variant="outline" className="h-11">
+              <a href={phoneHref}>
+                <PhoneCall /> Ligar
+              </a>
+            </Button>
+          ) : (
+            <Button className="h-11" variant="outline" disabled>
+              <PhoneCall /> Sem telefone válido
+            </Button>
+          )}
+          <Button className="h-11 bg-gradient-primary" onClick={() => setMode("contact")}>
+            <UserRound /> Registrar contato
+          </Button>
+          <Button variant="outline" className="h-11" onClick={() => setMode("promise")}>
+            <ReceiptText /> Registrar promessa
+          </Button>
+        </CardContent>
+      </Card>
       {mode === "contact" ? (
         <ContactForm
           unitId={unitId}
