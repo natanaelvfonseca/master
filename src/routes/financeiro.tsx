@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -199,8 +199,14 @@ export const Route = createFileRoute("/financeiro")({
     };
   },
   head: () => ({ meta: [{ title: "Financeiro · Master" }] }),
-  component: FinancialPageRoute,
+  component: FinancialRoute,
 });
+
+function FinancialRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.startsWith("/financeiro/aluno/")) return <Outlet />;
+  return <FinancialPageRoute />;
+}
 
 function FinancialPageRoute() {
   const { session } = useAuth();
