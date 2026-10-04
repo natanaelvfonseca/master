@@ -59,6 +59,7 @@ import { Route as ApiHealthDbRouteImport } from './routes/api/health/db'
 import { Route as ApiGestaoCoursesRouteImport } from './routes/api/gestao/courses'
 import { Route as ApiGestaoChannelsRouteImport } from './routes/api/gestao/channels'
 import { Route as ApiGestaoAttendancesRouteImport } from './routes/api/gestao/attendances'
+import { Route as ApiFinanceiroWhatsappRouteImport } from './routes/api/financeiro/whatsapp'
 import { Route as ApiFinanceiroSyncRouteImport } from './routes/api/financeiro/sync'
 import { Route as ApiFinanceiroStudentsRouteImport } from './routes/api/financeiro/students'
 import { Route as ApiFinanceiroPromisesRouteImport } from './routes/api/financeiro/promises'
@@ -341,6 +342,11 @@ const ApiGestaoAttendancesRoute = ApiGestaoAttendancesRouteImport.update({
   path: '/api/gestao/attendances',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFinanceiroWhatsappRoute = ApiFinanceiroWhatsappRouteImport.update({
+  id: '/api/financeiro/whatsapp',
+  path: '/api/financeiro/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFinanceiroSyncRoute = ApiFinanceiroSyncRouteImport.update({
   id: '/api/financeiro/sync',
   path: '/api/financeiro/sync',
@@ -557,6 +563,7 @@ export interface FileRoutesByFullPath {
   '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
   '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
   '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
+  '/api/financeiro/whatsapp': typeof ApiFinanceiroWhatsappRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -638,6 +645,7 @@ export interface FileRoutesByTo {
   '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
   '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
   '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
+  '/api/financeiro/whatsapp': typeof ApiFinanceiroWhatsappRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -720,6 +728,7 @@ export interface FileRoutesById {
   '/api/financeiro/promises': typeof ApiFinanceiroPromisesRoute
   '/api/financeiro/students': typeof ApiFinanceiroStudentsRouteWithChildren
   '/api/financeiro/sync': typeof ApiFinanceiroSyncRoute
+  '/api/financeiro/whatsapp': typeof ApiFinanceiroWhatsappRoute
   '/api/gestao/attendances': typeof ApiGestaoAttendancesRoute
   '/api/gestao/channels': typeof ApiGestaoChannelsRouteWithChildren
   '/api/gestao/courses': typeof ApiGestaoCoursesRouteWithChildren
@@ -803,6 +812,7 @@ export interface FileRouteTypes {
     | '/api/financeiro/promises'
     | '/api/financeiro/students'
     | '/api/financeiro/sync'
+    | '/api/financeiro/whatsapp'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -884,6 +894,7 @@ export interface FileRouteTypes {
     | '/api/financeiro/promises'
     | '/api/financeiro/students'
     | '/api/financeiro/sync'
+    | '/api/financeiro/whatsapp'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -965,6 +976,7 @@ export interface FileRouteTypes {
     | '/api/financeiro/promises'
     | '/api/financeiro/students'
     | '/api/financeiro/sync'
+    | '/api/financeiro/whatsapp'
     | '/api/gestao/attendances'
     | '/api/gestao/channels'
     | '/api/gestao/courses'
@@ -1045,6 +1057,7 @@ export interface RootRouteChildren {
   ApiFinanceiroPromisesRoute: typeof ApiFinanceiroPromisesRoute
   ApiFinanceiroStudentsRoute: typeof ApiFinanceiroStudentsRouteWithChildren
   ApiFinanceiroSyncRoute: typeof ApiFinanceiroSyncRoute
+  ApiFinanceiroWhatsappRoute: typeof ApiFinanceiroWhatsappRoute
   ApiGestaoAttendancesRoute: typeof ApiGestaoAttendancesRoute
   ApiGestaoChannelsRoute: typeof ApiGestaoChannelsRouteWithChildren
   ApiGestaoCoursesRoute: typeof ApiGestaoCoursesRouteWithChildren
@@ -1407,6 +1420,13 @@ declare module '@tanstack/react-router' {
       path: '/api/gestao/attendances'
       fullPath: '/api/gestao/attendances'
       preLoaderRoute: typeof ApiGestaoAttendancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/financeiro/whatsapp': {
+      id: '/api/financeiro/whatsapp'
+      path: '/api/financeiro/whatsapp'
+      fullPath: '/api/financeiro/whatsapp'
+      preLoaderRoute: typeof ApiFinanceiroWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/financeiro/sync': {
@@ -1772,6 +1792,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFinanceiroPromisesRoute: ApiFinanceiroPromisesRoute,
   ApiFinanceiroStudentsRoute: ApiFinanceiroStudentsRouteWithChildren,
   ApiFinanceiroSyncRoute: ApiFinanceiroSyncRoute,
+  ApiFinanceiroWhatsappRoute: ApiFinanceiroWhatsappRoute,
   ApiGestaoAttendancesRoute: ApiGestaoAttendancesRoute,
   ApiGestaoChannelsRoute: ApiGestaoChannelsRouteWithChildren,
   ApiGestaoCoursesRoute: ApiGestaoCoursesRouteWithChildren,

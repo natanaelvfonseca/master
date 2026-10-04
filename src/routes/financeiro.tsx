@@ -12,12 +12,15 @@ import {
   Loader2,
   MessageCircle,
   Phone,
+  QrCode,
   RefreshCw,
   Search,
   Settings,
   ShieldCheck,
   Users,
   WalletCards,
+  Wifi,
+  WifiOff,
   X,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -27,6 +30,13 @@ import { StatCard } from "@/components/layout/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,7 +47,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { canManageFinancialIntegration, canViewFinancial } from "@/lib/auth-types";
+import {
+  canManageFinancialIntegration,
+  canManageFinancialWhatsApp,
+  canViewFinancial,
+} from "@/lib/auth-types";
 import { useAuth } from "@/lib/auth";
 import { formatFinancialDate } from "@/lib/financial-date";
 import {
@@ -154,6 +168,17 @@ type FinanceSearch = {
 };
 type FilterOptions = { courses: Array<string>; classes: Array<string> };
 type IntegrationResponse = { configured: boolean; integration: IntegrationState | null };
+type FinancialWhatsAppState = {
+  configured: boolean;
+  instance: {
+    id: string;
+    name: string;
+    status: "disconnected" | "connecting" | "connected" | "error";
+    phoneNumber: string | null;
+    connectedAt: string | null;
+    lastEventAt: string | null;
+  } | null;
+};
 
 const tabs = [
   { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
@@ -299,7 +324,9 @@ function FinancialPageRoute() {
     EMPTY_FILTER_OPTIONS,
   );
   const visibleConfigured = scopedFinancialValue(unitId, loadedUnitId, integrationConfigured, null);
-  const canConfigure = session ? canManageFinancialIntegration(session.user.role) : false;
+  const canConfigureCaez = session ? canManageFinancialIntegration(session.user.role) : false;
+  const canConfigureWhatsApp = session ? canManageFinancialWhatsApp(session.user.role) : false;
+  const canOpenSettings = canConfigureCaez || canConfigureWhatsApp;
   if (session && !canAccess) return <div className="p-6">Acesso negado.</div>;
   return (
     <div className="space-y-6">
@@ -315,14 +342,14 @@ function FinancialPageRoute() {
       />
       {visibleConfigured === false ? (
         <FinancialNotConfigured
-          canConfigure={canConfigure}
+          canConfigure={canConfigureCaez}
           onConfigure={() => setPage("settings")}
         />
       ) : null}
       <div className="overflow-x-auto rounded-xl border bg-card p-1.5 shadow-card">
         <div className="flex min-w-max gap-1">
           {tabs
-            .filter((tab) => canConfigure || tab.id !== "settings")
+            .filter((tab) => canOpenSettings || tab.id !== "settings")
             .map((tab) => {
               const Icon = tab.icon;
               return (
@@ -378,7 +405,14 @@ function FinancialPageRoute() {
         <Students key={unitId} unitId={unitId} filterQuery={filterQuery} />
       ) : null}
       {page === "settings" ? (
-        <IntegrationSettings key={unitId} unitId={unitId} onSync={load} />
+        <FinancialSettings
+          key={unitId}
+          unitId={unitId}
+          unitName={session?.activeUnit?.name ?? "Unidade"}
+          canConfigureCaez={canConfigureCaez}
+          canConfigureWhatsApp={canConfigureWhatsApp}
+          onSync={load}
+        />
       ) : null}
     </div>
   );
@@ -1172,6 +1206,254 @@ function Students({ unitId, filterQuery }: { unitId: string; filterQuery: string
     </div>
   );
 }
+function FinancialSettings({
+  unitId,
+  unitName,
+  canConfigureCaez,
+  canConfigureWhatsApp,
+  onSync,
+}: {
+  unitId: string;
+  unitName: string;
+  canConfigureCaez: boolean;
+  canConfigureWhatsApp: boolean;
+  onSync: () => Promise<void>;
+}) {
+  return (
+    <div className="space-y-4">
+      <WhatsAppFinancialSettings
+        unitId={unitId}
+        unitName={unitName}
+        canManage={canConfigureWhatsApp}
+      />
+      {canConfigureCaez ? (
+        <IntegrationSettings unitId={unitId} onSync={onSync} />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Integração CAEZ</CardTitle>
+            <CardDescription>
+              A configuração do token e as sincronizações ficam disponíveis para CEO e
+              administradores. Os dados sincronizados continuam acessíveis nesta unidade.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppFinancialSettings({
+  unitId,
+  unitName,
+  canManage,
+}: {
+  unitId: string;
+  unitName: string;
+  canManage: boolean;
+}) {
+  const [state, setState] = React.useState<FinancialWhatsAppState | null>(null);
+  const [working, setWorking] = React.useState(false);
+  const [qrCode, setQrCode] = React.useState<string | null>(null);
+  const [qrOpen, setQrOpen] = React.useState(false);
+
+  const load = React.useCallback(
+    async (silent = false) => {
+      if (!unitId) return;
+      try {
+        const next = await readJson<FinancialWhatsAppState>(
+          await fetch(`/api/financeiro/whatsapp?unit_id=${encodeURIComponent(unitId)}`, {
+            credentials: "same-origin",
+          }),
+        );
+        setState(next);
+        if (next.instance?.status === "connected") {
+          setQrOpen(false);
+          setQrCode(null);
+        }
+      } catch (error) {
+        if (!silent)
+          toast.error(error instanceof Error ? error.message : "Falha ao consultar o WhatsApp.");
+      }
+    },
+    [unitId],
+  );
+
+  React.useEffect(() => {
+    setState(null);
+    setQrCode(null);
+    setQrOpen(false);
+    void load();
+  }, [load]);
+
+  React.useEffect(() => {
+    if (!qrOpen && state?.instance?.status !== "connecting") return;
+    const timer = window.setInterval(() => void load(true), 3_000);
+    return () => window.clearInterval(timer);
+  }, [load, qrOpen, state?.instance?.status]);
+
+  async function connect() {
+    setWorking(true);
+    try {
+      const result = await readJson<{ status: string; qrCode: string | null }>(
+        await fetch("/api/financeiro/whatsapp", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ unit_id: unitId, action: "connect" }),
+        }),
+      );
+      if (result.status === "connected") {
+        toast.success("WhatsApp financeiro conectado.");
+      } else if (result.qrCode) {
+        setQrCode(result.qrCode);
+        setQrOpen(true);
+      } else {
+        toast.info("Conexão iniciada. Atualize o QR Code se ele não aparecer.");
+      }
+      await load(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao conectar o WhatsApp.");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function disconnect() {
+    if (!window.confirm(`Desconectar o WhatsApp financeiro da unidade ${unitName}?`)) return;
+    setWorking(true);
+    try {
+      await readJson(
+        await fetch("/api/financeiro/whatsapp", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ unit_id: unitId, action: "disconnect" }),
+        }),
+      );
+      toast.success("WhatsApp financeiro desconectado.");
+      await load(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao desconectar o WhatsApp.");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  const status = state?.instance?.status ?? "disconnected";
+  const statusInfo =
+    status === "connected"
+      ? { label: "Conectado", className: "border-emerald-200 bg-emerald-50 text-emerald-800" }
+      : status === "connecting"
+        ? { label: "Aguardando leitura", className: "border-amber-200 bg-amber-50 text-amber-800" }
+        : status === "error"
+          ? { label: "Com erro", className: "border-red-200 bg-red-50 text-red-800" }
+          : { label: "Desconectado", className: "border-slate-200 bg-slate-50 text-slate-700" };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+                {status === "connected" ? <Wifi /> : <WifiOff />}
+              </div>
+              <div>
+                <CardTitle>WhatsApp financeiro da unidade</CardTitle>
+                <CardDescription className="mt-1">
+                  Conexão exclusiva da secretaria/financeiro de {unitName}. Não se mistura ao
+                  WhatsApp comercial dos consultores.
+                </CardDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className={statusInfo.className}>
+              {statusInfo.label}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Mini label="Unidade" value={unitName} />
+            <Mini
+              label="Número conectado"
+              value={formatWhatsAppNumber(state?.instance?.phoneNumber)}
+            />
+            <Mini
+              label="Último evento"
+              value={formatFinancialDate(state?.instance?.lastEventAt)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void load()} disabled={working}>
+              <RefreshCw className={cn(working && "animate-spin")} /> Atualizar
+            </Button>
+            {status === "connected" ? (
+              <Button
+                variant="destructive"
+                onClick={() => void disconnect()}
+                disabled={working || !canManage}
+              >
+                Desconectar
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void connect()}
+                disabled={working || !canManage || !state?.configured}
+              >
+                {working ? <Loader2 className="animate-spin" /> : <QrCode />} Conectar WhatsApp
+              </Button>
+            )}
+          </div>
+          {state === null ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground lg:col-span-2">
+              <Loader2 className="animate-spin" /> Consultando a conexão da unidade...
+            </div>
+          ) : !state.configured ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:col-span-2">
+              A Evolution API ainda não está configurada no servidor. Nenhuma mensagem será
+              enviada enquanto essa configuração não for concluída.
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground lg:col-span-2">
+              Esta etapa apenas conecta o aparelho e registra eventos. Envios automáticos seguem
+              desativados até definirmos regras e textos aprovados.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp financeiro</DialogTitle>
+            <DialogDescription>
+              No celular da secretaria, abra Aparelhos conectados e leia o QR Code.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid min-h-72 place-items-center rounded-xl border bg-white p-5">
+            {qrCode ? (
+              <img src={qrCode} alt="QR Code do WhatsApp financeiro" className="size-64" />
+            ) : (
+              <div className="text-center text-sm text-muted-foreground">
+                <Loader2 className="mx-auto mb-3 animate-spin" />
+                Aguardando QR Code...
+              </div>
+            )}
+          </div>
+          <Button variant="outline" onClick={() => void connect()} disabled={working}>
+            <RefreshCw className={cn(working && "animate-spin")} /> Gerar novo QR Code
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function formatWhatsAppNumber(value: string | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits ? `+${digits}` : "Ainda não identificado";
+}
+
 function IntegrationSettings({ unitId, onSync }: { unitId: string; onSync: () => Promise<void> }) {
   const [state, setState] = React.useState<IntegrationState>(() => EMPTY_INTEGRATION_STATE);
   const [runs, setRuns] = React.useState<Array<SyncRun>>([]);

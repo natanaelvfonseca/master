@@ -7,6 +7,7 @@ type InstanceRow = QueryResultRow & {
   unit_id: string;
   user_id: string | null;
   instance_name: string;
+  purpose: "commercial" | "financial";
   status: "disconnected" | "connecting" | "connected" | "error";
   phone_number: string | null;
   webhook_secret: string;
@@ -26,6 +27,7 @@ export async function ensureEvolutionSchema() {
         unit_id uuid not null references app_units(id) on delete cascade,
         user_id uuid references app_users(id) on delete cascade,
         instance_name text not null unique,
+        purpose text not null default 'commercial' check (purpose in ('commercial', 'financial')),
         status text not null default 'disconnected' check (
           status in ('disconnected', 'connecting', 'connected', 'error')
         ),
@@ -65,15 +67,28 @@ export async function ensureEvolutionSchema() {
 
       alter table app_whatsapp_instances
         add column if not exists user_id uuid references app_users(id) on delete cascade;
+      alter table app_whatsapp_instances
+        add column if not exists purpose text not null default 'commercial';
+      do $$ begin
+        if not exists (
+          select 1 from pg_constraint where conname = 'app_whatsapp_instances_purpose_check'
+        ) then
+          alter table app_whatsapp_instances add constraint app_whatsapp_instances_purpose_check
+            check (purpose in ('commercial', 'financial'));
+        end if;
+      end $$;
       update app_whatsapp_instances
       set user_id = created_by
-      where user_id is null and created_by is not null;
+      where user_id is null and created_by is not null and purpose = 'commercial';
       alter table app_whatsapp_instances
         drop constraint if exists app_whatsapp_instances_unit_id_key;
       drop index if exists app_whatsapp_instances_user_idx;
       create unique index if not exists app_whatsapp_instances_user_unit_idx
         on app_whatsapp_instances (user_id, unit_id)
-        where user_id is not null;
+        where user_id is not null and purpose = 'commercial';
+      create unique index if not exists app_whatsapp_instances_financial_unit_idx
+        on app_whatsapp_instances (unit_id)
+        where purpose = 'financial';
       create index if not exists app_whatsapp_instances_unit_idx
         on app_whatsapp_instances (unit_id);
 
@@ -255,38 +270,47 @@ async function createRemoteInstance(instanceName: string) {
 async function getInstance(userId: string, unitId: string) {
   await ensureEvolutionSchema();
   const result = await queryDb<InstanceRow>(
-    `select * from app_whatsapp_instances where user_id = $1 and unit_id = $2 limit 1`,
+    `select * from app_whatsapp_instances
+     where user_id = $1 and unit_id = $2 and purpose = 'commercial' limit 1`,
     [userId, unitId],
   );
   return result.rows[0] ?? null;
 }
 
-export async function getEvolutionState(userId: string, unitId: string) {
-  let instance = await getInstance(userId, unitId);
+async function getFinancialInstance(unitId: string) {
+  await ensureEvolutionSchema();
+  const result = await queryDb<InstanceRow>(
+    `select * from app_whatsapp_instances
+     where unit_id = $1 and purpose = 'financial' limit 1`,
+    [unitId],
+  );
+  return result.rows[0] ?? null;
+}
 
-  if (instance) {
-    try {
-      const stateData = await evolutionFetch(
-        `/instance/connectionState/${encodeURIComponent(instance.instance_name)}`,
-      );
-      const status = connectionState(stateData);
-      const updated = await queryDb<InstanceRow>(
-        `
-          update app_whatsapp_instances
-          set status = $2,
-              connected_at = case when $2 = 'connected' then coalesce(connected_at, now()) else connected_at end,
-              updated_at = now()
-          where id = $1
-          returning *
-        `,
-        [instance.id, status],
-      );
-      instance = updated.rows[0] ?? instance;
-    } catch {
-      // The local state remains useful when Evolution is temporarily unavailable.
-    }
+async function refreshInstanceState(instance: InstanceRow) {
+  try {
+    const stateData = await evolutionFetch(
+      `/instance/connectionState/${encodeURIComponent(instance.instance_name)}`,
+    );
+    const status = connectionState(stateData);
+    const updated = await queryDb<InstanceRow>(
+      `
+        update app_whatsapp_instances
+        set status = $2,
+            connected_at = case when $2 = 'connected' then coalesce(connected_at, now()) else connected_at end,
+            updated_at = now()
+        where id = $1
+        returning *
+      `,
+      [instance.id, status],
+    );
+    return updated.rows[0] ?? instance;
+  } catch {
+    return instance;
   }
+}
 
+function publicInstanceState(instance: InstanceRow | null) {
   return {
     configured: Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY),
     instance: instance
@@ -300,6 +324,81 @@ export async function getEvolutionState(userId: string, unitId: string) {
         }
       : null,
   };
+}
+
+export async function getEvolutionState(userId: string, unitId: string) {
+  let instance = await getInstance(userId, unitId);
+
+  if (instance) instance = await refreshInstanceState(instance);
+  return publicInstanceState(instance);
+}
+
+export async function getFinancialEvolutionState(unitId: string) {
+  let instance = await getFinancialInstance(unitId);
+  if (instance) instance = await refreshInstanceState(instance);
+  return publicInstanceState(instance);
+}
+
+async function activateRemoteInstance(instance: InstanceRow, requestUrl: string) {
+  if (!(await remoteInstanceExists(instance.instance_name))) {
+    try {
+      await createRemoteInstance(instance.instance_name);
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      if (!message.includes("already") && !message.includes("exist")) throw error;
+    }
+  }
+
+  const webhookUrl = publicWebhookUrl(requestUrl, instance.webhook_secret);
+  await evolutionFetch(`/webhook/set/${encodeURIComponent(instance.instance_name)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        byEvents: false,
+        base64: true,
+        events: ["MESSAGES_UPSERT"],
+      },
+    }),
+  });
+
+  await evolutionFetch(`/settings/set/${encodeURIComponent(instance.instance_name)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      groupsIgnore: true,
+      rejectCall: false,
+      alwaysOnline: false,
+      readMessages: false,
+      readStatus: false,
+    }),
+  }).catch(() => null);
+
+  const stateData = await evolutionFetch(
+    `/instance/connectionState/${encodeURIComponent(instance.instance_name)}`,
+  ).catch(() => null);
+
+  if (stateData && connectionState(stateData) === "connected") {
+    await queryDb(
+      `
+        update app_whatsapp_instances
+        set status = 'connected', connected_at = coalesce(connected_at, now()), updated_at = now()
+        where id = $1
+      `,
+      [instance.id],
+    );
+    return { status: "connected" as const, qrCode: null };
+  }
+
+  const qrData = await evolutionFetch(
+    `/instance/connect/${encodeURIComponent(instance.instance_name)}`,
+  );
+  await queryDb(
+    `update app_whatsapp_instances set status = 'connecting', updated_at = now() where id = $1`,
+    [instance.id],
+  );
+
+  return { status: "connecting" as const, qrCode: qrCodeFrom(qrData) };
 }
 
 export async function connectEvolution(
@@ -348,69 +447,68 @@ export async function connectEvolution(
     instance = renamed.rows[0] ?? instance;
   }
 
-  if (!(await remoteInstanceExists(instance.instance_name))) {
-    try {
-      await createRemoteInstance(instance.instance_name);
-    } catch (error) {
-      const message = error instanceof Error ? error.message.toLowerCase() : "";
-      if (!message.includes("already") && !message.includes("exist")) throw error;
-    }
-  }
+  return activateRemoteInstance(instance, requestUrl);
+}
 
-  const webhookUrl = publicWebhookUrl(requestUrl, instance.webhook_secret);
-  await evolutionFetch(`/webhook/set/${encodeURIComponent(instance.instance_name)}`, {
-    method: "POST",
-    body: JSON.stringify({
-      webhook: {
-        enabled: true,
-        url: webhookUrl,
-        byEvents: false,
-        base64: true,
-        events: ["MESSAGES_UPSERT"],
-      },
-    }),
-  });
+export async function connectFinancialEvolution(
+  unit: { id: string; name: string },
+  userId: string,
+  requestUrl: string,
+) {
+  await ensureEvolutionSchema();
+  let instance = await getFinancialInstance(unit.id);
+  const unitSuffix = createHash("sha256").update(unit.id).digest("hex").slice(0, 8);
+  const desiredInstanceName = `${instancePart(unit.name, "Unidade")}_Financeiro_${unitSuffix}`.slice(
+    0,
+    100,
+  );
 
-  await evolutionFetch(`/settings/set/${encodeURIComponent(instance.instance_name)}`, {
-    method: "POST",
-    body: JSON.stringify({
-      groupsIgnore: true,
-      rejectCall: false,
-      alwaysOnline: false,
-      readMessages: false,
-      readStatus: false,
-    }),
-  }).catch(() => null);
-
-  const stateData = await evolutionFetch(
-    `/instance/connectionState/${encodeURIComponent(instance.instance_name)}`,
-  ).catch(() => null);
-
-  if (stateData && connectionState(stateData) === "connected") {
-    await queryDb(
+  if (!instance) {
+    const secret = randomBytes(24).toString("base64url");
+    const created = await queryDb<InstanceRow>(
       `
-        update app_whatsapp_instances
-        set status = 'connected', connected_at = coalesce(connected_at, now()), updated_at = now()
-        where id = $1
+        insert into app_whatsapp_instances
+          (unit_id, user_id, instance_name, purpose, status, webhook_secret, created_by)
+        values ($1, null, $2, 'financial', 'connecting', $3, $4)
+        returning *
       `,
-      [instance.id],
+      [unit.id, desiredInstanceName, secret, userId],
     );
-    return { status: "connected", qrCode: null };
+    instance = created.rows[0];
+  } else if (instance.instance_name !== desiredInstanceName && instance.status !== "connected") {
+    await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {
+      method: "DELETE",
+    }).catch(() => null);
+    await evolutionFetch(`/instance/delete/${encodeURIComponent(instance.instance_name)}`, {
+      method: "DELETE",
+    }).catch(() => null);
+    const renamed = await queryDb<InstanceRow>(
+      `update app_whatsapp_instances
+       set instance_name = $2, status = 'connecting', updated_at = now()
+       where id = $1 returning *`,
+      [instance.id, desiredInstanceName],
+    );
+    instance = renamed.rows[0] ?? instance;
   }
 
-  const qrData = await evolutionFetch(
-    `/instance/connect/${encodeURIComponent(instance.instance_name)}`,
-  );
-  await queryDb(
-    `update app_whatsapp_instances set status = 'connecting', updated_at = now() where id = $1`,
-    [instance.id],
-  );
-
-  return { status: "connecting", qrCode: qrCodeFrom(qrData) };
+  return activateRemoteInstance(instance, requestUrl);
 }
 
 export async function disconnectEvolution(userId: string, unitId: string) {
   const instance = await getInstance(userId, unitId);
+  if (!instance) return;
+
+  await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {
+    method: "DELETE",
+  }).catch(() => null);
+  await queryDb(
+    `update app_whatsapp_instances set status = 'disconnected', updated_at = now() where id = $1`,
+    [instance.id],
+  );
+}
+
+export async function disconnectFinancialEvolution(unitId: string) {
+  const instance = await getFinancialInstance(unitId);
   if (!instance) return;
 
   await evolutionFetch(`/instance/logout/${encodeURIComponent(instance.instance_name)}`, {

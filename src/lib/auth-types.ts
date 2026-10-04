@@ -101,11 +101,15 @@ export function canViewReports(role: UserRole) {
 }
 
 export function canViewFinancial(role: UserRole) {
-  return role === "DEV" || role === "CEO";
+  return isMasterRole(role) || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canManageFinancialIntegration(role: UserRole) {
-  return canViewFinancial(role);
+  return isMasterRole(role) || role === "CEO";
+}
+
+export function canManageFinancialWhatsApp(role: UserRole) {
+  return isMasterRole(role) || role === "CEO" || role === "DIRETOR" || role === "GERENTE";
 }
 
 export function canViewNetworkGrowth(role: UserRole) {
