@@ -2486,46 +2486,52 @@ export async function recoverStoredMetaEvents(limit = 5_000) {
     authRequired: false,
   };
 
-  for (const event of events.rows) {
-    if (event.token_status === 'invalid') {
-      result.authRequired = true;
-      break;
-    }
-
-    try {
-      const processed = event.has_payload
-        ? await processEventById(event.id)
-        : await reprocessMetaEvent(event.id);
-
-      if (processed.status === 'processed') {
-        result.processed += 1;
-      } else {
-        result.pending += 1;
-      }
-    } catch (error) {
-      result.failed += 1;
-      const message = error instanceof Error ? error.message : 'Falha ao recuperar evento.';
-      await queryDb(
-        `
-          update app_meta_lead_events
-          set status = 'error', error_message = $2, updated_at = now()
-          where id = $1
-        `,
-        [event.id, message],
-      );
-      if (isInvalidMetaAccessTokenError(error)) {
-        await queryDb(
-          `update app_meta_pages
-           set token_status = 'invalid', last_validated_at = now(),
-               last_error = $2, updated_at = now()
-           where id = $1`,
-          [event.page_db_id, message],
-        );
+  // Bounded parallelism balances the Graph API requests with database row locks
+  // and preserves idempotent processing per leadgen_id.
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(5, events.rows.length) }, async () => {
+    while (nextIndex < events.rows.length && !result.authRequired) {
+      const event = events.rows[nextIndex++];
+      if (event.token_status === 'invalid') {
         result.authRequired = true;
-        break;
+        return;
+      }
+
+      try {
+        const processed = event.has_payload
+          ? await processEventById(event.id)
+          : await reprocessMetaEvent(event.id);
+
+        if (processed.status === 'processed') {
+          result.processed += 1;
+        } else {
+          result.pending += 1;
+        }
+      } catch (error) {
+        result.failed += 1;
+        const message = error instanceof Error ? error.message : 'Falha ao recuperar evento.';
+        await queryDb(
+          `
+            update app_meta_lead_events
+            set status = 'error', error_message = $2, updated_at = now()
+            where id = $1
+          `,
+          [event.id, message],
+        );
+        if (isInvalidMetaAccessTokenError(error)) {
+          await queryDb(
+            `update app_meta_pages
+             set token_status = 'invalid', last_validated_at = now(),
+                 last_error = $2, updated_at = now()
+             where id = $1`,
+            [event.page_db_id, message],
+          );
+          result.authRequired = true;
+          return;
+        }
       }
     }
-  }
+  }));
 
   return result;
 }
