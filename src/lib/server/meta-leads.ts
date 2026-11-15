@@ -2436,12 +2436,28 @@ export async function reprocessMetaEvent(eventId: string) {
   return processEventById(eventId);
 }
 
+export function isInvalidMetaAccessTokenError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /session has been invalidated|error validating access token|invalid oauth access token|expired.*access token/i.test(message);
+}
+
+// Reprocessa eventos persistidos sem criar leads duplicados. Eventos recebidos
+// enquanto o token da Página estava inválido não possuem field_data, por isso
+// precisam ser consultados novamente na Graph API após a reconexão.
 export async function recoverStoredMetaEvents(limit = 5_000) {
   await ensureMetaLeadSchema();
   const safeLimit = Math.max(1, Math.min(Math.trunc(limit) || 5_000, 10_000));
-  const events = await queryDb<{ id: string }>(
+  const events = await queryDb<{
+    id: string;
+    page_db_id: string;
+    token_status: string;
+    has_payload: boolean;
+  }>(
     `
-      select e.id
+      select e.id, p.id as page_db_id, p.token_status,
+        case when jsonb_typeof(e.lead_payload -> 'field_data') = 'array'
+          then jsonb_array_length(e.lead_payload -> 'field_data') > 0
+          else false end as has_payload
       from app_meta_lead_events e
       inner join app_meta_pages p on p.page_id = e.page_id
       inner join app_meta_forms f
@@ -2450,8 +2466,13 @@ export async function recoverStoredMetaEvents(limit = 5_000) {
        and f.status = 'active'
        and f.unit_id is not null
       where e.lead_id is null
-        and jsonb_typeof(e.lead_payload -> 'field_data') = 'array'
-        and jsonb_array_length(e.lead_payload -> 'field_data') > 0
+        and e.received_at >= now() - interval '7 days'
+        and (
+          e.status in ('error', 'received', 'processing')
+          or (case when jsonb_typeof(e.lead_payload -> 'field_data') = 'array'
+              then jsonb_array_length(e.lead_payload -> 'field_data') > 0
+              else false end)
+        )
       order by e.received_at asc
       limit $1
     `,
@@ -2462,29 +2483,47 @@ export async function recoverStoredMetaEvents(limit = 5_000) {
     processed: 0,
     pending: 0,
     failed: 0,
+    authRequired: false,
   };
 
   for (const event of events.rows) {
-    try {
-      const processed = await processEventById(event.id);
+    if (event.token_status === 'invalid') {
+      result.authRequired = true;
+      break;
+    }
 
-      if (processed.status === "processed") {
+    try {
+      const processed = event.has_payload
+        ? await processEventById(event.id)
+        : await reprocessMetaEvent(event.id);
+
+      if (processed.status === 'processed') {
         result.processed += 1;
       } else {
         result.pending += 1;
       }
     } catch (error) {
       result.failed += 1;
+      const message = error instanceof Error ? error.message : 'Falha ao recuperar evento.';
       await queryDb(
         `
           update app_meta_lead_events
-          set status = 'error',
-              error_message = $2,
-              updated_at = now()
+          set status = 'error', error_message = $2, updated_at = now()
           where id = $1
         `,
-        [event.id, error instanceof Error ? error.message : "Falha ao recuperar evento."],
+        [event.id, message],
       );
+      if (isInvalidMetaAccessTokenError(error)) {
+        await queryDb(
+          `update app_meta_pages
+           set token_status = 'invalid', last_validated_at = now(),
+               last_error = $2, updated_at = now()
+           where id = $1`,
+          [event.page_db_id, message],
+        );
+        result.authRequired = true;
+        break;
+      }
     }
   }
 
@@ -2719,7 +2758,25 @@ export async function receiveMetaWebhook(rawBody: string, signature: string | nu
         integration,
       );
       fetchedFromGraph = true;
+      if (page.token_status !== 'valid') {
+        await queryDb(
+          `update app_meta_pages
+           set token_status = 'valid', last_validated_at = now(),
+               last_error = null, updated_at = now()
+           where id = $1`,
+          [page.id],
+        );
+      }
     } catch (error) {
+      if (page && isInvalidMetaAccessTokenError(error)) {
+        await queryDb(
+          `update app_meta_pages
+           set token_status = 'invalid', last_validated_at = now(),
+               last_error = $2, updated_at = now()
+           where id = $1`,
+          [page.id, error instanceof Error ? error.message : 'Token de acesso inválido.'],
+        );
+      }
       leadFetchError =
         error instanceof Error
           ? `Não foi possível buscar os dados do lead na Meta: ${error.message}`

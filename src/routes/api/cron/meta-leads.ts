@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "node:crypto";
-import { recoverRecentMetaFormLeads } from "@/lib/server/meta-leads";
+import { recoverRecentMetaFormLeads, recoverStoredMetaEvents } from "@/lib/server/meta-leads";
 
 function isAuthorized(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
@@ -22,13 +22,26 @@ export const Route = createFileRoute("/api/cron/meta-leads")({
           return Response.json({ ok: false, error: "Não autorizado." }, { status: 401 });
         }
 
-        // A janela maior evita perdas em indisponibilidades temporárias. A rotina
-        // deduplica pelo leadgen_id e só cria no CRM o que ainda estiver ausente.
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1_000).toISOString();
+        // Evento recebido sem field_data durante falha de token fica salvo no banco.
+        // Primeiro retoma o backlog, depois varre a janela recente da Graph API.
+        const since = new Date(Date.now() - 48 * 60 * 60 * 1_000).toISOString();
 
         try {
-          const result = await recoverRecentMetaFormLeads(since);
-
+          const stored = await recoverStoredMetaEvents(80);
+          if (stored.authRequired) {
+            return Response.json(
+              { ok: false, error: "Token da Página Meta inválido. É necessário reconectar a Página.", stored },
+              { status: 503, headers: { "Cache-Control": "no-store" } },
+            );
+          }
+          const recent = await recoverRecentMetaFormLeads(since);
+          const result = { stored, recent };
+          if (recent.failed > 0 || stored.failed > 0) {
+            return Response.json(
+              { ok: false, error: "A recuperação de leads teve falhas parciais.", result },
+              { status: 503, headers: { "Cache-Control": "no-store" } },
+            );
+          }
           return Response.json(
             { ok: true, result },
             { headers: { "Cache-Control": "no-store" } },
