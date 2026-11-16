@@ -51,7 +51,6 @@ import {
   canViewMetaAds,
   getInitials,
   isDevRole,
-  isExecutiveRole,
   ROLE_LABELS,
 } from "@/lib/auth-types";
 import { cn } from "@/lib/utils";
@@ -121,10 +120,9 @@ export function AppSidebar() {
   const canSeeMetaAds = user ? canViewMetaAds(user.role) : false;
   const canSeeSalesAi = user ? canViewSalesAi(user.role) : false;
   const canManageLeadFilesArea = user ? canManageLeadFiles(user.role) : false;
-  const canSwitchUnit =
-    Boolean(
-      user && (isDevRole(user.role) || isExecutiveRole(user.role) || user.role === "MARKETING"),
-    ) && (session?.units.length ?? 0) > 1;
+  // The session already contains only units this user may access.
+  // Directors and other multi-unit users must be able to switch without logging out.
+  const canSwitchUnit = (session?.units.length ?? 0) > 1;
   const handleUnitChange = async (unitId: string) => {
     if (!unitId || unitId === activeUnit?.id) {
       return;

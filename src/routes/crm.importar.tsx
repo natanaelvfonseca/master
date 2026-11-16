@@ -156,6 +156,7 @@ export const Route = createFileRoute("/crm/importar")({
 function LeadImporter() {
   const { session } = useAuth();
   const unitId = session?.activeUnit?.id ?? "";
+  const userRole = session?.user.role;
   const [parsed, setParsed] = React.useState<ParsedCsv | null>(null);
   const [fileName, setFileName] = React.useState("");
   const [mapping, setMapping] = React.useState<Array<TargetField>>([]);
@@ -179,12 +180,28 @@ function LeadImporter() {
   } | null>(null);
 
   React.useEffect(() => {
-    if (!unitId || session?.user.role !== "DEV") {
+    // Keep export filters and import selections scoped to the currently active unit.
+    setConsultants([]);
+    setOwners([]);
+    setCourses([]);
+    setTurmas([]);
+    setChannels([]);
+    setCourseId("");
+    setTurmaId("");
+    setSelected(new Set());
+    setExportFilters(emptyExportFilters());
+
+    if (!unitId || !userRole || !canManageLeadFiles(userRole)) {
       setLoading(false);
       return;
     }
+
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/crm/import?unitId=${encodeURIComponent(unitId)}`)
+    fetch(`/api/crm/import?unitId=${encodeURIComponent(unitId)}`, {
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
       .then((response) =>
         readJson<{
           consultants: Array<Consultant>;
@@ -195,17 +212,24 @@ function LeadImporter() {
         }>(response),
       )
       .then((data) => {
+        if (controller.signal.aborted) return;
         setConsultants(data.consultants);
         setOwners(data.owners);
         setCourses(data.courses);
         setTurmas(data.turmas);
         setChannels(data.channels);
       })
-      .catch((error) =>
-        toast.error(error instanceof Error ? error.message : "Falha ao carregar consultores."),
-      )
-      .finally(() => setLoading(false));
-  }, [session?.user.role, unitId]);
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          toast.error(error instanceof Error ? error.message : "Falha ao carregar filtros.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [unitId, userRole]);
 
   if (session && !canManageLeadFiles(session.user.role)) return <Navigate to="/crm" />;
 
