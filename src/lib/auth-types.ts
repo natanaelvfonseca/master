@@ -165,13 +165,7 @@ export function canManageMetaAds(role: UserRole) {
 }
 
 export function canManageLeadFiles(role: UserRole) {
-  return (
-    isDevRole(role) ||
-    isExecutiveRole(role) ||
-    role === "DIRETOR" ||
-    role === "GERENTE" ||
-    role === "MARKETING"
-  );
+  return role !== "CONSULTOR";
 }
 
 export function canViewAdRequests(role: UserRole) {

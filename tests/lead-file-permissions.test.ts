@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canManageLeadFiles, type UserRole } from "../src/lib/auth-types.ts";
+import { canManageLeadFiles, USER_ROLES } from "../src/lib/auth-types.ts";
 
-test("allows the requested roles to import and export leads", () => {
-  const allowed: Array<UserRole> = ["DEV", "CEO", "DIRETOR", "GERENTE", "MARKETING"];
-  allowed.forEach((role) => assert.equal(canManageLeadFiles(role), true, role));
+test("allows every role except consultants to import and export leads", () => {
+  USER_ROLES.forEach((role) => {
+    assert.equal(canManageLeadFiles(role), role !== "CONSULTOR", role);
+  });
 });
 
-test("keeps lead file management unavailable to other roles", () => {
-  const denied: Array<UserRole> = ["CVO", "CONSULTOR"];
-  denied.forEach((role) => assert.equal(canManageLeadFiles(role), false, role));
+test("keeps import and export unavailable to consultants", () => {
+  assert.equal(canManageLeadFiles("CONSULTOR"), false);
 });
